@@ -1,6 +1,6 @@
 {
-  "name": "Tagesbuch",
-  "short_name": "Tagesbuch",
+  "name": "Planner",
+  "short_name": "Planner",
   "description": "Gewicht, Sport, Aufgaben und eigene Tabs pro Tag.",
   "lang": "de",
   "start_url": "./index.html",
