@@ -170,6 +170,10 @@ svg.chart .pt { fill: var(--c-weight); }
 svg.chart .pt-end { fill: var(--c-weight); stroke: var(--surface); stroke-width: 2; }
 svg.chart .pt-sel { fill: none; stroke: var(--fg); stroke-width: 1.5; }
 svg.chart text.val { fill: var(--fg); font-weight: 600; }
+svg.chart .hit { fill: transparent; cursor: pointer; }
+svg.chart .tip-ring { fill: none; stroke: var(--fg); stroke-width: 1.5; }
+svg.chart .tip-box { fill: var(--surface); stroke: var(--line); stroke-width: 1; }
+svg.chart text.tip-txt { fill: var(--fg); font-weight: 600; }
 
 /* Ansichten */
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
@@ -1162,6 +1166,9 @@ button.wrow:hover { background: var(--surface-2); }
       if (last || ks.length <= 60) s += '<circle class="' + (last ? 'pt-end' : 'pt') + '" cx="' + X(k).toFixed(1) + '" cy="' + Y(days[k].weight).toFixed(1) + '" r="' + (last ? 5 : 2.5) + '"/>';
       if (k === selected) s += '<circle class="pt-sel" cx="' + X(k).toFixed(1) + '" cy="' + Y(days[k].weight).toFixed(1) + '" r="8"/>';
     });
+    ks.forEach(function (k) {
+      s += '<circle class="hit" data-k="' + k + '" data-v="' + days[k].weight + '" cx="' + X(k).toFixed(1) + '" cy="' + Y(days[k].weight).toFixed(1) + '" r="13"/>';
+    });
     var lk = ks[ks.length - 1], ly = Y(days[lk].weight);
     s += '<text class="val" x="' + (W - R) + '" y="' + (ly < T + 8 ? ly + 18 : ly - 10).toFixed(1) + '" text-anchor="end">' + fmtKg(days[lk].weight) + ' kg</text>';
     s += '<text x="' + L + '" y="' + (H - 8) + '" text-anchor="start">' + shortDate(ks[0]) + '</text>';
@@ -1735,6 +1742,28 @@ button.wrow:hover { background: var(--surface-2); }
     if (connected()) setSync('Noch nicht abgeglichen', '');
     else setSync('Mit Drive verbinden: auf Aktualisieren tippen', '');
   }
+
+  /* ---------- Diagramm: Punkt antippen ---------- */
+  document.addEventListener('click', function (e) {
+    var svg = e.target.closest && e.target.closest('svg.chart');
+    if (!svg) return;
+    var old = svg.querySelector('g.tip'); if (old) old.remove();
+    var c = e.target.closest('circle.hit');
+    if (!c) return;
+    var k = c.dataset.k, v = Number(c.dataset.v), d = parseKey(k);
+    var txt = WDLONG[d.getDay()].slice(0, 2) + ', ' + d.getDate() + '. ' + MON_SHORT[d.getMonth()] + ' ' + d.getFullYear() + ' · ' + fmtKg(v) + ' kg';
+    var vb = svg.viewBox.baseVal, cx = Number(c.getAttribute('cx')), cy = Number(c.getAttribute('cy'));
+    var w = txt.length * 5.6 + 14, hgt = 20;
+    var x = Math.max(2, Math.min(vb.width - w - 2, cx - w / 2));
+    var y = cy - hgt - 12 < 2 ? cy + 14 : cy - hgt - 12;
+    var NS = 'http://www.w3.org/2000/svg', g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'tip');
+    function mk(tag, attrs, text) { var n = document.createElementNS(NS, tag); Object.keys(attrs).forEach(function (a) { n.setAttribute(a, attrs[a]); }); if (text) n.textContent = text; return n; }
+    g.appendChild(mk('circle', { 'class': 'tip-ring', cx: cx, cy: cy, r: 8 }));
+    g.appendChild(mk('rect', { 'class': 'tip-box', x: x, y: y, width: w, height: hgt, rx: 5 }));
+    g.appendChild(mk('text', { 'class': 'tip-txt', x: x + w / 2, y: y + 13.5, 'text-anchor': 'middle' }, txt));
+    svg.appendChild(g);
+  });
 
   /* ---------- Start ---------- */
   renderAll();
