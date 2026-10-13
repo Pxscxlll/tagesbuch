@@ -148,6 +148,8 @@ input:disabled, textarea:disabled, button:disabled { opacity: 0.55; cursor: not-
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: 0.88rem; }
 .chip:hover { background: var(--surface-2); }
+.chip-x { padding: 4px 9px; margin-left: -4px; color: var(--muted); }
+.chip-x:hover { color: var(--danger); }
 
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .list li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; }
@@ -353,6 +355,8 @@ button.wrow:hover { background: var(--surface-2); }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
   var wImportMsg = null;
+  var customSports = [], addingSport = false;
+  try { var csr = localStorage.getItem('tagesbuch:csports'); if (csr) customSports = normSports(JSON.parse(csr)); } catch (e) {}
   var aboOpen = false, aboMsg = null, delAsk = null, updId = null;
   var aboQ = {};
   var GSERVER = 'Google Calendar';
@@ -1233,6 +1237,19 @@ button.wrow:hover { background: var(--surface-2); }
     elPanel.innerHTML = h;
   }
 
+  function normSports(arr) {
+    var seen = {};
+    return (Array.isArray(arr) ? arr : []).map(function (s) { return typeof s === 'string' ? s.trim().slice(0, 30) : ''; })
+      .filter(function (s) { var k = s.toLowerCase(); if (!s || seen[k]) return false; seen[k] = 1; return true; }).slice(0, 20);
+  }
+  function saveSports() {
+    try { localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); } catch (e) {}
+    touchSports();
+  }
+  function allSports() {
+    var base = SPORTS.slice(0, 6), low = base.map(function (s) { return s.toLowerCase(); });
+    return base.concat(customSports.filter(function (s) { return low.indexOf(s.toLowerCase()) < 0; }));
+  }
   function renderSport() {
     var d = days[selected] || blank();
     var h = '<form data-form="sport" novalidate class="panel">' +
@@ -1240,8 +1257,15 @@ button.wrow:hover { background: var(--surface-2); }
       '<div class="field"><label for="sportType">Sportart</label><input id="sportType" type="text" list="sportTypes" autocomplete="off" placeholder="z. B. Laufen"' + dis() + '></div>' +
       '<div class="field" style="flex-basis:90px"><label for="sportMin">Minuten</label><input id="sportMin" type="number" inputmode="numeric" min="1" max="1440" placeholder="45"' + dis() + '></div>' +
       '</div>' +
-      '<datalist id="sportTypes">' + SPORTS.map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
-      '<div class="chips" aria-label="Schnellauswahl">' + SPORTS.slice(0, 6).map(function (s) { return '<button type="button" class="chip" data-act="chip" data-v="' + esc(s) + '"' + dis() + '>' + esc(s) + '</button>'; }).join('') + '</div>' +
+      '<datalist id="sportTypes">' + SPORTS.concat(customSports).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
+      '<div class="chips" aria-label="Schnellauswahl">' + allSports().map(function (s) {
+        var own = SPORTS.slice(0, 6).indexOf(s) < 0;
+        return '<button type="button" class="chip" data-act="chip" data-v="' + esc(s) + '"' + dis() + '>' + esc(s) + '</button>' +
+          (own ? '<button type="button" class="chip chip-x" data-act="del-csport" data-v="' + esc(s) + '" aria-label="' + esc(s) + ' aus der Auswahl entfernen"' + dis() + '>×</button>' : '');
+      }).join('') + '<button type="button" class="chip" data-act="add-sport" aria-label="Eigene Sportart hinzufügen"' + dis() + '>+</button></div>' +
+      (addingSport ? '<div class="row" id="newSportRow"><div class="field"><label for="newSport">Neue Sportart</label><input id="newSport" type="text" maxlength="30" autocomplete="off" placeholder="z. B. Tischtennis"' + dis() + '></div>' +
+        '<button type="button" class="btn" data-act="save-sport"' + dis() + '>Speichern</button>' +
+        '<button type="button" class="btn ghost" data-act="cancel-sport">Abbrechen</button></div>' : '') +
       '<div class="field"><label for="sportNote">Details (optional)</label><input id="sportNote" type="text" autocomplete="off" placeholder="z. B. 5 km, Intervalle"' + dis() + '></div>' +
       '<div class="row"><button type="submit" class="btn"' + dis() + '>Hinzufügen</button></div>' +
       '<p class="err" id="sportErr" role="alert"></p></form>';
@@ -1479,7 +1503,22 @@ button.wrow:hover { background: var(--surface-2); }
       renderAll();
       return;
     }
-    if (act === 'chip') {
+    if (act === 'add-sport') {
+      addingSport = true; renderPanel();
+      var ns = $('#newSport'); if (ns) ns.focus();
+    } else if (act === 'cancel-sport') {
+      addingSport = false; renderPanel();
+    } else if (act === 'save-sport') {
+      var nv = ($('#newSport').value || '').trim().slice(0, 30);
+      if (!nv) { $('#newSport').focus(); return; }
+      var lowAll = allSports().concat(customSports).map(function (s) { return s.toLowerCase(); });
+      if (lowAll.indexOf(nv.toLowerCase()) < 0 && customSports.length < 20) { customSports.push(nv); saveSports(); }
+      addingSport = false; renderPanel();
+      $('#sportType').value = nv; $('#sportMin').focus();
+    } else if (act === 'del-csport') {
+      customSports = customSports.filter(function (s) { return s !== b.dataset.v; });
+      saveSports(); renderPanel();
+    } else if (act === 'chip') {
       $('#sportType').value = b.dataset.v;
       $('#sportMin').focus();
     } else if (act === 'del-weight' && d) {
@@ -1573,14 +1612,15 @@ button.wrow:hover { background: var(--surface-2); }
   var GCLIENT = '67815585819-na1pqnbgj6dg0fcp0flhccu6irdefgk0.apps.googleusercontent.com';
   var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
   var SYNC_FILE = 'tagesbuch.json';
-  var meta = { days: {}, abos: {}, tabs: 0 };
+  var meta = { days: {}, abos: {}, tabs: 0, sports: 0 };
   try {
     var mraw = localStorage.getItem('tagesbuch:meta');
-    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; }
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; }
   } catch (e) {}
   function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
   function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
   function touchAbo(id) { meta.abos[id] = Date.now(); saveMeta(); scheduleSync(); }
+  function touchSports() { meta.sports = Date.now(); saveMeta(); scheduleSync(); }
   function touchTabs() { meta.tabs = Date.now(); saveMeta(); scheduleSync(); }
 
   var elSyncBtn = $('#syncBtn'), elSyncInfo = $('#syncInfo');
@@ -1689,10 +1729,13 @@ button.wrow:hover { background: var(--surface-2); }
     var ltabs = meta.tabs || (customTabs.length ? 1 : 0), rtts = rt.t || 0;
     if (rtts > ltabs) { customTabs = normTabs(rt.v); meta.tabs = rtts; changed = true; }
     else if (ltabs > rtts) dirty = true;
+    var rs = remote.sports || { t: 0 }, lsp = meta.sports || (customSports.length ? 1 : 0), rst = rs.t || 0;
+    if (rst > lsp) { customSports = normSports(rs.v); meta.sports = rst; changed = true; }
+    else if (lsp > rst) dirty = true;
     return { changed: changed, dirty: dirty };
   }
   function buildPayload() {
-    var out = { v: 1, days: {}, abos: {}, tabs: { t: meta.tabs || (customTabs.length ? 1 : 0), v: customTabs } };
+    var out = { v: 1, days: {}, abos: {}, tabs: { t: meta.tabs || (customTabs.length ? 1 : 0), v: customTabs }, sports: { t: meta.sports || (customSports.length ? 1 : 0), v: customSports } };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
     Object.keys(keys).forEach(function (k) {
       var t = localTs(k); if (!t) return;
@@ -1707,7 +1750,7 @@ button.wrow:hover { background: var(--surface-2); }
   }
   function persistLocalAll() {
     saveLocal(); saveLocalAbos(); saveMeta();
-    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); } catch (e) {}
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); } catch (e) {}
   }
 
   function sync(interactive) {
