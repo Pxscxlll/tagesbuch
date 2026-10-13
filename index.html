@@ -245,6 +245,8 @@ button.wrow:hover { background: var(--surface-2); }
     <h1>Tagesbuch</h1>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
+      <span id="syncInfo" class="status" role="status" hidden></span>
+      <button type="button" class="text-btn" id="syncBtn" hidden>Aktualisieren</button>
       <button type="button" class="text-btn" id="aboBtn" aria-expanded="false" aria-controls="aboCard">Kalender-Abos</button>
     </div>
   </header>
@@ -378,7 +380,7 @@ button.wrow:hover { background: var(--surface-2); }
   function sportMinutes(d) { return d.sports.reduce(function (a, s) { return a + (Number(s.min) || 0); }, 0); }
 
   /* ---------- Speichern ---------- */
-  var STATUS = { load: 'Lädt …', saving: 'Speichert …', ok: 'Gespeichert', local: 'Nur in diesem Browser gespeichert', err: 'Speichern fehlgeschlagen' };
+  var STATUS = { load: 'Lädt …', saving: 'Speichert …', ok: 'Gespeichert', local: 'Auf diesem Gerät gespeichert', err: 'Speichern fehlgeschlagen' };
   function setStatus(kind) { elStatus.textContent = STATUS[kind]; elStatus.dataset.kind = kind; }
 
   function saveLocal() {
@@ -419,6 +421,7 @@ button.wrow:hover { background: var(--surface-2); }
     }
   }
   function commit(k, delay) {
+    touchDay(k);
     setStatus(mode === 'db' ? 'saving' : 'local');
     clearTimeout(timers[k]);
     timers[k] = setTimeout(function () { flush(k); }, delay == null ? 250 : delay);
@@ -724,6 +727,7 @@ button.wrow:hover { background: var(--surface-2); }
     }
   }
   function commitAbo(id) {
+    touchAbo(id);
     setStatus(mode === 'db' ? 'saving' : 'local');
     aboQ[id] = (aboQ[id] || Promise.resolve()).then(function () { return persistAbo(id); })
       .then(function () { setStatus(mode === 'db' ? 'ok' : 'local'); }, function () { setStatus('err'); });
@@ -1091,6 +1095,7 @@ button.wrow:hover { background: var(--surface-2); }
   }
 
   function savePrefs() {
+    touchTabs();
     if (mode === 'db' && pref) { pref.set({ gcal: gsel, tabs: customTabs }).catch(function () { setStatus('err'); }); }
     else { try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); } catch (e) {} }
   }
@@ -1461,6 +1466,181 @@ button.wrow:hover { background: var(--surface-2); }
     }
   });
 
+
+  /* ---------- Drive-Abgleich ---------- */
+  // Client-ID aus der Google Cloud Console (OAuth-Client "Web application").
+  var GCLIENT = '';
+  var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+  var SYNC_FILE = 'tagesbuch.json';
+  var meta = { days: {}, abos: {}, tabs: 0 };
+  try {
+    var mraw = localStorage.getItem('tagesbuch:meta');
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; }
+  } catch (e) {}
+  function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
+  function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
+  function touchAbo(id) { meta.abos[id] = Date.now(); saveMeta(); scheduleSync(); }
+  function touchTabs() { meta.tabs = Date.now(); saveMeta(); scheduleSync(); }
+
+  var elSyncBtn = $('#syncBtn'), elSyncInfo = $('#syncInfo');
+  var gTok = null, gTokExp = 0, gClient = null, gFileId = null, syncing = false, syncAgain = false, syncTimer = null, tokResolve = null;
+  function connected() { try { return localStorage.getItem('tagesbuch:gconn') === '1'; } catch (e) { return false; } }
+  function setSync(text, kind) {
+    elSyncInfo.hidden = !text; elSyncInfo.textContent = text || ''; elSyncInfo.dataset.kind = kind || '';
+  }
+  function hhmm() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function loadGsi() {
+    return new Promise(function (res, rej) {
+      if (window.google && google.accounts && google.accounts.oauth2) return res();
+      var s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+      s.onload = function () { res(); }; s.onerror = function () { rej(new Error('gsi')); };
+      document.head.appendChild(s);
+    });
+  }
+  function getToken(interactive) {
+    if (gTok && Date.now() < gTokExp - 60000) return Promise.resolve(gTok);
+    return loadGsi().then(function () {
+      return new Promise(function (res, rej) {
+        tokResolve = { res: res, rej: rej };
+        if (!gClient) {
+          gClient = google.accounts.oauth2.initTokenClient({
+            client_id: GCLIENT, scope: GSCOPE,
+            callback: function (r) {
+              var t = tokResolve; tokResolve = null; if (!t) return;
+              if (r && r.access_token) {
+                gTok = r.access_token; gTokExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
+                try { localStorage.setItem('tagesbuch:gconn', '1'); } catch (e) {}
+                t.res(gTok);
+              } else t.rej(new Error((r && r.error) || 'auth'));
+            },
+            error_callback: function (err) { var t = tokResolve; tokResolve = null; if (t) t.rej(new Error((err && err.type) || 'auth')); }
+          });
+        }
+        gClient.requestAccessToken({ prompt: interactive && !connected() ? 'consent' : '' });
+      });
+    });
+  }
+  function gfetch(url, opt) {
+    opt = opt || {}; opt.headers = Object.assign({ Authorization: 'Bearer ' + gTok }, opt.headers || {});
+    return fetch(url, opt).then(function (r) {
+      if (r.status === 401) { gTok = null; gTokExp = 0; }
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r;
+    });
+  }
+  function findFile() {
+    if (gFileId) return Promise.resolve(gFileId);
+    var q = encodeURIComponent("name='" + SYNC_FILE + "' and trashed=false");
+    return gfetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id)&q=' + q)
+      .then(function (r) { return r.json(); })
+      .then(function (j) { gFileId = j.files && j.files[0] ? j.files[0].id : null; return gFileId; });
+  }
+  function download(id) {
+    return gfetch('https://www.googleapis.com/drive/v3/files/' + id + '?alt=media').then(function (r) { return r.json(); });
+  }
+  function upload(payload) {
+    var body = JSON.stringify(payload);
+    if (gFileId) {
+      return gfetch('https://www.googleapis.com/upload/drive/v3/files/' + gFileId + '?uploadType=media',
+        { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: body });
+    }
+    var bd = 'tb' + Math.random().toString(36).slice(2);
+    var multi = '--' + bd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
+      JSON.stringify({ name: SYNC_FILE, parents: ['appDataFolder'] }) +
+      '\r\n--' + bd + '\r\nContent-Type: application/json\r\n\r\n' + body + '\r\n--' + bd + '--';
+    return gfetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+      { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + bd }, body: multi })
+      .then(function (r) { return r.json(); }).then(function (j) { gFileId = j.id; });
+  }
+
+  // Zusammenführen: pro Tag, pro Abo und für die Tab-Liste gewinnt der jüngere Stand.
+  function localTs(k) { return meta.days[k] || (days[k] && !isEmpty(days[k]) ? 1 : 0); }
+  function merge(remote) {
+    remote = remote && typeof remote === 'object' ? remote : {};
+    var rd = remote.days || {}, ra = remote.abos || {}, rt = remote.tabs || { t: 0 };
+    var changed = false, dirty = false;
+    var keys = {}; Object.keys(rd).forEach(function (k) { keys[k] = 1; });
+    Object.keys(days).forEach(function (k) { keys[k] = 1; });
+    Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
+    Object.keys(keys).forEach(function (k) {
+      var lt = localTs(k), r = rd[k], rts = r && r.t || 0;
+      if (rts > lt) {
+        days[k] = r.d ? norm(r.d) : blank(); meta.days[k] = rts; changed = true;
+      } else if (lt > rts) dirty = true;
+    });
+    var ak = {}; Object.keys(ra).forEach(function (k) { ak[k] = 1; });
+    Object.keys(abos).forEach(function (k) { ak[k] = 1; });
+    Object.keys(meta.abos).forEach(function (k) { ak[k] = 1; });
+    Object.keys(ak).forEach(function (id) {
+      var lt = meta.abos[id] || (abos[id] ? 1 : 0), r = ra[id], rts = r && r.t || 0;
+      if (rts > lt) {
+        if (r.d) abos[id] = normAbo(r.d); else delete abos[id];
+        meta.abos[id] = rts; changed = true;
+      } else if (lt > rts) dirty = true;
+    });
+    var ltabs = meta.tabs || (customTabs.length ? 1 : 0), rtts = rt.t || 0;
+    if (rtts > ltabs) { customTabs = normTabs(rt.v); meta.tabs = rtts; changed = true; }
+    else if (ltabs > rtts) dirty = true;
+    return { changed: changed, dirty: dirty };
+  }
+  function buildPayload() {
+    var out = { v: 1, days: {}, abos: {}, tabs: { t: meta.tabs || (customTabs.length ? 1 : 0), v: customTabs } };
+    var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
+    Object.keys(keys).forEach(function (k) {
+      var t = localTs(k); if (!t) return;
+      out.days[k] = { t: t, d: days[k] && !isEmpty(days[k]) ? days[k] : null };
+    });
+    var ak = {}; Object.keys(abos).forEach(function (k) { ak[k] = 1; }); Object.keys(meta.abos).forEach(function (k) { ak[k] = 1; });
+    Object.keys(ak).forEach(function (id) {
+      var t = meta.abos[id] || (abos[id] ? 1 : 0); if (!t) return;
+      out.abos[id] = { t: t, d: abos[id] || null };
+    });
+    return out;
+  }
+  function persistLocalAll() {
+    saveLocal(); saveLocalAbos(); saveMeta();
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); } catch (e) {}
+  }
+
+  function sync(interactive) {
+    if (!GCLIENT) { if (interactive) setSync('Drive ist noch nicht eingerichtet', 'err'); return Promise.resolve(); }
+    if (syncing) { syncAgain = true; return Promise.resolve(); }
+    syncing = true; elSyncBtn.disabled = true; setSync('Gleiche ab …', 'busy');
+    return getToken(interactive)
+      .then(function () { return findFile(); })
+      .then(function (id) { return id ? download(id) : null; })
+      .then(function (remote) {
+        var m = merge(remote);
+        if (m.changed) {
+          persistLocalAll(); rebuildEv(); renderAll();
+          if (aboOpen) renderAbos();
+        }
+        if (m.dirty || !gFileId) return upload(buildPayload());
+      })
+      .then(function () { setSync('Abgeglichen um ' + hhmm(), 'ok'); })
+      .catch(function () {
+        setSync(interactive ? 'Abgleich fehlgeschlagen. Zum Wiederholen tippen.' : 'Nicht abgeglichen. Tippe auf Aktualisieren.', 'err');
+      })
+      .then(function () {
+        syncing = false; elSyncBtn.disabled = false;
+        if (syncAgain) { syncAgain = false; scheduleSync(); }
+      });
+  }
+  function scheduleSync() {
+    if (!GCLIENT || !connected()) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(function () { sync(false); }, 4000);
+  }
+  elSyncBtn.addEventListener('click', function () { sync(true); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && GCLIENT && connected()) sync(false); });
+  window.addEventListener('online', function () { if (GCLIENT && connected()) sync(false); });
+  if (GCLIENT) {
+    elSyncBtn.hidden = false;
+    if (connected()) setSync('Noch nicht abgeglichen', '');
+    else setSync('Mit Drive verbinden: auf Aktualisieren tippen', '');
+  }
+
   /* ---------- Start ---------- */
   renderAll();
 
@@ -1495,6 +1675,7 @@ button.wrow:hover { background: var(--surface-2); }
     renderAll();
     loadTabs();
     gInit();
+    if (GCLIENT && connected()) sync(false);
   })();
 })();
 </script>
