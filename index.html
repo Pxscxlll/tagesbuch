@@ -347,6 +347,7 @@ button.wrow:hover { background: var(--surface-2); }
   var abos = {};        // id -> { name, updated, events: [{ id, date, time, end, title, loc, m }] }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
+  var wImportMsg = null;
   var aboOpen = false, aboMsg = null, delAsk = null, updId = null;
   var aboQ = {};
   var GSERVER = 'Google Calendar';
@@ -1168,6 +1169,24 @@ button.wrow:hover { background: var(--surface-2); }
     return s + '</svg>';
   }
 
+  function parseWeights(text) {
+    var items = [], bad = 0, yNow = new Date().getFullYear();
+    String(text || '').split(/\r?\n/).forEach(function (line) {
+      line = line.trim(); if (!line) return;
+      var m, y, mo, d, rest;
+      if ((m = line.match(/(\d{4})-(\d{1,2})-(\d{1,2})/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+      else if ((m = line.match(/(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})?/))) { d = +m[1]; mo = +m[2]; y = m[3] ? (m[3].length === 2 ? 2000 + +m[3] : +m[3]) : yNow; }
+      else { bad++; return; }
+      rest = line.replace(m[0], ' ');
+      var wm = rest.match(/(\d{2,3}(?:[.,]\d{1,2})?)/);
+      var dt = new Date(y, mo - 1, d);
+      if (!wm || dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) { bad++; return; }
+      var w = Math.round(parseFloat(wm[1].replace(',', '.')) * 10) / 10;
+      if (!isFinite(w) || w < 20 || w > 400) { bad++; return; }
+      items.push({ k: keyOf(dt), w: w });
+    });
+    return { items: items, bad: bad };
+  }
   function renderWeight() {
     var d = days[selected];
     var w = d && d.weight != null ? d.weight : null;
@@ -1191,6 +1210,14 @@ button.wrow:hover { background: var(--surface-2); }
       '</form><p class="err" id="weightErr" role="alert"></p>';
     if (info) h += '<p class="hint">' + esc(info) + '</p>';
     h += weightChart();
+    h += '<details class="abo"' + (wImportMsg ? ' open' : '') + '><summary>Mehrere Werte einfügen</summary>' +
+      '<form data-form="wimport" class="panel" novalidate style="margin-top:10px">' +
+      '<div class="field"><label for="wImportIn">Ein Wert pro Zeile</label>' +
+      '<textarea id="wImportIn" style="min-height:110px" placeholder="23.09.2026 58,1&#10;27.09.2026 57,8"' + dis() + '></textarea></div>' +
+      '<div class="row"><button type="submit" class="btn"' + dis() + '>Übernehmen</button></div>' +
+      '<p class="hint">Format: Datum und Gewicht, zum Beispiel „23.09.2026 58,1“ oder „2026-09-23 58.1“. Vorhandene Werte an diesen Tagen werden überschrieben.</p>' +
+      (wImportMsg ? '<p class="' + (wImportMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(wImportMsg.t) + '</p>' : '') +
+      '</form></details>';
     elPanel.innerHTML = h;
   }
 
@@ -1386,7 +1413,19 @@ button.wrow:hover { background: var(--surface-2); }
       renderAll();
       return;
     }
-    if (f === 'weight') {
+    if (f === 'wimport') {
+      var res = parseWeights($('#wImportIn').value), nOk = 0, nOver = 0;
+      res.items.forEach(function (it) {
+        var dd = days[it.k];
+        if (dd && dd.weight != null && dd.weight !== it.w) nOver++;
+        ensure(it.k).weight = it.w; commit(it.k); nOk++;
+      });
+      wImportMsg = nOk
+        ? { ok: !res.bad, t: nOk + (nOk === 1 ? ' Wert' : ' Werte') + ' übernommen' + (nOver ? ', davon ' + nOver + ' überschrieben' : '') + (res.bad ? '. ' + res.bad + (res.bad === 1 ? ' Zeile' : ' Zeilen') + ' nicht erkannt.' : '.') }
+        : { ok: false, t: 'Keine Werte erkannt. Schreibe pro Zeile ein Datum und ein Gewicht.' };
+      refreshAfterEdit(true);
+    } else if (f === 'weight') {
+      wImportMsg = null;
       var raw = $('#weightIn').value.trim().replace(',', '.');
       var err = $('#weightErr');
       if (raw === '') { err.textContent = 'Bitte ein Gewicht eingeben.'; return; }
