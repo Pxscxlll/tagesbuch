@@ -121,6 +121,7 @@ button.cell:hover { background: var(--surface-2); }
 .tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
 .tab.add { flex: 0 0 auto; padding: 8px 12px; }
 .wk-tabs { margin: 0 0 10px; }
+.grid[data-mode="week"] #tabs { display: none; }
 .wk-ev { display: flex; flex-direction: column; gap: 2px; }
 .tab .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
@@ -539,9 +540,13 @@ button.wrow:hover { background: var(--surface-2); }
     var sv = s.sportDays ? s.sportDays + (s.sportDays === 1 ? ' Tag' : ' Tage') : '–';
     var ssub = s.sportDays ? (s.sportMin ? s.sportMin + ' min gesamt' : 'ohne Minuten') : '';
     var tv = s.total ? s.done + ' / ' + s.total : '–';
-    var chart = weightChart(s.wKeys);
-    return '<dl class="stats">' + stat('Gewicht Ø', avg == null ? '–' : fmtKg(avg) + ' kg', wsub) +
-      stat('Sport', sv, ssub) + stat('Aufgaben', tv, s.total ? 'erledigt' : '') + '</dl>' +
+    var ctx = vmode === 'year' ? 'all' : tab;
+    var chart = ctx === 'all' || ctx === 'weight' ? weightChart(s.wKeys) : '';
+    var cards = '';
+    if (ctx === 'all' || ctx === 'weight') cards += stat('Gewicht Ø', avg == null ? '–' : fmtKg(avg) + ' kg', wsub);
+    if (ctx === 'all' || ctx === 'sport') cards += stat('Sport', sv, ssub);
+    if (ctx === 'all' || ctx === 'tasks') cards += stat('Aufgaben', tv, s.total ? 'erledigt' : '');
+    return (cards ? '<dl class="stats">' + cards + '</dl>' : '') +
       (chart ? '<div class="chart-wrap"><span class="label">Gewichtsverlauf</span>' + chart + '</div>' : '');
   }
 
@@ -1216,7 +1221,7 @@ button.wrow:hover { background: var(--surface-2); }
       (w != null ? '<button type="button" class="btn ghost" data-act="del-weight"' + dis() + '>Entfernen</button>' : '') +
       '</form><p class="err" id="weightErr" role="alert"></p>';
     if (info) h += '<p class="hint">' + esc(info) + '</p>';
-    h += weightChart();
+    if (vmode === 'day') h += weightChart();
     h += '<details class="abo"' + (wImportMsg ? ' open' : '') + '><summary>Mehrere Werte einfügen</summary>' +
       '<form data-form="wimport" class="panel" novalidate style="margin-top:10px">' +
       '<div class="field"><label for="wImportIn">Ein Wert pro Zeile</label>' +
@@ -1401,7 +1406,7 @@ button.wrow:hover { background: var(--surface-2); }
     tab = b.dataset.tab; wtab = tab;
     try { localStorage.setItem('tagesbuch:tab', tab); localStorage.setItem('tagesbuch:wtab', wtab); } catch (err) {}
     renderTabs(); renderPanel(); renderEvents();
-    if (vmode === 'week') renderCal();
+    renderCal();
   });
 
   elPanel.addEventListener('submit', function (e) {
