@@ -148,7 +148,10 @@ input:disabled, textarea:disabled, button:disabled { opacity: 0.55; cursor: not-
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 12px; font-size: 0.88rem; }
 .chip:hover { background: var(--surface-2); }
-.chip-x { padding: 4px 9px; margin-left: -4px; color: var(--muted); }
+.chipg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.chipg .chip { border: 0; border-radius: 0; }
+.chip-x { padding: 4px 10px; color: var(--muted); }
+.chipg .chip-x { border-left: 1px solid var(--line); }
 .chip-x:hover { color: var(--danger); }
 
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -332,7 +335,7 @@ button.wrow:hover { background: var(--surface-2); }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 15</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 16</p>
 </main>
 
 <script>
@@ -380,7 +383,14 @@ button.wrow:hover { background: var(--surface-2); }
   var acol = null;
   var wImportMsg = null;
   var customSports = [], addingSport = false, sImportMsg = null;
-  try { var csr = localStorage.getItem('tagesbuch:csports'); if (csr) customSports = normSports(JSON.parse(csr)); } catch (e) {}
+  try { var csr = localStorage.getItem('tagesbuch:csports'); if (csr) customSports = JSON.parse(csr); } catch (e) {}
+  try {
+    if (localStorage.getItem('tagesbuch:sportsfull') !== '1') {
+      customSports = SPORTS.slice(0, 6).concat(Array.isArray(customSports) ? customSports : []);
+      localStorage.setItem('tagesbuch:sportsfull', '1');
+      localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports));
+    }
+  } catch (e) { customSports = SPORTS.slice(0, 6).concat(Array.isArray(customSports) ? customSports : []); }
   var aboOpen = false, aboMsg = null, delAsk = null, updId = null;
   var aboQ = {};
   var GSERVER = 'Google Calendar';
@@ -1281,16 +1291,13 @@ button.wrow:hover { background: var(--surface-2); }
   function normSports(arr) {
     var seen = {};
     return (Array.isArray(arr) ? arr : []).map(function (s) { return typeof s === 'string' ? s.trim().slice(0, 30) : ''; })
-      .filter(function (s) { var k = s.toLowerCase(); if (!s || seen[k]) return false; seen[k] = 1; return true; }).slice(0, 20);
+      .filter(function (s) { var k = s.toLowerCase(); if (!s || seen[k]) return false; seen[k] = 1; return true; }).slice(0, 30);
   }
   function saveSports() {
     try { localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); } catch (e) {}
     touchSports();
   }
-  function allSports() {
-    var base = SPORTS.slice(0, 6), low = base.map(function (s) { return s.toLowerCase(); });
-    return base.concat(customSports.filter(function (s) { return low.indexOf(s.toLowerCase()) < 0; }));
-  }
+  function allSports() { customSports = normSports(customSports); return customSports.slice(); }
   function renderSport() {
     var d = days[selected] || blank();
     var h = '<form data-form="sport" novalidate class="panel">' +
@@ -1298,11 +1305,10 @@ button.wrow:hover { background: var(--surface-2); }
       '<div class="field"><label for="sportType">Sportart</label><input id="sportType" type="text" list="sportTypes" autocomplete="off" placeholder="z. B. Laufen"' + dis() + '></div>' +
       '<div class="field" style="flex-basis:90px"><label for="sportMin">Minuten</label><input id="sportMin" type="number" inputmode="numeric" min="1" max="1440" placeholder="45"' + dis() + '></div>' +
       '</div>' +
-      '<datalist id="sportTypes">' + SPORTS.concat(customSports).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
+      '<datalist id="sportTypes">' + allSports().map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
       '<div class="chips" aria-label="Schnellauswahl">' + allSports().map(function (s) {
-        var own = SPORTS.slice(0, 6).indexOf(s) < 0;
-        return '<button type="button" class="chip" data-act="chip" data-v="' + esc(s) + '"' + dis() + '>' + esc(s) + '</button>' +
-          (own ? '<button type="button" class="chip chip-x" data-act="del-csport" data-v="' + esc(s) + '" aria-label="' + esc(s) + ' aus der Auswahl entfernen"' + dis() + '>×</button>' : '');
+        return '<span class="chipg"><button type="button" class="chip" data-act="chip" data-v="' + esc(s) + '"' + dis() + '>' + esc(s) + '</button>' +
+          '<button type="button" class="chip chip-x" data-act="del-csport" data-v="' + esc(s) + '" aria-label="' + esc(s) + ' aus der Auswahl entfernen"' + dis() + '>×</button></span>';
       }).join('') + '<button type="button" class="chip" data-act="add-sport" aria-label="Eigene Sportart hinzufügen"' + dis() + '>+</button></div>' +
       (addingSport ? '<div class="row" id="newSportRow"><div class="field"><label for="newSport">Neue Sportart</label><input id="newSport" type="text" maxlength="30" autocomplete="off" placeholder="z. B. Tischtennis"' + dis() + '></div>' +
         '<button type="button" class="btn" data-act="save-sport"' + dis() + '>Speichern</button>' +
@@ -1576,8 +1582,8 @@ button.wrow:hover { background: var(--surface-2); }
     } else if (act === 'save-sport') {
       var nv = ($('#newSport').value || '').trim().slice(0, 30);
       if (!nv) { $('#newSport').focus(); return; }
-      var lowAll = allSports().concat(customSports).map(function (s) { return s.toLowerCase(); });
-      if (lowAll.indexOf(nv.toLowerCase()) < 0 && customSports.length < 20) { customSports.push(nv); saveSports(); }
+      var lowAll = allSports().map(function (s) { return s.toLowerCase(); });
+      if (lowAll.indexOf(nv.toLowerCase()) < 0 && customSports.length < 30) { customSports.push(nv); saveSports(); }
       addingSport = false; renderPanel();
       $('#sportType').value = nv; $('#sportMin').focus();
     } else if (act === 'del-csport') {
@@ -1796,7 +1802,7 @@ button.wrow:hover { background: var(--surface-2); }
     if (rtts > ltabs) { customTabs = normTabs(rt.v); meta.tabs = rtts; changed = true; }
     else if (ltabs > rtts) dirty = true;
     var rs = remote.sports || { t: 0 }, lsp = meta.sports || (customSports.length ? 1 : 0), rst = rs.t || 0;
-    if (rst > lsp) { customSports = normSports(rs.v); meta.sports = rst; changed = true; }
+    if (rst > lsp) { customSports = normSports(rs.full ? rs.v : SPORTS.slice(0, 6).concat(rs.v || [])); meta.sports = rst; changed = true; }
     else if (lsp > rst) dirty = true;
     var rg = remote.gcal || { t: 0 }, lg = meta.gcal || (gsel ? 1 : 0), rgt = rg.t || 0;
     if (rgt > lg && Array.isArray(rg.v)) {
@@ -1806,7 +1812,7 @@ button.wrow:hover { background: var(--surface-2); }
     return { changed: changed, dirty: dirty };
   }
   function buildPayload() {
-    var out = { v: 1, days: {}, abos: {}, tabs: { t: meta.tabs || (customTabs.length ? 1 : 0), v: customTabs }, sports: { t: meta.sports || (customSports.length ? 1 : 0), v: customSports } };
+    var out = { v: 1, days: {}, abos: {}, tabs: { t: meta.tabs || (customTabs.length ? 1 : 0), v: customTabs }, sports: { t: meta.sports || 1, v: customSports, full: true } };
     if (gsel) out.gcal = { t: meta.gcal || 1, v: gsel };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
     Object.keys(keys).forEach(function (k) {
