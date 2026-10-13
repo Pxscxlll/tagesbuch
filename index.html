@@ -221,7 +221,8 @@ button.wrow:hover { background: var(--surface-2); }
 .dot.e { background: var(--c-event); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .top-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.events { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.events { display: flex; flex-direction: column; gap: 8px; }
+.events + .panel:empty { display: none; }
 .events h3 { font-family: var(--font-body); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
 .ev { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
 .ev .t { font-variant-numeric: tabular-nums; color: var(--c-event); font-weight: 600; flex: none; }
@@ -296,8 +297,8 @@ button.wrow:hover { background: var(--surface-2); }
         <h2 id="dayLabel"></h2>
         <p class="day-sub" id="daySub"></p>
       </div>
-      <div class="events" id="events" hidden></div>
       <div class="tabs" id="tabs" role="tablist"></div>
+      <div class="events" id="events" hidden></div>
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
@@ -310,7 +311,7 @@ button.wrow:hover { background: var(--surface-2); }
   var MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   var WDLONG = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
   var SPORTS = ['Laufen','Radfahren','Krafttraining','Schwimmen','Yoga','Wandern','Fußball','Klettern','Gehen'];
-  var TABS = [['weight','Gewicht'],['sport','Sport'],['tasks','Aufgaben'],['note','Notiz']];
+  var TABS = [['events','Termine'],['weight','Gewicht'],['sport','Sport'],['tasks','Aufgaben'],['note','Notiz']];
 
   function pad(n) { return String(n).padStart(2, '0'); }
   function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
@@ -328,7 +329,7 @@ button.wrow:hover { background: var(--surface-2); }
   var todayKey = keyOf(new Date());
   var selected = todayKey;
   var viewDate = new Date(parseKey(todayKey).getFullYear(), parseKey(todayKey).getMonth(), 1);
-  var tab = 'weight';
+  var tab = 'events';
   try { var savedTab = localStorage.getItem('tagesbuch:tab'); if (savedTab && (TABS.some(function (t) { return t[0] === savedTab; }) || /^c_/.test(savedTab))) tab = savedTab; } catch (e) {}
   var customTabs = [], addingTab = false, delTabAsk = false;
   var wtab = 'events';
@@ -574,9 +575,9 @@ button.wrow:hover { background: var(--surface-2); }
     if (wtab !== 'events' && !tabExists(wtab)) wtab = 'events';
     var r = range('week');
     var h = '<div class="tabs wk-tabs" role="tablist" aria-label="Wochenansicht">' +
-      [['events', 'Termine']].concat(allTabs()).map(function (t) {
+      allTabs().map(function (t) {
         return '<button type="button" role="tab" class="tab" data-wt="' + esc(t[0]) + '" aria-selected="' + (wtab === t[0]) + '">' + esc(t[1]) + '</button>';
-      }).join('') + '</div><div class="week">';
+      }).join('') + '<button type="button" class="tab add" data-act="add-tab" aria-label="Eigenen Tab hinzufügen">+</button></div><div class="week">';
     for (var i = 0; i < 7; i++) {
       var k = addDays(r[0], i), dd = parseKey(k), w = weekParts(k, wtab);
       h += '<button type="button" class="wrow' + (k === selected ? ' sel' : '') + (k === todayKey ? ' today' : '') + '" data-k="' + k + '" aria-pressed="' + (k === selected) + '">' +
@@ -679,6 +680,7 @@ button.wrow:hover { background: var(--surface-2); }
     elDayLabel.textContent = WDLONG[d.getDay()] + ', ' + d.getDate() + '. ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + (selected === todayKey ? ' (heute)' : '');
     elDaySub.textContent = summary(selected);
     renderEvents();
+    if (tab === 'events' && !addingTab) renderPanel();
   }
 
   /* ---------- Kalender-Abos (ICS) ---------- */
@@ -844,9 +846,9 @@ button.wrow:hover { background: var(--surface-2); }
 
   function renderEvents() {
     var el = $('#events'), list = evIdx[selected] || [];
-    if (!list.length) { el.hidden = true; el.innerHTML = ''; return; }
+    if (tab !== 'events' || addingTab || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
     el.hidden = false;
-    el.innerHTML = '<h3>Termine</h3>' + list.map(function (x) {
+    el.innerHTML = list.map(function (x) {
       var e = x.e, t = e.time ? e.time + (e.end ? '–' + e.end : '') : 'ganztägig';
       return '<div class="ev"><span class="t">' + esc(t) + '</span><span class="x">' + esc(e.title) +
         '<small>' + esc(x.abo) + (e.loc ? ' · ' + esc(e.loc) : '') + (e.desc ? ' · ' + esc(e.desc) : '') + '</small></span>' +
@@ -1088,9 +1090,9 @@ button.wrow:hover { background: var(--surface-2); }
   }
 
   /* ---------- Tabs ---------- */
-  function hasData(t) { return dayHas(days[selected], t); }
+  function hasData(t) { if (t === 'events') return !!(evIdx[selected] && evIdx[selected].length); return dayHas(days[selected], t); }
   function renderTabs() {
-    if (!tabExists(tab)) tab = 'weight';
+    if (!tabExists(tab)) tab = 'events';
     elTabs.innerHTML = allTabs().map(function (t) {
       return '<button type="button" role="tab" class="tab" data-tab="' + esc(t[0]) + '" aria-selected="' + (!addingTab && tab === t[0]) + '">' +
         esc(t[1]) + (hasData(t[0]) ? '<i class="mark" aria-hidden="true"></i>' : '') + '</button>';
@@ -1256,6 +1258,7 @@ button.wrow:hover { background: var(--surface-2); }
 
   function renderPanel() {
     if (addingTab) renderAddTab();
+    else if (tab === 'events') elPanel.innerHTML = (evIdx[selected] || []).length ? '' : '<p class="hint">Keine Termine an diesem Tag.</p>';
     else if (/^c_/.test(tab)) renderCustom();
     else if (tab === 'weight') renderWeight();
     else if (tab === 'sport') renderSport();
@@ -1282,11 +1285,13 @@ button.wrow:hover { background: var(--surface-2); }
     if (b) setVMode(b.dataset.vm);
   });
   $('#weekView').addEventListener('click', function (e) {
+    var ab = e.target.closest('button[data-act="add-tab"]');
+    if (ab) { addingTab = true; delTabAsk = false; renderTabs(); renderPanel(); renderEvents(); return; }
     var wb = e.target.closest('button[data-wt]');
     if (wb) {
-      wtab = wb.dataset.wt;
-      try { localStorage.setItem('tagesbuch:wtab', wtab); } catch (err) {}
-      renderCal();
+      wtab = wb.dataset.wt; tab = wtab; addingTab = false; delTabAsk = false;
+      try { localStorage.setItem('tagesbuch:wtab', wtab); localStorage.setItem('tagesbuch:tab', tab); } catch (err) {}
+      renderCal(); renderTabs(); renderPanel(); renderEvents();
       return;
     }
     var b = e.target.closest('button[data-k]');
@@ -1355,13 +1360,14 @@ button.wrow:hover { background: var(--surface-2); }
   });
   elTabs.addEventListener('click', function (e) {
     var ab = e.target.closest('button[data-act="add-tab"]');
-    if (ab) { addingTab = true; delTabAsk = false; renderTabs(); renderPanel(); return; }
+    if (ab) { addingTab = true; delTabAsk = false; renderTabs(); renderPanel(); renderEvents(); return; }
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
     addingTab = false; delTabAsk = false;
-    tab = b.dataset.tab;
-    try { localStorage.setItem('tagesbuch:tab', tab); } catch (err) {}
-    renderTabs(); renderPanel();
+    tab = b.dataset.tab; wtab = tab;
+    try { localStorage.setItem('tagesbuch:tab', tab); localStorage.setItem('tagesbuch:wtab', wtab); } catch (err) {}
+    renderTabs(); renderPanel(); renderEvents();
+    if (vmode === 'week') renderCal();
   });
 
   elPanel.addEventListener('submit', function (e) {
@@ -1375,7 +1381,7 @@ button.wrow:hover { background: var(--surface-2); }
       if (customTabs.length >= 12) return;
       var nt2 = { id: uid(), name: nm };
       customTabs.push(nt2); savePrefs();
-      addingTab = false; tab = 'c_' + nt2.id;
+      addingTab = false; tab = 'c_' + nt2.id; wtab = tab;
       try { localStorage.setItem('tagesbuch:tab', tab); } catch (err) {}
       renderAll();
       return;
@@ -1412,13 +1418,13 @@ button.wrow:hover { background: var(--surface-2); }
     var b = e.target.closest('[data-act]');
     if (!b || b.tagName === 'INPUT' || !ready) return;
     var act = b.dataset.act, d = days[selected];
-    if (act === 'cancel-tab') { addingTab = false; renderTabs(); renderPanel(); return; }
+    if (act === 'cancel-tab') { addingTab = false; renderTabs(); renderPanel(); renderEvents(); return; }
     if (act === 'tab-del-ask') { delTabAsk = true; renderPanel(); return; }
     if (act === 'tab-del-no') { delTabAsk = false; renderPanel(); return; }
     if (act === 'tab-del-yes') {
       var cid = tab.slice(2);
       customTabs = customTabs.filter(function (x) { return x.id !== cid; });
-      savePrefs(); delTabAsk = false; tab = 'weight'; wtab = wtab === 'c_' + cid ? 'events' : wtab;
+      savePrefs(); delTabAsk = false; tab = 'events'; wtab = 'events';
       renderAll();
       return;
     }
