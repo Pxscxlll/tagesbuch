@@ -921,6 +921,8 @@ button.wrow:hover { background: var(--surface-2); }
   }
   function gErrMsg(e) {
     var c = e && e.code;
+    if (c === 'needs_reauth' && GCLIENT) return 'Zum Laden der Termine auf Aktualisieren tippen.';
+    if (c === 'forbidden') return 'Kein Zugriff auf Google Kalender. Tippe auf Aktualisieren und erlaube den Kalender, und prüfe in der Cloud Console, ob die Kalender-API aktiv ist.';
     if (c === 'server_not_connected') return 'Google Kalender ist nicht verbunden. Füge den Konnektor in den Claude-Einstellungen unter Konnektoren hinzu.';
     if (c === 'needs_reauth') return 'Die Verbindung zu Google Kalender ist abgelaufen. Verbinde sie in den Claude-Einstellungen unter Konnektoren neu.';
     if (c === 'not_in_manifest' || c === 'consent_required') return 'Der Zugriff auf Google Kalender ist für diese Seite nicht erlaubt. Du kannst ihn im Berechtigungsmenü der Seite freigeben.';
@@ -1008,6 +1010,7 @@ button.wrow:hover { background: var(--surface-2); }
     var bad = errs.filter(Boolean)[0];
     if (bad) { gState = 'err'; gErrText = gErrMsg(bad); }
     else if (!gLoading) gState = 'idle';
+    if (!bad) gCacheSave();
     renderG();
     rebuildEv(); renderCal(); renderHead();
   }
@@ -1467,10 +1470,51 @@ button.wrow:hover { background: var(--surface-2); }
   });
 
 
+
+  /* ---------- Google Kalender über die REST-API (für die installierte App) ---------- */
+  function calErr(code) { var e = new Error(code); e.code = code; return e; }
+  function makeCalShim() {
+    function api(path) {
+      return getToken(false).catch(function () { throw calErr('needs_reauth'); }).then(function (tok) {
+        return fetch('https://www.googleapis.com/calendar/v3/' + path, { headers: { Authorization: 'Bearer ' + tok } });
+      }).then(function (r) {
+        if (r.status === 401) { gTok = null; gTokExp = 0; throw calErr('needs_reauth'); }
+        if (r.status === 403 || r.status === 404) throw calErr('forbidden');
+        if (r.status === 429 || r.status >= 500) throw calErr('upstream_error');
+        if (!r.ok) throw calErr('unknown');
+        return r.json();
+      });
+    }
+    return {
+      callTool: function (server, tool, input) {
+        input = input || {};
+        if (tool === 'list_calendars') {
+          return api('users/me/calendarList?maxResults=' + (input.pageSize || 50) + '&fields=items(id,summary,summaryOverride)').then(function (j) {
+            return { payload: { calendars: (j.items || []).map(function (c) { return { id: c.id, summary: c.summaryOverride || c.summary || c.id }; }) } };
+          });
+        }
+        if (tool === 'list_events') {
+          var q = 'singleEvents=true&orderBy=startTime&maxResults=' + (input.pageSize || 250) +
+            '&timeMin=' + encodeURIComponent(new Date(input.startTime).toISOString()) +
+            '&timeMax=' + encodeURIComponent(new Date(input.endTime).toISOString()) +
+            (input.pageToken ? '&pageToken=' + encodeURIComponent(input.pageToken) : '');
+          return api('calendars/' + encodeURIComponent(input.calendarId || 'primary') + '/events?' + q).then(function (j) {
+            return { payload: { events: j.items || [], nextPageToken: j.nextPageToken || null } };
+          });
+        }
+        return Promise.reject(calErr('unknown'));
+      }
+    };
+  }
+  function gCacheSave() { try { localStorage.setItem('tagesbuch:gcache', JSON.stringify(gStore)); } catch (e) {} }
+  function gCacheLoad() {
+    try { var raw = localStorage.getItem('tagesbuch:gcache'); if (raw) { var o = JSON.parse(raw); if (o && typeof o === 'object') gStore = o; } } catch (e) {}
+  }
+
   /* ---------- Drive-Abgleich ---------- */
   // Client-ID aus der Google Cloud Console (OAuth-Client "Web application").
   var GCLIENT = '67815585819-na1pqnbgj6dg0fcp0flhccu6irdefgk0.apps.googleusercontent.com';
-  var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+  var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
   var SYNC_FILE = 'tagesbuch.json';
   var meta = { days: {}, abos: {}, tabs: 0 };
   try {
@@ -1484,7 +1528,7 @@ button.wrow:hover { background: var(--surface-2); }
 
   var elSyncBtn = $('#syncBtn'), elSyncInfo = $('#syncInfo');
   var gTok = null, gTokExp = 0, gClient = null, gFileId = null, syncing = false, syncAgain = false, syncTimer = null, tokResolve = null;
-  function connected() { try { return localStorage.getItem('tagesbuch:gconn') === '1'; } catch (e) { return false; } }
+  function connected() { try { return localStorage.getItem('tagesbuch:gconn2') === '1'; } catch (e) { return false; } }
   function setSync(text, kind) {
     elSyncInfo.hidden = !text; elSyncInfo.textContent = text || ''; elSyncInfo.dataset.kind = kind || '';
   }
@@ -1498,8 +1542,14 @@ button.wrow:hover { background: var(--surface-2); }
       document.head.appendChild(s);
     });
   }
+  var gTokP = null;
   function getToken(interactive) {
     if (gTok && Date.now() < gTokExp - 60000) return Promise.resolve(gTok);
+    if (gTokP) return gTokP;
+    gTokP = getToken2(interactive).then(function (v) { gTokP = null; return v; }, function (e) { gTokP = null; throw e; });
+    return gTokP;
+  }
+  function getToken2(interactive) {
     return loadGsi().then(function () {
       return new Promise(function (res, rej) {
         tokResolve = { res: res, rej: rej };
@@ -1510,7 +1560,7 @@ button.wrow:hover { background: var(--surface-2); }
               var t = tokResolve; tokResolve = null; if (!t) return;
               if (r && r.access_token) {
                 gTok = r.access_token; gTokExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
-                try { localStorage.setItem('tagesbuch:gconn', '1'); } catch (e) {}
+                try { localStorage.setItem('tagesbuch:gconn2', '1'); } catch (e) {}
                 t.res(gTok);
               } else t.rej(new Error((r && r.error) || 'auth'));
             },
@@ -1618,7 +1668,7 @@ button.wrow:hover { background: var(--surface-2); }
         }
         if (m.dirty || !gFileId) return upload(buildPayload());
       })
-      .then(function () { setSync('Abgeglichen um ' + hhmm(), 'ok'); })
+      .then(function () { setSync('Abgeglichen um ' + hhmm(), 'ok'); if (gMcp) gEnsure(true); })
       .catch(function () {
         setSync(interactive ? 'Abgleich fehlgeschlagen. Zum Wiederholen tippen.' : 'Nicht abgeglichen. Tippe auf Aktualisieren.', 'err');
       })
@@ -1667,6 +1717,7 @@ button.wrow:hover { background: var(--surface-2); }
       } catch (e) { mode = null; }
     }
     mode = 'local';
+    if (!gMcp && GCLIENT) { gMcp = makeCalShim(); gCacheLoad(); }
     loadLocal();
     loadLocalAbos();
     rebuildEv();
