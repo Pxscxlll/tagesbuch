@@ -226,6 +226,7 @@ button.wrow:hover { background: var(--surface-2); }
 
 /* Kalender-Abos und Termine */
 .dot.e { background: var(--c-event); }
+.dot.c { background: var(--accent); opacity: 0.7; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .top-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .events { display: flex; flex-direction: column; gap: 8px; }
@@ -286,7 +287,7 @@ button.wrow:hover { background: var(--surface-2); }
       <div id="monthView">
       <div class="wd" aria-hidden="true"><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
       <div class="days" id="days"></div>
-      <ul class="legend">
+      <ul class="legend" id="legend">
         <li><i class="dot w"></i>Gewicht</li>
         <li><i class="dot s"></i>Sport</li>
         <li><i class="dot t"></i>Aufgaben erledigt</li>
@@ -309,6 +310,7 @@ button.wrow:hover { background: var(--surface-2); }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 14</p>
 </main>
 
 <script>
@@ -473,21 +475,23 @@ button.wrow:hover { background: var(--surface-2); }
       var k = y + '-' + pad(m + 1) + '-' + pad(d);
       var info = days[k];
       var dots = '', parts = [];
-      if (info && !isEmpty(info)) {
-        if (info.weight != null) { dots += '<i class="dot w"></i>'; parts.push('Gewicht'); }
-        if (info.sports.length) { dots += '<i class="dot s"></i>'; parts.push('Sport'); }
-        if (info.tasks.length) {
-          var open = info.tasks.filter(function (t) { return !t.done; }).length;
-          dots += '<i class="dot t' + (open ? ' open' : '') + '"></i>';
-          parts.push(open ? open + ' offene Aufgaben' : 'Aufgaben erledigt');
-        }
+      if (tab === 'weight' && info && info.weight != null) { dots += '<i class="dot w"></i>'; parts.push(fmtKg(info.weight) + ' kg'); }
+      else if (tab === 'sport' && info && info.sports.length) { dots += '<i class="dot s"></i>'; parts.push('Sport'); }
+      else if (tab === 'tasks' && info && info.tasks.length) {
+        var open = info.tasks.filter(function (t) { return !t.done; }).length;
+        dots += '<i class="dot t' + (open ? ' open' : '') + '"></i>';
+        parts.push(open ? open + ' offene Aufgaben' : 'Aufgaben erledigt');
       }
-      if (evIdx[k]) { dots += '<i class="dot e"></i>'; parts.push(evIdx[k].length + (evIdx[k].length === 1 ? ' Termin' : ' Termine')); }
+      else if (tab === 'events' && evIdx[k]) { dots += '<i class="dot e"></i>'; parts.push(evIdx[k].length + (evIdx[k].length === 1 ? ' Termin' : ' Termine')); }
+      else if ((tab === 'note' || /^c_/.test(tab)) && dayHas(info, tab)) { dots += '<i class="dot c"></i>'; parts.push('Eintrag'); }
       var cls = 'cell' + (k === selected ? ' sel' : '') + (k === todayKey ? ' today' : '');
       h += '<button type="button" class="' + cls + '" data-k="' + k + '" aria-pressed="' + (k === selected) + '" aria-label="' +
         d + '. ' + MONTHS[m] + (parts.length ? ', ' + parts.join(', ') : '') + '"><span class="n">' + d + '</span><span class="dots">' + dots + '</span></button>';
     }
     elDays.innerHTML = h;
+    var LEG = { events: '<li><i class="dot e"></i>Termine</li>', weight: '<li><i class="dot w"></i>Gewicht eingetragen</li>',
+      sport: '<li><i class="dot s"></i>Sport eingetragen</li>', tasks: '<li><i class="dot t"></i>Aufgaben erledigt</li><li><i class="dot t open"></i>Aufgaben offen</li>' };
+    $('#legend').innerHTML = LEG[tab] || '<li><i class="dot c"></i>Eintrag vorhanden</li>';
   }
 
   /* ---------- Ansichten: Tag, Woche, Monat, Jahr ---------- */
@@ -692,7 +696,7 @@ button.wrow:hover { background: var(--surface-2); }
   function renderHead() {
     var d = parseKey(selected);
     elDayLabel.textContent = WDLONG[d.getDay()] + ', ' + d.getDate() + '. ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + (selected === todayKey ? ' (heute)' : '');
-    elDaySub.textContent = summary(selected);
+    elDaySub.textContent = ''; elDaySub.hidden = true;
     renderEvents();
     if (tab === 'events' && !addingTab) renderPanel();
   }
@@ -1217,14 +1221,14 @@ button.wrow:hover { background: var(--surface-2); }
       }
     }
     var h = '';
-    if (w != null) h += '<div class="weight-big">' + fmtKg(w) + '<small>kg</small></div>';
+    if (w != null && vmode !== 'week') h += '<div class="weight-big">' + fmtKg(w) + '<small>kg</small></div>';
     h += '<form data-form="weight" class="row" novalidate>' +
       '<div class="field"><label for="weightIn">Gewicht in kg</label>' +
       '<input id="weightIn" type="text" inputmode="decimal" autocomplete="off" placeholder="z. B. 74,2" value="' + (w != null ? esc(String(w).replace('.', ',')) : '') + '"' + dis() + '></div>' +
       '<button type="submit" class="btn"' + dis() + '>Speichern</button>' +
       (w != null ? '<button type="button" class="btn ghost" data-act="del-weight"' + dis() + '>Entfernen</button>' : '') +
       '</form><p class="err" id="weightErr" role="alert"></p>';
-    if (info) h += '<p class="hint">' + esc(info) + '</p>';
+    if (info && vmode !== 'week') h += '<p class="hint">' + esc(info) + '</p>';
     if (vmode === 'day') h += weightChart();
     h += '<details class="abo"' + (wImportMsg ? ' open' : '') + '><summary>Mehrere Werte einfügen</summary>' +
       '<form data-form="wimport" class="panel" novalidate style="margin-top:10px">' +
