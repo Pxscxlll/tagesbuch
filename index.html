@@ -72,7 +72,7 @@ button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .app { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
 h1 { font-size: 1.7rem; letter-spacing: -0.01em; }
 h2 { font-size: 1.25rem; }
@@ -116,12 +116,12 @@ button.cell:hover { background: var(--surface-2); }
 /* Tagesmaske */
 .day-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
 .day-sub { margin: 0; color: var(--muted); font-size: 0.9rem; }
-.tabs { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; margin-bottom: 16px; }
-.tab { flex: 1 1 22%; min-width: 0; border: 0; background: transparent; border-radius: 7px; padding: 8px 4px; font-weight: 500; font-size: 0.92rem; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); }
+.tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { flex: 1 0 auto; white-space: nowrap; border: 0; background: transparent; border-radius: 7px; padding: 8px 4px; font-weight: 500; font-size: 0.92rem; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); }
 .tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
-.tab.add { flex: 0 0 auto; padding: 8px 12px; }
+.tab.add { flex: 0 0 auto; padding: 8px 14px; }
 .wk-tabs { margin: 0 0 10px; }
-.grid[data-mode="week"] #tabs { display: none; }
 .wk-ev { display: flex; flex-direction: column; gap: 2px; }
 .tab .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
@@ -179,7 +179,9 @@ svg.chart .tip-box { fill: var(--surface); stroke: var(--line); stroke-width: 1;
 svg.chart text.tip-txt { fill: var(--fg); font-weight: 600; }
 
 /* Ansichten */
-.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.sticky { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); margin-inline: -16px; padding: 8px 16px 10px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line); }
+.sticky[data-mode="year"] #tabs { display: none; }
 .modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; flex: 1 1 280px; max-width: 420px; }
 .mode { border: 0; background: transparent; border-radius: 7px; padding: 8px 4px; font-weight: 500; font-size: 0.92rem; color: var(--muted); }
 .mode[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
@@ -247,6 +249,24 @@ button.wrow:hover { background: var(--surface-2); }
 .gnote { margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+@media (max-width: 640px) {
+  body { padding-block: 10px 32px; }
+  .app { gap: 12px; }
+  h1 { font-size: 1.3rem; }
+  .card { padding: 12px; }
+  .mode, .tab { padding-block: 6px; }
+  .nav h2 { font-size: 1rem; }
+  .icon-btn { width: 34px; height: 34px; }
+  .text-btn { height: 34px; padding: 0 10px; }
+  .cell { min-height: 42px; padding: 4px 2px 3px; gap: 2px; }
+  .wrow { padding: 6px 8px; grid-template-columns: 56px minmax(0, 1fr); }
+  .wday { flex-direction: row; gap: 6px; align-items: baseline; }
+  .wday b { font-size: 1rem; }
+  .top-actions { gap: 6px; }
+  .top-actions .status { font-size: 0.75rem; }
+  .top-actions .text-btn { font-size: 0.85rem; padding: 0 9px; }
+  h1 { font-size: 1.2rem; }
+}
 </style>
 
 <main class="app">
@@ -256,10 +276,11 @@ button.wrow:hover { background: var(--surface-2); }
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
       <button type="button" class="text-btn" id="syncBtn" hidden>Aktualisieren</button>
-      <button type="button" class="text-btn" id="aboBtn" aria-expanded="false" aria-controls="aboCard">Kalender-Abos</button>
+      <button type="button" class="text-btn" id="aboBtn" aria-expanded="false" aria-controls="aboCard">Kalender</button>
     </div>
   </header>
 
+  <div class="sticky" id="toolbar" data-mode="month">
   <div class="bar">
     <div class="modes" id="modes" role="tablist" aria-label="Ansicht">
       <button type="button" class="mode" role="tab" data-vm="day" aria-selected="false">Tag</button>
@@ -273,6 +294,8 @@ button.wrow:hover { background: var(--surface-2); }
       <button type="button" class="icon-btn" id="prevBtn" aria-label="Zurück">‹</button>
       <button type="button" class="icon-btn" id="nextBtn" aria-label="Weiter">›</button>
     </div>
+  </div>
+  <div class="tabs" id="tabs" role="tablist" aria-label="Bereich"></div>
   </div>
 
   <p class="hint gnote" id="gNote" role="status" hidden></p>
@@ -301,16 +324,15 @@ button.wrow:hover { background: var(--surface-2); }
     </section>
 
     <section class="card" id="dayCard" aria-label="Tag">
-      <div class="day-head">
+      <div class="day-head" hidden>
         <h2 id="dayLabel"></h2>
         <p class="day-sub" id="daySub"></p>
       </div>
-      <div class="tabs" id="tabs" role="tablist"></div>
       <div class="events" id="events" hidden></div>
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 14</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 15</p>
 </main>
 
 <script>
@@ -394,7 +416,7 @@ button.wrow:hover { background: var(--surface-2); }
 
   /* ---------- Speichern ---------- */
   var STATUS = { load: 'Lädt …', saving: 'Speichert …', ok: 'Gespeichert', local: 'Auf diesem Gerät gespeichert', err: 'Speichern fehlgeschlagen' };
-  function setStatus(kind) { elStatus.textContent = STATUS[kind]; elStatus.dataset.kind = kind; }
+  function setStatus(kind) { elStatus.textContent = STATUS[kind]; elStatus.dataset.kind = kind; if (GCLIENT) elStatus.hidden = kind !== 'err'; }
 
   function saveLocal() {
     try {
@@ -590,12 +612,9 @@ button.wrow:hover { background: var(--surface-2); }
     return { p: p, none: '–' };
   }
   function renderWeek() {
-    if (wtab !== 'events' && !tabExists(wtab)) wtab = 'events';
+    wtab = tabExists(tab) ? tab : 'events';
     var r = range('week');
-    var h = '<div class="tabs wk-tabs" role="tablist" aria-label="Wochenansicht">' +
-      allTabs().map(function (t) {
-        return '<button type="button" role="tab" class="tab" data-wt="' + esc(t[0]) + '" aria-selected="' + (wtab === t[0]) + '">' + esc(t[1]) + '</button>';
-      }).join('') + '<button type="button" class="tab add" data-act="add-tab" aria-label="Eigenen Tab hinzufügen">+</button></div><div class="week">';
+    var h = '<div class="week">';
     for (var i = 0; i < 7; i++) {
       var k = addDays(r[0], i), dd = parseKey(k), w = weekParts(k, wtab);
       h += '<button type="button" class="wrow' + (k === selected ? ' sel' : '') + (k === todayKey ? ' today' : '') + '" data-k="' + k + '" aria-pressed="' + (k === selected) + '">' +
@@ -652,7 +671,7 @@ button.wrow:hover { background: var(--surface-2); }
   function renderCal() {
     var btns = document.querySelectorAll('#modes button');
     for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-selected', String(btns[i].dataset.vm === vmode));
-    $('#grid').dataset.mode = vmode;
+    $('#grid').dataset.mode = vmode; $('#toolbar').dataset.mode = vmode;
     $('#monthView').hidden = vmode !== 'month';
     $('#weekView').hidden = vmode !== 'week';
     $('#yearView').hidden = vmode !== 'year';
@@ -1821,7 +1840,7 @@ button.wrow:hover { background: var(--surface-2); }
         }
         if (m.dirty || !gFileId) return upload(buildPayload());
       })
-      .then(function () { setSync('Abgeglichen um ' + hhmm(), 'ok'); if (gMcp) gEnsure(true); })
+      .then(function () { setSync('Stand ' + hhmm(), 'ok'); if (gMcp) gEnsure(true); })
       .catch(function () {
         setSync(interactive ? 'Abgleich fehlgeschlagen. Zum Wiederholen tippen.' : 'Nicht abgeglichen. Tippe auf Aktualisieren.', 'err');
       })
@@ -1839,7 +1858,7 @@ button.wrow:hover { background: var(--surface-2); }
   document.addEventListener('visibilitychange', function () { if (!document.hidden && GCLIENT && connected()) sync(false); });
   window.addEventListener('online', function () { if (GCLIENT && connected()) sync(false); });
   if (GCLIENT) {
-    elSyncBtn.hidden = false;
+    elSyncBtn.hidden = false; elStatus.hidden = true;
     if (connected()) setSync('Noch nicht abgeglichen', '');
     else setSync('Mit Drive verbinden: auf Aktualisieren tippen', '');
   }
