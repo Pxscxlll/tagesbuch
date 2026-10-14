@@ -121,6 +121,9 @@ button.cell:hover { background: var(--surface-2); }
 .tab { flex: 1 0 auto; white-space: nowrap; border: 0; background: transparent; border-radius: 7px; padding: 8px 4px; font-weight: 500; font-size: 0.92rem; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); }
 .tab[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 0 0 1px var(--line); }
 .tab.add { flex: 0 0 auto; padding: 8px 14px; }
+.tab { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.tab.lifted { background: var(--surface); color: var(--fg); box-shadow: 0 4px 14px rgba(0,0,0,0.18), 0 0 0 2px var(--accent); transform: scale(1.06); position: relative; z-index: 2; }
+.tabs.reordering .tab:not(.lifted) { opacity: 0.75; }
 .wk-tabs { margin: 0 0 10px; }
 .wk-ev { display: flex; flex-direction: column; gap: 2px; }
 .tab .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
@@ -128,7 +131,7 @@ button.cell:hover { background: var(--surface-2); }
 .panel { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 label, .label { font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
-input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="file"], textarea {
+input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="file"], textarea, select {
   width: 100%; min-width: 0; font-size: 16px; padding: 10px 12px; border: 1px solid var(--line);
   background: var(--bg); border-radius: 8px;
 }
@@ -341,7 +344,7 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 19</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 20</p>
 </main>
 
 <script>
@@ -410,10 +413,19 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   var elDayLabel = $('#dayLabel'), elDaySub = $('#daySub'), elStatus = $('#status'), elAbo = $('#aboBody');
 
   /* ---------- Daten ---------- */
-  function blank() { return { weight: null, sports: [], tasks: [], note: '', custom: {}, evnotes: {} }; }
+  function blank() { return { weight: null, sports: [], tasks: [], note: '', custom: {}, evnotes: {}, checks: {} }; }
   function normCustom(c) {
     var o = {};
     if (c && typeof c === 'object') Object.keys(c).forEach(function (k) { if (typeof c[k] === 'string' && c[k].trim()) o[k] = c[k]; });
+    return o;
+  }
+  function normChecks(c) {
+    var o = {};
+    if (c && typeof c === 'object') Object.keys(c).forEach(function (t) {
+      var m = c[t], n = {};
+      if (m && typeof m === 'object') Object.keys(m).forEach(function (i) { if (m[i]) n[i] = 1; });
+      if (Object.keys(n).length) o[t] = n;
+    });
     return o;
   }
   function norm(d) {
@@ -424,10 +436,11 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       tasks: Array.isArray(d.tasks) ? d.tasks.filter(function (t) { return t && typeof t.text === 'string'; }) : [],
       note: typeof d.note === 'string' ? d.note : '',
       custom: normCustom(d.custom),
-      evnotes: normCustom(d.evnotes)
+      evnotes: normCustom(d.evnotes),
+      checks: normChecks(d.checks)
     };
   }
-  function isEmpty(d) { return d.weight == null && !d.sports.length && !d.tasks.length && !d.note.trim() && !Object.keys(d.custom || {}).length && !Object.keys(d.evnotes || {}).length; }
+  function isEmpty(d) { return d.weight == null && !d.sports.length && !d.tasks.length && !d.note.trim() && !Object.keys(d.custom || {}).length && !Object.keys(d.evnotes || {}).length && !Object.keys(d.checks || {}).length; }
   function ensure(k) { if (!days[k]) days[k] = blank(); return days[k]; }
   function sportMinutes(d) { return d.sports.reduce(function (a, s) { return a + (Number(s.min) || 0); }, 0); }
 
@@ -597,7 +610,18 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       (chart ? '<div class="chart-wrap"><span class="label">Gewichtsverlauf</span>' + chart + '</div>' : '');
   }
 
-  function allTabs() { return TABS.concat(customTabs.map(function (c) { return ['c_' + c.id, c.name]; })); }
+  var tabOrder = [];
+  try { var tor = JSON.parse(localStorage.getItem('tagesbuch:taborder') || '[]'); if (Array.isArray(tor)) tabOrder = tor.filter(function (x) { return typeof x === 'string'; }).slice(0, 40); } catch (e) {}
+  function allTabs() {
+    var list = TABS.concat(customTabs.map(function (c) { return ['c_' + c.id, c.name]; }));
+    if (!tabOrder.length) return list;
+    return list.map(function (t, i) { var o = tabOrder.indexOf(t[0]); return { t: t, o: o < 0 ? 1000 + i : o }; })
+      .sort(function (a, b) { return a.o - b.o; }).map(function (x) { return x.t; });
+  }
+  function saveTabOrder() {
+    try { localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); } catch (e) {}
+    meta.taborder = Date.now(); saveMeta(); scheduleSync();
+  }
   function tabExists(t) { return allTabs().some(function (x) { return x[0] === t; }); }
   function dayHas(d, t) {
     if (!d) return false;
@@ -605,7 +629,8 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
     if (t === 'sport') return d.sports.length > 0;
     if (t === 'tasks') return d.tasks.length > 0;
     if (t === 'note') return d.note.trim().length > 0;
-    return !!(d.custom && d.custom[t.slice(2)]);
+    var tid = t.slice(2);
+    return !!(d.custom && d.custom[tid]) || !!(d.checks && d.checks[tid]);
   }
   function snip(t) { t = t.replace(/\s+/g, ' ').trim(); return t.length > 70 ? t.slice(0, 70) + '…' : t; }
   function weekParts(k, t) {
@@ -615,6 +640,15 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
         p.push('<span><i class="dot e"></i>' + (x.e.time ? esc(x.e.time) + ' ' : '') + esc(x.e.title) + '</span>');
       });
       return { p: p, none: 'Keine Termine' };
+    }
+    if (/^c_/.test(t)) {
+      var tid = t.slice(2), due = dueItems(tid, k);
+      if (due.length) {
+        var dn = due.filter(function (it) { return isChecked(k, tid, it.id); }).length;
+        p.push('<span><i class="dot c"></i>' + dn + '/' + due.length + ' erledigt' + (dn === due.length ? ' ✓' : '') + '</span>');
+      }
+      if (d && d.custom && d.custom[tid]) p.push('<span>' + esc(snip(d.custom[tid])) + '</span>');
+      return { p: p, none: '–' };
     }
     if (!dayHas(d, t)) return { p: p, none: '–' };
     if (t === 'weight') p.push('<span><i class="dot w"></i>' + fmtKg(d.weight) + ' kg</span>');
@@ -1169,7 +1203,16 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   }
   function normTabs(arr) {
     return (Array.isArray(arr) ? arr : []).filter(function (c) { return c && typeof c.id === 'string' && typeof c.name === 'string' && c.name; })
-      .map(function (c) { return { id: c.id.slice(0, 20), name: c.name.slice(0, 24) }; }).slice(0, 12);
+      .map(function (c) {
+        var items = (Array.isArray(c.items) ? c.items : []).filter(function (it) {
+          return it && typeof it.id === 'string' && typeof it.text === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(it.start || '');
+        }).map(function (it) {
+          var o = { id: it.id.slice(0, 20), text: it.text.slice(0, 120), rep: ['daily', 'weekdays', 'weekly', 'once'].indexOf(it.rep) >= 0 ? it.rep : 'daily', start: it.start };
+          if (/^\d{4}-\d{2}-\d{2}$/.test(it.until || '')) o.until = it.until;
+          return o;
+        }).slice(0, 50);
+        return { id: c.id.slice(0, 20), name: c.name.slice(0, 24), items: items };
+      }).slice(0, 12);
   }
   async function loadTabs() {
     try {
@@ -1188,10 +1231,45 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       '<p class="hint">Der Tab erscheint hier und in der Wochenansicht. Pro Tag trägst du darin einen Text oder Wert ein.</p>';
     var i = $('#tabName'); if (i) i.focus();
   }
+  var REPS = [['daily', 'Täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'Wöchentlich'], ['once', 'Nur an diesem Tag']];
+  function repLabel(r, start) {
+    if (r === 'weekly') return 'Jeden ' + WDLONG[parseKey(start).getDay()];
+    for (var i = 0; i < REPS.length; i++) if (REPS[i][0] === r) return REPS[i][1];
+    return '';
+  }
+  function itemDue(it, k) {
+    if (k < it.start || (it.until && k > it.until)) return false;
+    var dow = parseKey(k).getDay();
+    if (it.rep === 'daily') return true;
+    if (it.rep === 'weekdays') return dow >= 1 && dow <= 5;
+    if (it.rep === 'weekly') return dow === parseKey(it.start).getDay();
+    return k === it.start;
+  }
+  function tabById(id) { return customTabs.filter(function (x) { return x.id === id; })[0]; }
+  function dueItems(id, k) { var c = tabById(id); return c ? (c.items || []).filter(function (it) { return itemDue(it, k); }) : []; }
+  function isChecked(k, tid, iid) { var d = days[k]; return !!(d && d.checks && d.checks[tid] && d.checks[tid][iid]); }
   function renderCustom() {
     var id = tab.slice(2), c = customTabs.filter(function (x) { return x.id === id; })[0];
     var d = days[selected] || blank();
-    elPanel.innerHTML = '<div class="field"><label for="customIn">' + esc(c ? c.name : '') + '</label>' +
+    var due = dueItems(id, selected), nDone = due.filter(function (it) { return isChecked(selected, id, it.id); }).length;
+    var h = '<div class="field"><span class="label">Übungen</span>';
+    if (due.length) {
+      h += '<ul class="list">' + due.map(function (it) {
+        var on = isChecked(selected, id, it.id), cid = 'ci_' + it.id;
+        return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="ctoggle" data-iid="' + esc(it.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
+          '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + '</small></label>' +
+          '<button type="button" class="del" data-act="citem-del" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' ab diesem Tag entfernen">×</button></li>';
+      }).join('') + '</ul><p class="sum">' + nDone + ' von ' + due.length + ' erledigt</p>';
+    } else {
+      h += '<p class="hint">Keine Übungen für diesen Tag.</p>';
+    }
+    h += '</div><form data-form="citem" class="row" novalidate>' +
+      '<div class="field"><label for="ciText">Neue Übung</label><input id="ciText" type="text" maxlength="120" autocomplete="off" placeholder="z. B. Handgelenk dehnen 3×10"' + dis() + '></div>' +
+      '<div class="field" style="flex-basis:130px"><label for="ciRep">Wiederholen</label><select id="ciRep"' + dis() + '>' +
+      REPS.map(function (r) { return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('') + '</select></div>' +
+      '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>' +
+      '<p class="hint">Neue Übungen gelten ab dem gewählten Tag. × beendet eine Übung ab diesem Tag, frühere Häkchen bleiben erhalten.</p>';
+    elPanel.innerHTML = h + '<div class="field"><label for="customIn">Notiz</label>' +
       '<textarea id="customIn" placeholder="Eintrag für diesen Tag"' + dis() + '>' + esc((d.custom && d.custom[id]) || '') + '</textarea></div>' +
       (delTabAsk
         ? '<p class="hint">Tab „' + esc(c ? c.name : '') + '“ wirklich entfernen? Die Einträge bleiben gespeichert, sind aber nicht mehr sichtbar.</p><div class="row"><button type="button" class="btn" data-act="tab-del-yes">Ja, entfernen</button><button type="button" class="btn ghost" data-act="tab-del-no">Behalten</button></div>'
@@ -1514,7 +1592,59 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
     viewDate = new Date(parseKey(todayKey).getFullYear(), parseKey(todayKey).getMonth(), 1);
     renderAll();
   });
+  /* Tabs per Gedrückthalten verschieben */
+  var tdrag = null, suppressTabClick = false;
+  function tabButtons() { return [].slice.call(elTabs.querySelectorAll('.tab[data-tab]')); }
+  elTabs.addEventListener('contextmenu', function (e) { if (e.target.closest('.tab')) e.preventDefault(); });
+  elTabs.addEventListener('pointerdown', function (e) {
+    var b = e.target.closest('.tab[data-tab]');
+    if (!b || (e.pointerType === 'mouse' && e.button !== 0)) return;
+    var st = { btn: b, x0: e.clientX, y0: e.clientY, id: e.pointerId, active: false };
+    st.timer = setTimeout(function () {
+      if (tdrag !== st) return;
+      st.active = true;
+      elTabs.classList.add('reordering'); b.classList.add('lifted');
+      try { b.setPointerCapture(st.id); } catch (err) {}
+      if (navigator.vibrate) { try { navigator.vibrate(15); } catch (err) {} }
+    }, 380);
+    tdrag = st;
+  });
+  elTabs.addEventListener('pointermove', function (e) {
+    var st = tdrag;
+    if (!st || e.pointerId !== st.id) return;
+    if (!st.active) {
+      if (Math.abs(e.clientX - st.x0) > 8 || Math.abs(e.clientY - st.y0) > 8) { clearTimeout(st.timer); tdrag = null; }
+      return;
+    }
+    e.preventDefault();
+    var others = tabButtons().filter(function (x) { return x !== st.btn; });
+    var target = null;
+    for (var i = 0; i < others.length; i++) {
+      var r = others[i].getBoundingClientRect();
+      if (e.clientX < r.left + r.width / 2) { target = others[i]; break; }
+    }
+    var addBtn = elTabs.querySelector('.tab.add');
+    var ref = target || addBtn;
+    if (st.btn.nextSibling !== ref) elTabs.insertBefore(st.btn, ref);
+    var box = elTabs.getBoundingClientRect();
+    if (e.clientX < box.left + 30) elTabs.scrollLeft -= 8; else if (e.clientX > box.right - 30) elTabs.scrollLeft += 8;
+  });
+  elTabs.addEventListener('touchmove', function (e) { if (tdrag && tdrag.active) e.preventDefault(); }, { passive: false });
+  function endTabDrag(save) {
+    var st = tdrag; tdrag = null;
+    if (!st) return;
+    clearTimeout(st.timer);
+    if (!st.active) return;
+    elTabs.classList.remove('reordering'); st.btn.classList.remove('lifted');
+    suppressTabClick = true; setTimeout(function () { suppressTabClick = false; }, 100);
+    if (save) { tabOrder = tabButtons().map(function (x) { return x.dataset.tab; }); saveTabOrder(); }
+    renderTabs();
+  }
+  elTabs.addEventListener('pointerup', function () { endTabDrag(true); });
+  elTabs.addEventListener('pointercancel', function () { endTabDrag(true); });
+
   elTabs.addEventListener('click', function (e) {
+    if (suppressTabClick) { suppressTabClick = false; e.preventDefault(); return; }
     var ab = e.target.closest('button[data-act="add-tab"]');
     if (ab) { addingTab = true; delTabAsk = false; renderTabs(); renderPanel(); renderEvents(); return; }
     var b = e.target.closest('button[data-tab]');
@@ -1540,6 +1670,14 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       addingTab = false; tab = 'c_' + nt2.id; wtab = tab;
       try { localStorage.setItem('tagesbuch:tab', tab); } catch (err) {}
       renderAll();
+      return;
+    }
+    if (f === 'citem') {
+      var ctab = tabById(tab.slice(2)), txt = $('#ciText').value.trim().slice(0, 120);
+      if (!ctab || !txt) { $('#ciText').focus(); return; }
+      ctab.items = (ctab.items || []).concat([{ id: uid(), text: txt, rep: $('#ciRep').value, start: selected }]);
+      savePrefs(); renderPanel(); renderCal();
+      var ci = $('#ciText'); if (ci) ci.focus();
       return;
     }
     if (f === 'simport') {
@@ -1612,6 +1750,17 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       renderAll();
       return;
     }
+    if (act === 'citem-del') {
+      var ct = tabById(tab.slice(2));
+      if (!ct) return;
+      ct.items = (ct.items || []).map(function (it) {
+        if (it.id !== b.dataset.iid) return it;
+        if (it.start >= selected) return null;
+        var o = Object.assign({}, it); o.until = addDays(selected, -1); return o;
+      }).filter(Boolean);
+      savePrefs(); renderPanel(); renderCal();
+      return;
+    }
     if (act === 'add-sport') {
       addingSport = true; renderPanel();
       var ns = $('#newSport'); if (ns) ns.focus();
@@ -1651,6 +1800,14 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   });
   elPanel.addEventListener('change', function (e) {
     var el = e.target;
+    if (el.dataset && el.dataset.act === 'ctoggle' && ready) {
+      var tid = tab.slice(2), dd = ensure(selected);
+      dd.checks[tid] = dd.checks[tid] || {};
+      if (el.checked) dd.checks[tid][el.dataset.iid] = 1; else delete dd.checks[tid][el.dataset.iid];
+      if (!Object.keys(dd.checks[tid]).length) delete dd.checks[tid];
+      commit(selected); refreshAfterEdit(true);
+      return;
+    }
     if (el.dataset && el.dataset.act === 'toggle' && ready) {
       var t = (days[selected] ? days[selected].tasks : []).filter(function (x) { return x.id === el.dataset.id; })[0];
       if (!t) return;
@@ -1721,10 +1878,10 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   var GCLIENT = '67815585819-na1pqnbgj6dg0fcp0flhccu6irdefgk0.apps.googleusercontent.com';
   var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
   var SYNC_FILE = 'tagesbuch.json';
-  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0 };
+  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0 };
   try {
     var mraw = localStorage.getItem('tagesbuch:meta');
-    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; }
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; }
   } catch (e) {}
   function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
   function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
@@ -1847,11 +2004,15 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       gsel = rg.v.filter(function (c) { return c && typeof c.id === 'string' && typeof c.name === 'string'; }).slice(0, 20);
       meta.gcal = rgt; gStore = {}; gLoaded = {}; changed = true;
     } else if (lg > rgt) dirty = true;
+    var ro = remote.taborder || { t: 0 }, lo = meta.taborder || 0, rot = ro.t || 0;
+    if (rot > lo && Array.isArray(ro.v)) { tabOrder = ro.v.filter(function (x) { return typeof x === 'string'; }).slice(0, 40); meta.taborder = rot; changed = true; }
+    else if (lo > rot) dirty = true;
     return { changed: changed, dirty: dirty };
   }
   function buildPayload() {
     var out = { v: 1, days: {}, abos: {}, tabs: { t: meta.tabs || (customTabs.length ? 1 : 0), v: customTabs }, sports: { t: meta.sports || 1, v: customSports, full: true } };
     if (gsel) out.gcal = { t: meta.gcal || 1, v: gsel };
+    if (meta.taborder) out.taborder = { t: meta.taborder, v: tabOrder };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
     Object.keys(keys).forEach(function (k) {
       var t = localTs(k); if (!t) return;
@@ -1866,7 +2027,7 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   }
   function persistLocalAll() {
     saveLocal(); saveLocalAbos(); saveMeta();
-    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); } catch (e) {}
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); } catch (e) {}
   }
 
   function sync(interactive) {
