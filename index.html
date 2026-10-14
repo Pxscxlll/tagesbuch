@@ -243,6 +243,11 @@ button.wrow:hover { background: var(--surface-2); }
 .ev small { display: block; color: var(--muted); font-size: 0.85rem; }
 .maplink { display: inline-block; margin-top: 4px; font-size: 0.88rem; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .ev .del { align-self: center; }
+.ev[data-evkey] { cursor: pointer; border-radius: 8px; padding: 8px; margin: 0 -8px; }
+.ev[data-evkey]:hover { background: var(--surface-2); }
+.ev.open { background: var(--surface-2); }
+.evnote-prev { font-style: italic; }
+textarea.evnote { min-height: 90px; margin-top: -4px; }
 .wparts span { max-width: 100%; overflow-wrap: anywhere; }
 .abo h3 { font-size: 1rem; }
 .abo summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
@@ -336,7 +341,7 @@ button.wrow:hover { background: var(--surface-2); }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 18</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 19</p>
 </main>
 
 <script>
@@ -382,7 +387,7 @@ button.wrow:hover { background: var(--surface-2); }
   var abos = {};        // id -> { name, updated, events: [{ id, date, time, end, title, loc, m }] }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
-  var wImportMsg = null;
+  var wImportMsg = null, openEv = null;
   var customSports = [], addingSport = false, sImportMsg = null;
   try { var csr = localStorage.getItem('tagesbuch:csports'); if (csr) customSports = JSON.parse(csr); } catch (e) {}
   try {
@@ -405,7 +410,7 @@ button.wrow:hover { background: var(--surface-2); }
   var elDayLabel = $('#dayLabel'), elDaySub = $('#daySub'), elStatus = $('#status'), elAbo = $('#aboBody');
 
   /* ---------- Daten ---------- */
-  function blank() { return { weight: null, sports: [], tasks: [], note: '', custom: {} }; }
+  function blank() { return { weight: null, sports: [], tasks: [], note: '', custom: {}, evnotes: {} }; }
   function normCustom(c) {
     var o = {};
     if (c && typeof c === 'object') Object.keys(c).forEach(function (k) { if (typeof c[k] === 'string' && c[k].trim()) o[k] = c[k]; });
@@ -418,10 +423,11 @@ button.wrow:hover { background: var(--surface-2); }
       sports: Array.isArray(d.sports) ? d.sports.filter(function (s) { return s && typeof s.type === 'string'; }) : [],
       tasks: Array.isArray(d.tasks) ? d.tasks.filter(function (t) { return t && typeof t.text === 'string'; }) : [],
       note: typeof d.note === 'string' ? d.note : '',
-      custom: normCustom(d.custom)
+      custom: normCustom(d.custom),
+      evnotes: normCustom(d.evnotes)
     };
   }
-  function isEmpty(d) { return d.weight == null && !d.sports.length && !d.tasks.length && !d.note.trim() && !Object.keys(d.custom || {}).length; }
+  function isEmpty(d) { return d.weight == null && !d.sports.length && !d.tasks.length && !d.note.trim() && !Object.keys(d.custom || {}).length && !Object.keys(d.evnotes || {}).length; }
   function ensure(k) { if (!days[k]) days[k] = blank(); return days[k]; }
   function sportMinutes(d) { return d.sports.reduce(function (a, s) { return a + (Number(s.min) || 0); }, 0); }
 
@@ -895,13 +901,21 @@ button.wrow:hover { background: var(--surface-2); }
   function renderEvents() {
     var el = $('#events'), list = evIdx[selected] || [];
     if (tab !== 'events' || addingTab || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
+    var ae = document.activeElement;
+    if (ae && ae.id === 'evNoteIn' && el.contains(ae)) return;
     el.hidden = false;
-    el.innerHTML = list.map(function (x) {
+    var notes = (days[selected] && days[selected].evnotes) || {};
+    var keys = list.map(function (x) { return x.aid + '|' + x.e.id; });
+    if (openEv && keys.indexOf(openEv) < 0) openEv = null;
+    el.innerHTML = list.map(function (x, i) {
       var e = x.e, t = e.time ? e.time + (e.end ? '–' + e.end : '') : 'ganztägig';
-      return '<div class="ev"><span class="t">' + esc(t) + '</span><span class="x">' + esc(e.title) +
+      var key = keys[i], note = notes[key] || '', open = openEv === key;
+      return '<div class="ev' + (open ? ' open' : '') + '" data-evkey="' + esc(key) + '" role="button" tabindex="0" aria-expanded="' + open + '"><span class="t">' + esc(t) + '</span><span class="x">' + esc(e.title) +
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
-        (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') + '</span>' +
-        (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>';
+        (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
+        (note && !open ? '<small class="evnote-prev">📝 ' + esc(snip(note)) + '</small>' : '') + '</span>' +
+        (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>' +
+        (open ? '<textarea class="evnote" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Notiz zu diesem Termin"' + dis() + '>' + esc(note) + '</textarea>' : '');
     }).join('');
   }
 
@@ -1463,6 +1477,28 @@ button.wrow:hover { background: var(--surface-2); }
   });
   $('#gNote').addEventListener('click', function (e) {
     if (e.target.closest('button[data-act="g-reload"]')) gEnsure(true);
+  });
+  function toggleEv(row) {
+    var k = row.dataset.evkey;
+    openEv = openEv === k ? null : k;
+    var ae = document.activeElement; if (ae && ae.id === 'evNoteIn') ae.blur();
+    renderEvents();
+    var ta = $('#evNoteIn'); if (ta) ta.focus();
+  }
+  $('#events').addEventListener('click', function (e) {
+    if (!e.target.closest('a, textarea, button')) {
+      var row = e.target.closest('.ev[data-evkey]');
+      if (row) { toggleEv(row); return; }
+    }
+  });
+  $('#events').addEventListener('keydown', function (e) {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.ev[data-evkey]')) { e.preventDefault(); toggleEv(e.target); }
+  });
+  $('#events').addEventListener('input', function (e) {
+    if (e.target.id !== 'evNoteIn' || !ready) return;
+    var d = ensure(selected), k = e.target.dataset.evkey, v = e.target.value.slice(0, 5000);
+    if (v.trim()) d.evnotes[k] = v; else delete d.evnotes[k];
+    commit(selected, 700);
   });
   $('#events').addEventListener('click', function (e) {
     var b = e.target.closest('button[data-act="del-ev"]');
