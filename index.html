@@ -315,7 +315,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 45</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 46</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -410,8 +410,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var wtab = 'events';
   try { var sw = localStorage.getItem('tagesbuch:wtab'); if (sw) wtab = sw; } catch (e) {}
   var VMODES = ['day', 'week', 'month', 'year'];
-  var vmode = 'month';
-  try { var savedVm = localStorage.getItem('tagesbuch:vmode'); if (savedVm && VMODES.indexOf(savedVm) >= 0) vmode = savedVm; } catch (e) {}
+  var vmode = 'day'; // Beim Öffnen immer die Tagesansicht von heute
 
   var days = {};
   var mode = null;      // 'db' | 'local'
@@ -833,6 +832,15 @@ textarea.autogrow { resize: none; overflow: hidden; }
     try { localStorage.setItem('tagesbuch:vmode', m); } catch (e) {}
     renderAll();
   }
+  // War die App länger als 30 Minuten im Hintergrund, beim Zurückkehren wieder auf heute in der Tagesansicht springen.
+  var hiddenAt = 0;
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { hiddenAt = Date.now(); return; }
+    if (!hiddenAt || Date.now() - hiddenAt < 30 * 60000) return;
+    hiddenAt = 0; todayKey = keyOf(new Date()); selected = todayKey; vmode = 'day';
+    viewDate = new Date(parseKey(todayKey).getFullYear(), parseKey(todayKey).getMonth(), 1);
+    renderAll();
+  });
   function stepView(dir) {
     if (vmode === 'day' || vmode === 'week') {
       selected = addDays(selected, dir * (vmode === 'week' ? 7 : 1));
