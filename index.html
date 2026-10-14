@@ -348,7 +348,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 23</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 24</p>
 </main>
 
 <script>
@@ -1268,7 +1268,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       h += '<ul class="list">' + due.map(function (it) {
         var on = isChecked(selected, id, it.id), cid = 'ci_' + it.id;
         return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="ctoggle" data-iid="' + esc(it.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
-          '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + '</small></label>' +
+          '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + (it.rep === 'once' ? '' : ' · ' + (it.until ? shortDate(it.start) + ' – ' + shortDate(it.until) : 'ab ' + shortDate(it.start))) + '</small></label>' +
           '<button type="button" class="del" data-act="citem-del" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' ab diesem Tag entfernen">×</button></li>';
       }).join('') + '</ul><p class="sum">' + nDone + ' von ' + due.length + ' erledigt</p>';
     } else {
@@ -1278,8 +1278,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<div class="field"><label for="ciText">Neue Übung</label><input id="ciText" type="text" maxlength="120" autocomplete="off" placeholder="z. B. Handgelenk dehnen 3×10"' + dis() + '></div>' +
       '<div class="field" style="flex-basis:130px"><label for="ciRep">Wiederholen</label><select id="ciRep"' + dis() + '>' +
       REPS.map(function (r) { return '<option value="' + r[0] + '">' + r[1] + '</option>'; }).join('') + '</select></div>' +
-      '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>' +
-      '<p class="hint">Neue Übungen gelten ab dem gewählten Tag. × beendet eine Übung ab diesem Tag, frühere Häkchen bleiben erhalten.</p>';
+      '<div class="field" style="flex-basis:130px"><label for="ciFrom">Von</label><input id="ciFrom" type="date" value="' + selected + '"' + dis() + '></div>' +
+      '<div class="field" style="flex-basis:130px"><label for="ciTo">Bis (optional)</label><input id="ciTo" type="date" min="' + selected + '"' + dis() + '></div>' +
+      '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form><p class="err" id="ciErr" role="alert"></p>' +
+      '<p class="hint">Ohne Enddatum läuft eine Übung weiter, bis du sie mit × ab einem Tag beendest. Frühere Häkchen bleiben erhalten.</p>';
     elPanel.innerHTML = h + '<div class="field"><label for="customIn">Notiz</label>' +
       '<textarea class="autogrow" id="customIn" placeholder="Eintrag für diesen Tag"' + dis() + '>' + esc((d.custom && d.custom[id]) || '') + '</textarea></div>' +
       (delTabAsk
@@ -1693,7 +1695,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (f === 'citem') {
       var ctab = tabById(tab.slice(2)), txt = $('#ciText').value.trim().slice(0, 120);
       if (!ctab || !txt) { $('#ciText').focus(); return; }
-      ctab.items = (ctab.items || []).concat([{ id: uid(), text: txt, rep: $('#ciRep').value, start: selected }]);
+      var from = $('#ciFrom').value || selected, to = $('#ciTo').value;
+      if (to && to < from) { $('#ciErr').textContent = 'Das Enddatum liegt vor dem Startdatum.'; return; }
+      var nit = { id: uid(), text: txt, rep: $('#ciRep').value, start: from };
+      if (to) nit.until = to;
+      ctab.items = (ctab.items || []).concat([nit]);
       savePrefs(); renderPanel(); renderCal();
       var ci = $('#ciText'); if (ci) ci.focus();
       return;
