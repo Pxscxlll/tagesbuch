@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEF2F0"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0E1412"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"></head><body>
+<!doctype html><html lang="de"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEF2F0"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0C1110"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"></head><body>
 <title>Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,35 +24,35 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0E1412;
-    --surface: #161E1B;
-    --surface-2: #1F2925;
-    --line: #2B3732;
-    --fg: #E7EFEB;
-    --muted: #95A59D;
-    --accent: #5CC4A6;
+    --bg: #0C1110;
+    --surface: #18211E;
+    --surface-2: #2A3832;
+    --line: #3B4B44;
+    --fg: #F3F8F5;
+    --muted: #B6C4BD;
+    --accent: #6AD8B8;
     --accent-ink: #0B1511;
-    --c-weight: #5CC4A6;
+    --c-weight: #6AD8B8;
     --c-sport: #E39A4A;
-    --c-task: #8CA6F2;
-    --c-event: #C58AE0;
+    --c-task: #A2B8F7;
+    --c-event: #D49DEC;
     --danger: #F0847B;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0E1412;
-  --surface: #161E1B;
-  --surface-2: #1F2925;
-  --line: #2B3732;
-  --fg: #E7EFEB;
-  --muted: #95A59D;
-  --accent: #5CC4A6;
+  --bg: #0C1110;
+  --surface: #18211E;
+  --surface-2: #2A3832;
+  --line: #3B4B44;
+  --fg: #F3F8F5;
+  --muted: #B6C4BD;
+  --accent: #6AD8B8;
   --accent-ink: #0B1511;
-  --c-weight: #5CC4A6;
+  --c-weight: #6AD8B8;
   --c-sport: #E39A4A;
-  --c-task: #8CA6F2;
-  --c-event: #C58AE0;
+  --c-task: #A2B8F7;
+  --c-event: #D49DEC;
   --danger: #F0847B;
   color-scheme: dark;
 }
@@ -208,14 +208,14 @@ svg.chart text.tip-txt { fill: var(--fg); font-weight: 600; }
 .wrow { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 12px; text-align: left; border: 1px solid transparent; background: transparent; border-radius: 8px; padding: 8px 10px; width: 100%; }
 button.wrow:hover { background: var(--surface-2); }
 .wrow.today .wday { color: var(--accent); }
-.wrow.today .wday span { opacity: 1; }
+.wrow.today .wday span { color: var(--accent); }
 .wrow.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .wday { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
 .wday b { font-family: var(--font-display); font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-.wday span { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.75; }
+.wday span { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .wparts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.9rem; min-width: 0; font-variant-numeric: tabular-nums; }
 .wparts span { display: inline-flex; align-items: center; gap: 6px; }
-.wparts .none { opacity: 0.6; }
+.wparts .none { color: var(--muted); }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 16px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
 .stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -318,7 +318,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 51</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 52</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
