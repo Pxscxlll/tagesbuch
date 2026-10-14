@@ -309,7 +309,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 33</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 34</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -416,6 +416,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var abos = {};        // id -> { name, updated, events: [{ id, date, time, end, title, loc, m }] }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
+  var pImportMsg = null;
   var wImportMsg = null, openEv = null, openSport = null, editTask = null, editItem = null, evGeneral = {};
   try { var egr = JSON.parse(localStorage.getItem('tagesbuch:evgen') || '{}'); if (egr && typeof egr === 'object') evGeneral = egr; } catch (e) {}
   function titleKey(t) { return String(t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
@@ -971,7 +972,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (openEv && keys.indexOf(openEv) < 0) openEv = null;
     el.innerHTML = list.map(function (x, i) {
       var e = x.e, t = e.time ? e.time + (e.end ? '–' + e.end : '') : 'ganztägig';
-      var key = keys[i], note = notes[key] || '', open = openEv === key;
+      var key = keys[i], tkn = 't:' + titleKey(e.title), note = notes[key] != null ? notes[key] : (notes[tkn] || ''), open = openEv === key;
       return '<div class="ev' + (open ? ' open' : '') + '" data-evkey="' + esc(key) + '" role="button" tabindex="0" aria-expanded="' + open + '"><span class="t">' + esc(t) + '</span><span class="x">' + esc(e.title) +
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
         (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
@@ -1317,11 +1318,19 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<div class="field" style="flex-basis:130px"><label for="ciTo">Bis (optional)</label><input id="ciTo" type="date" min="' + selected + '"' + dis() + '></div>' +
       '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form><p class="err" id="ciErr" role="alert"></p>' +
       '<p class="hint">Ohne Enddatum läuft eine Übung weiter, bis du sie mit × ab einem Tag beendest. Frühere Häkchen bleiben erhalten.</p>';
+    h += '';
+    var imp = '<details class="abo"' + (pImportMsg ? ' open' : '') + '><summary>Mehrere Einträge einfügen</summary>' +
+      '<form data-form="pimport" class="panel" novalidate style="margin-top:10px">' +
+      '<div class="field"><label for="pImportIn">Ein Eintrag pro Zeile</label>' +
+      '<textarea id="pImportIn" style="min-height:110px" placeholder="Übung | Dehnen 1x 3 min | 09.09.2026 | 22.09.2026&#10;09.09.2026 | Dehnen 1x 3 min | Notiz"' + dis() + '></textarea></div>' +
+      '<div class="row"><button type="submit" class="btn"' + dis() + '>Übernehmen</button></div>' +
+      (pImportMsg ? '<p class="' + (pImportMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(pImportMsg.t) + '</p>' : '') +
+      '</form></details>';
     elPanel.innerHTML = h + '<div class="field"><label for="customIn">Notiz</label>' +
       '<textarea class="autogrow" id="customIn" placeholder="Eintrag für diesen Tag"' + dis() + '>' + esc((d.custom && d.custom[id]) || '') + '</textarea></div>' +
       (delTabAsk
         ? '<p class="hint">Tab „' + esc(c ? c.name : '') + '“ wirklich entfernen? Die Einträge bleiben gespeichert, sind aber nicht mehr sichtbar.</p><div class="row"><button type="button" class="btn" data-act="tab-del-yes">Ja, entfernen</button><button type="button" class="btn ghost" data-act="tab-del-no">Behalten</button></div>'
-        : '<div class="row" style="margin-top:12px"><button type="button" class="btn ghost" data-act="tab-del-ask"' + dis() + '>Tab entfernen</button></div>');
+        : '<div class="row" style="margin-top:12px"><button type="button" class="btn ghost" data-act="tab-del-ask"' + dis() + '>Tab entfernen</button></div>') + imp;
   }
 
   /* ---------- Panels ---------- */
@@ -1670,6 +1679,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (e.target.id !== 'evNoteIn' || !ready) return;
     var d = ensure(selected), k = e.target.dataset.evkey, v = e.target.value.slice(0, 5000);
+    var evx = (evIdx[selected] || []).filter(function (x) { return x.aid + '|' + x.e.id === k; })[0];
+    if (evx) delete d.evnotes['t:' + titleKey(evx.e.title)];
     if (v.trim()) d.evnotes[k] = v; else delete d.evnotes[k];
     commit(selected, 700);
   });
@@ -1765,6 +1776,69 @@ textarea.autogrow { resize: none; overflow: hidden; }
       addingTab = false; tab = 'c_' + nt2.id; wtab = tab;
       try { localStorage.setItem('tagesbuch:tab', tab); } catch (err) {}
       renderAll();
+      return;
+    }
+    if (f === 'pimport') {
+      var ptab = tabById(tab.slice(2)); if (!ptab) return;
+      var res2 = { items: 0, days: 0, notes: 0, ev: 0, gen: 0, bad: 0 }, touched = {};
+      function pdate(s) {
+        var m = String(s || '').trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if (!m) return null;
+        var dt = new Date(+m[3], +m[2] - 1, +m[1]);
+        return dt.getMonth() === +m[2] - 1 ? keyOf(dt) : null;
+      }
+      $('#pImportIn').value.split(/\r?\n/).forEach(function (line) {
+        line = line.trim(); if (!line) return;
+        var pp = line.split('|').map(function (x) { return x.trim(); }), head = pp[0].toLowerCase();
+        if (head === 'übung' || head === 'uebung') {
+          var st = pdate(pp[2]), un = pp[3] ? pdate(pp[3]) : null;
+          if (!pp[1] || !st || (pp[3] && !un)) { res2.bad++; return; }
+          var ex = (ptab.items || []).filter(function (it) { return it.text.toLowerCase() === pp[1].toLowerCase() && it.start === st; })[0];
+          if (ex) { if (un) ex.until = un; else delete ex.until; }
+          else { var o = { id: uid(), text: pp[1].slice(0, 120), rep: 'daily', start: st }; if (un) o.until = un; ptab.items = (ptab.items || []).concat([o]); res2.items++; }
+          return;
+        }
+        if (head === 'allgemein') {
+          if (!pp[1]) { res2.bad++; return; }
+          evGeneral[titleKey(ptab.name)] = pp.slice(1).join(' | ');
+          try { localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); } catch (err) {}
+          meta.evgen = Date.now(); saveMeta(); res2.gen++;
+          return;
+        }
+        if (head === 'termin') {
+          var tk = pdate(pp[1]);
+          if (!tk || !pp[2]) { res2.bad++; return; }
+          ensure(tk).evnotes['t:' + titleKey(ptab.name)] = pp.slice(2).join(' | ');
+          touched[tk] = 1; res2.ev++;
+          return;
+        }
+        var dk = pdate(pp[0]);
+        if (!dk) { res2.bad++; return; }
+        var dd = ensure(dk);
+        touched[dk] = 1; res2.days++;
+        (pp[1] || '').split(';').map(function (x) { return x.trim().toLowerCase(); }).filter(Boolean).forEach(function (nm) {
+          var it = (ptab.items || []).filter(function (y) { return y.text.toLowerCase() === nm; })[0];
+          if (!it) { res2.bad++; return; }
+          dd.checks[ptab.id] = dd.checks[ptab.id] || {};
+          dd.checks[ptab.id][it.id] = 1;
+        });
+        var nt = pp.slice(2).join(' | ').trim();
+        if (nt) {
+          var cur = dd.custom[ptab.id] || '';
+          if (cur.indexOf(nt) < 0) { dd.custom[ptab.id] = cur ? cur + '\n' + nt : nt; res2.notes++; }
+        }
+      });
+      savePrefs();
+      Object.keys(touched).forEach(function (k2) { commit(k2); });
+      var parts = [];
+      if (res2.items) parts.push(res2.items + (res2.items === 1 ? ' Übung' : ' Übungen'));
+      if (res2.days) parts.push(res2.days + (res2.days === 1 ? ' Tag' : ' Tage'));
+      if (res2.notes) parts.push(res2.notes + (res2.notes === 1 ? ' Notiz' : ' Notizen'));
+      if (res2.ev) parts.push(res2.ev + (res2.ev === 1 ? ' Terminnotiz' : ' Terminnotizen'));
+      if (res2.gen) parts.push('„Allgemein“');
+      pImportMsg = parts.length
+        ? { ok: !res2.bad, t: 'Übernommen: ' + parts.join(', ') + '.' + (res2.bad ? ' ' + res2.bad + ' Angaben nicht erkannt.' : '') }
+        : { ok: false, t: 'Nichts erkannt. Prüfe das Format der Zeilen.' };
+      refreshAfterEdit(true);
       return;
     }
     if (f === 'citem') {
