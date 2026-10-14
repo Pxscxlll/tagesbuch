@@ -220,7 +220,6 @@ button.wrow:hover { background: var(--surface-2); }
 
 .months { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .mtile { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; width: 100%; }
-.mtile:hover { background: var(--surface-2); }
 .mtile.cur { border-color: var(--accent); }
 .mname { font-family: var(--font-display); font-weight: 700; font-size: 1rem; }
 .heat { display: grid; grid-template-columns: repeat(7, 8px); gap: 2px; }
@@ -683,7 +682,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   function renderYear() {
     var y = viewDate.getFullYear(), tk = parseKey(todayKey);
-    var h = '<p class="hint" style="margin-bottom:12px">Tippe auf einen Monat, um ihn zu öffnen. Je dunkler ein Feld, desto mehr Einträge an dem Tag.</p><div class="months">';
+    var h = '<p class="hint" style="margin-bottom:12px">Pro Monat siehst du die Durchschnittswerte. Je dunkler ein Feld, desto mehr Einträge an dem Tag.</p><div class="months">';
     for (var m = 0; m < 12; m++) {
       var dim = new Date(y, m + 1, 0).getDate();
       var off = (new Date(y, m, 1).getDay() + 6) % 7, heat = '', evN = 0;
@@ -700,9 +699,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (s.total) lines.push('Aufgaben ' + s.done + '/' + s.total);
       if (evN) lines.push('Termine ' + evN);
       if (!lines.length) lines.push('Keine Einträge');
-      h += '<button type="button" class="mtile' + (y === tk.getFullYear() && m === tk.getMonth() ? ' cur' : '') + '" data-m="' + m + '" aria-label="' + MONTHS[m] + ' ' + y + ' öffnen">' +
+      h += '<div class="mtile' + (y === tk.getFullYear() && m === tk.getMonth() ? ' cur' : '') + '" role="group" aria-label="' + MONTHS[m] + ' ' + y + '">' +
         '<span class="mname">' + MONTHS[m] + '</span><span class="heat" aria-hidden="true">' + heat + '</span>' +
-        '<span class="mstats">' + lines.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</span></button>';
+        '<span class="mstats">' + lines.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</span></div>';
     }
     return h + '</div>' + viewBlock(range('year'));
   }
@@ -1530,14 +1529,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
     selected = b.dataset.k;
     renderAll();
   });
-  $('#yearView').addEventListener('click', function (e) {
-    var b = e.target.closest('button[data-m]');
-    if (!b) return;
-    viewDate = new Date(viewDate.getFullYear(), Number(b.dataset.m), 1);
-    if (!inView('month', selected)) selected = defaultKeyForView('month');
-    setVMode('month');
-  });
-
   $('#aboBtn').addEventListener('click', function () {
     aboOpen = !aboOpen;
     $('#aboCard').hidden = !aboOpen;
