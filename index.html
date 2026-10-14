@@ -331,7 +331,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 54</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 55</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1687,9 +1687,71 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<textarea class="autogrow" id="noteIn" placeholder="Wie lief der Tag? Was ist dir aufgefallen?"' + dis() + '>' + esc(d.note) + '</textarea></div>';
   }
 
+  /* ---------- Erinnerung direkt in Pascals Google-Kalender eintragen ---------- */
+  var REM_ACCOUNT = 'pascal.gerlach23@gmail.com', REM_MIN = 60;
+  var remOpen = false, remMsg = null, remBusy = false, remTok = null, remTokExp = 0, remClient = null, remResolve = null;
+  function renderEvPanel() {
+    var keep = {};
+    ['remTitle', 'remTime', 'remDur'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    var h = (evIdx[selected] || []).length ? '' : '<p class="hint">Keine Termine an diesem Tag.</p>';
+    if (GCLIENT) {
+      if (!remOpen) h += '<div class="row"><button type="button" class="btn ghost" data-act="rem-open">+ Erinnerung</button></div>';
+      else {
+        var durs = [[15, '15 min'], [30, '30 min'], [60, '1 Std'], [90, '1,5 Std'], [120, '2 Std'], [180, '3 Std']];
+        var dsel = keep.remDur || '30';
+        h += '<form data-form="rem" class="panel" novalidate><h3>Erinnerung am ' + esc(shortDate(selected)) + '</h3>' +
+          '<div class="field"><label for="remTitle">Was?</label><input id="remTitle" type="text" maxlength="120" autocomplete="off" placeholder="z. B. Übungsblatt abgeben" value="' + esc(keep.remTitle || '') + '"></div>' +
+          '<div class="row"><div class="field"><label for="remTime">Uhrzeit</label><input id="remTime" type="time" value="' + esc(keep.remTime || '') + '"></div>' +
+          '<div class="field"><label for="remDur">Dauer</label><select id="remDur">' + durs.map(function (d) { return '<option value="' + d[0] + '"' + (String(d[0]) === dsel ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></div></div>' +
+          '<p class="hint">Wird in deinen Google-Kalender eingetragen. Die Benachrichtigung kommt 1 Stunde vorher.</p>' +
+          '<div class="row"><button type="submit" class="btn"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Trage ein …' : 'Eintragen') + '</button>' +
+          '<button type="button" class="btn ghost" data-act="rem-cancel">Abbrechen</button></div></form>';
+      }
+    }
+    if (remMsg) h += '<p class="' + (remMsg.ok ? 'hint' : 'err') + '" role="alert">' + esc(remMsg.t) + '</p>';
+    elPanel.innerHTML = h;
+  }
+  // Eigenes Token für das Schreiben im Kalender von REM_ACCOUNT (die App selbst ist mit dem Backup-Konto verbunden).
+  function remToken() {
+    if (remTok && Date.now() < remTokExp - 60000) return Promise.resolve(remTok);
+    return loadGsi().then(function () {
+      return new Promise(function (res, rej) {
+        remResolve = { res: res, rej: rej };
+        if (!remClient) {
+          remClient = google.accounts.oauth2.initTokenClient({
+            client_id: GCLIENT, scope: 'https://www.googleapis.com/auth/calendar.events', login_hint: REM_ACCOUNT,
+            callback: function (r) {
+              var t = remResolve; remResolve = null; if (!t) return;
+              if (r && r.access_token) { remTok = r.access_token; remTokExp = Date.now() + (Number(r.expires_in) || 3600) * 1000; t.res(remTok); }
+              else t.rej(new Error((r && r.error) || 'auth'));
+            },
+            error_callback: function (err) { var t = remResolve; remResolve = null; if (t) t.rej(new Error((err && err.type) || 'auth')); }
+          });
+        }
+        remClient.requestAccessToken({ prompt: '' });
+      });
+    });
+  }
+  function remCreate(title, k, time, dur) {
+    var p = k.split('-'), t = time.split(':');
+    // Ortszeit ohne Zeitzonen-Versatz schreiben, Google rechnet mit Europe/Berlin.
+    var a = new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1]), b = new Date(a.getTime() + dur * 60000);
+    function loc(d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
+    var body = { summary: title, start: { dateTime: loc(a), timeZone: 'Europe/Berlin' }, end: { dateTime: loc(b), timeZone: 'Europe/Berlin' },
+      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: REM_MIN }] } };
+    return remToken().then(function (tok) {
+      return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    }).then(function (r) {
+      if (r.status === 401) { remTok = null; remTokExp = 0; }
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    });
+  }
   function renderPanel() {
     if (addingTab) renderAddTab();
-    else if (tab === 'events') elPanel.innerHTML = (evIdx[selected] || []).length ? '' : '<p class="hint">Keine Termine an diesem Tag.</p>';
+    else if (tab === 'events') renderEvPanel();
     else if (/^c_/.test(tab)) renderCustom();
     else if (tab === 'weight') renderWeight();
     else if (tab === 'sport') renderSport();
@@ -1888,6 +1950,25 @@ textarea.autogrow { resize: none; overflow: hidden; }
     e.preventDefault();
     if (!ready) return;
     var f = e.target.dataset.form;
+    if (f === 'rem') {
+      var rt = $('#remTitle').value.trim(), rtime = $('#remTime').value, rdur = Number($('#remDur').value) || 30, rk = selected;
+      if (!rt) { $('#remTitle').placeholder = 'Bitte eintragen, worum es geht'; return; }
+      if (!/^\d{2}:\d{2}$/.test(rtime)) { remMsg = { ok: false, t: 'Bitte eine Uhrzeit wählen.' }; renderPanel(); return; }
+      remBusy = true; remMsg = null; renderPanel();
+      remCreate(rt, rk, rtime, rdur).then(function (ev) {
+        remBusy = false; remOpen = false;
+        remMsg = { ok: true, t: '„' + rt + '“ am ' + shortDate(rk) + ' um ' + rtime + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + '. Erinnerung 1 Std vorher.' };
+        renderPanel();
+        Object.keys(gLoaded).forEach(function (x) { if (x.slice(-7) === rk.slice(0, 7)) delete gLoaded[x]; });
+        gEnsure(true);
+      }).catch(function (err) {
+        remBusy = false;
+        var m = String(err && err.message || '');
+        remMsg = { ok: false, t: /auth|popup|access_denied/.test(m) ? 'Google-Anmeldung abgebrochen oder nicht erlaubt. Bitte erneut versuchen.' : 'Eintragen hat nicht geklappt (' + m + ').' };
+        renderPanel();
+      });
+      return;
+    }
     if (f === 'addtab') {
       var nm = $('#tabName').value.trim().slice(0, 24);
       if (!nm) return;
@@ -2051,6 +2132,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
       renderAll();
       return;
     }
+    if (act === 'rem-open') { remOpen = true; remMsg = null; renderPanel(); return; }
+    if (act === 'rem-cancel') { remOpen = false; remMsg = null; renderPanel(); return; }
     if (act === 'bk-load') { bkLoad(); return; }
     if (act === 'bk-restore') { bkArm = b.dataset.id; renderBk(); return; }
     if (act === 'bk-no') { bkArm = null; renderBk(); return; }
