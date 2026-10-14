@@ -248,6 +248,18 @@ button.wrow:hover { background: var(--surface-2); }
 .maplink { display: inline-block; margin-top: 4px; font-size: 0.88rem; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .ev .del { align-self: center; }
 .del.pen { transform: scaleX(-1); }
+.exlist { display: flex; flex-direction: column; gap: 0; }
+.exrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.exrow .exname { flex: 1 1 calc(100% - 48px); order: 0; }
+.exrow .stepper, .exrow .xmul { order: 2; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.stepper button { width: 38px; height: 38px; border: 0; background: var(--surface-2); font-size: 1.15rem; line-height: 1; }
+.stepper button:hover { filter: brightness(0.96); }
+.stepper > span { padding: 0 8px; min-width: 76px; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.92rem; color: var(--muted); }
+.stepper > span b { color: var(--fg); font-size: 1rem; }
+.xmul { color: var(--muted); }
+.exrow .del { order: 1; }
+.exadd { align-self: flex-start; margin-top: 8px; height: 38px; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 20; display: flex; align-items: center; gap: 14px; max-width: calc(100% - 32px); padding: 10px 10px 10px 16px; border-radius: 10px; background: var(--fg); color: var(--bg); box-shadow: 0 6px 20px rgba(0,0,0,0.25); font-size: 0.95rem; }
 .toast span { min-width: 0; }
 .toast button { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 700; padding: 7px 12px; border-radius: 7px; flex: none; }
@@ -354,7 +366,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 30</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 31</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" id="toastUndo">Rückgängig</button></div>
 
@@ -611,7 +623,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       wsub = 'Verlauf ' + (diff > 0 ? '+' : diff < 0 ? '−' : '±') + fmtKg(Math.abs(diff)) + ' kg';
     } else if (s.wKeys.length === 1) wsub = '1 Eintrag';
     var sv = s.sportDays ? s.sportDays + (s.sportDays === 1 ? ' Tag' : ' Tage') : '–';
-    var ssub = s.sportDays ? (s.sportMin ? s.sportMin + ' min gesamt' : 'ohne Minuten') : '';
+    var ssub = s.sportDays ? (s.sportMin ? s.sportMin + ' min gesamt' : '') : '';
     var tv = s.total ? s.done + ' / ' + s.total : '–';
     var ctx = vmode === 'year' ? 'all' : tab;
     var chart = ctx === 'all' || ctx === 'weight' ? weightChart(s.wKeys) : '';
@@ -1425,9 +1437,29 @@ textarea.autogrow { resize: none; overflow: hidden; }
     touchSports();
   }
   function allSports() { customSports = normSports(customSports); return customSports.slice(); }
+  var sportForce = false;
+  function sportSub(s) {
+    var p = [], n = (s.ex || []).length;
+    if (n) p.push(n + (n === 1 ? ' Übung' : ' Übungen'));
+    if (s.min) p.push(s.min + ' min');
+    return p.length ? '<small>' + esc(p.join(' · ')) + '</small>' : '';
+  }
+  function stepper(sid, x, f, label) {
+    var v = f === 's' ? (x.s || 1) : (x.r || 1);
+    return '<span class="stepper"><button type="button" data-act="ex-dec" data-f="' + f + '" data-sid="' + esc(sid) + '" data-xid="' + esc(x.id) + '" aria-label="' + label + ' weniger"' + dis() + '>−</button>' +
+      '<span><b>' + v + '</b> ' + label + '</span>' +
+      '<button type="button" data-act="ex-inc" data-f="' + f + '" data-sid="' + esc(sid) + '" data-xid="' + esc(x.id) + '" aria-label="' + label + ' mehr"' + dis() + '>+</button></span>';
+  }
+  function findEx(sid, xid) {
+    var s = ((days[selected] || {}).sports || []).filter(function (y) { return y.id === sid; })[0];
+    if (!s) return null;
+    s.ex = s.ex || [];
+    return { s: s, x: xid ? s.ex.filter(function (y) { return y.id === xid; })[0] : null };
+  }
   function renderSport() {
     var ae0 = document.activeElement;
-    if (ae0 && ae0.id === 'spNoteIn' && elPanel.contains(ae0)) return;
+    if (ae0 && (ae0.id === 'spNoteIn' || (ae0.classList && ae0.classList.contains('exname'))) && elPanel.contains(ae0) && !sportForce) return;
+    sportForce = false;
     var d = days[selected] || blank();
     if (openSport && !d.sports.some(function (s) { return s.id === openSport; })) openSport = null;
     var h = '';
@@ -1435,10 +1467,17 @@ textarea.autogrow { resize: none; overflow: hidden; }
       h += '<div class="events">' + d.sports.map(function (s) {
         var open = openSport === s.id;
         return '<div class="ev tap' + (open ? ' open' : '') + '" data-spid="' + esc(s.id) + '" role="button" tabindex="0" aria-expanded="' + open + '">' +
-          '<span class="x"><b>' + esc(s.type) + '</b>' + (s.min ? '<small>' + esc(String(s.min)) + ' min</small>' : '') + '</span>' +
+          '<span class="x"><b>' + esc(s.type) + '</b>' + sportSub(s) + '</span>' +
           '<button type="button" class="del" data-act="del-sport" data-id="' + esc(s.id) + '" aria-label="' + esc(s.type) + ' entfernen">×</button></div>' +
-          (open ? '<div class="evnotes"><label for="spNoteIn">Was hast du gemacht?</label>' +
-            '<textarea class="evnote autogrow" id="spNoteIn" data-id="' + esc(s.id) + '" placeholder="z. B. 3 Sätze à 12 Push-Ups, Pull-Ups 3×10, Intervalle …"' + dis() + '>' + esc(s.note || '') + '</textarea></div>' : '');
+          (open ? '<div class="evnotes"><span class="label">Übungen</span><div class="exlist">' +
+            (s.ex || []).map(function (x) {
+              return '<div class="exrow"><input class="exname" type="text" maxlength="60" autocomplete="off" placeholder="Übung, z. B. Push-Ups" data-sid="' + esc(s.id) + '" data-xid="' + esc(x.id) + '" value="' + esc(x.n || '') + '"' + dis() + '>' +
+                stepper(s.id, x, 's', 'Sätze') + '<span class="xmul" aria-hidden="true">×</span>' + stepper(s.id, x, 'r', 'Wdh.') +
+                '<button type="button" class="del" data-act="ex-del" data-sid="' + esc(s.id) + '" data-xid="' + esc(x.id) + '" aria-label="Übung entfernen">×</button></div>';
+            }).join('') +
+            '<button type="button" class="btn ghost exadd" data-act="ex-add" data-sid="' + esc(s.id) + '"' + dis() + '>+ Übung</button></div>' +
+            '<label for="spNoteIn">Notiz (optional)</label>' +
+            '<textarea class="evnote autogrow" id="spNoteIn" data-id="' + esc(s.id) + '" style="min-height:70px" placeholder="Sonstiges zur Einheit"' + dis() + '>' + esc(s.note || '') + '</textarea></div>' : '');
       }).join('') + '</div>';
       var m0 = sportMinutes(d);
       if (m0) h += '<p class="sum">Gesamt ' + m0 + ' min</p>';
@@ -1448,7 +1487,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
     h += '<form data-form="sport" novalidate class="panel" style="margin-top:8px"><span class="label">Neue Einheit</span>' +
       '<div class="row">' +
       '<div class="field"><label for="sportType">Sportart</label><input id="sportType" type="text" list="sportTypes" autocomplete="off" placeholder="z. B. Laufen"' + dis() + '></div>' +
-      '<div class="field" style="flex-basis:90px"><label for="sportMin">Minuten</label><input id="sportMin" type="number" inputmode="numeric" min="1" max="1440" placeholder="45"' + dis() + '></div>' +
       '</div>' +
       '<datalist id="sportTypes">' + allSports().map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
       '<div class="chips" aria-label="Schnellauswahl">' + allSports().map(function (s) {
@@ -1768,7 +1806,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       sImportMsg = null;
       var type = $('#sportType').value.trim();
       if (!type) { $('#sportErr').textContent = 'Bitte eine Sportart angeben.'; return; }
-      var min = parseInt($('#sportMin').value, 10);
+      var min = NaN;
       var entry = { id: uid(), type: type.slice(0, 60), min: isFinite(min) && min > 0 ? Math.min(min, 1440) : 0, note: '' };
       ensure(selected).sports.push(entry);
       commit(selected);
@@ -1806,6 +1844,33 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (act === 'task-cancel') { editTask = null; renderPanel(); return; }
     if (act === 'task-save') { saveTaskEdit(); return; }
+    if (act === 'ex-add') {
+      var fa = findEx(b.dataset.sid); if (!fa) return;
+      var nx = { id: uid(), n: '', s: 3, r: 10 };
+      fa.s.ex.push(nx); commit(selected);
+      sportForce = true; renderPanel();
+      var ni = elPanel.querySelector('.exname[data-xid="' + nx.id + '"]'); if (ni) ni.focus();
+      return;
+    }
+    if (act === 'ex-inc' || act === 'ex-dec') {
+      var fs = findEx(b.dataset.sid, b.dataset.xid); if (!fs || !fs.x) return;
+      var fld = b.dataset.f, mx = fld === 's' ? 20 : 200;
+      fs.x[fld] = Math.max(1, Math.min(mx, (fs.x[fld] || 1) + (act === 'ex-inc' ? 1 : -1)));
+      commit(selected);
+      var lbl = b.parentNode.querySelector('b'); if (lbl) lbl.textContent = fs.x[fld];
+      return;
+    }
+    if (act === 'ex-del') {
+      var fd = findEx(b.dataset.sid, b.dataset.xid); if (!fd || !fd.x) return;
+      var ixd = fd.s.ex.indexOf(fd.x), oldX = fd.x, sidd = fd.s.id, kd = selected;
+      fd.s.ex.splice(ixd, 1); commit(selected);
+      sportForce = true; renderPanel();
+      undoable((oldX.n || 'Übung') + ' entfernt', function () {
+        var s2 = ((days[kd] || {}).sports || []).filter(function (y) { return y.id === sidd; })[0];
+        if (!s2) return; s2.ex = s2.ex || []; s2.ex.splice(Math.min(ixd, s2.ex.length), 0, oldX); commit(kd); sportForce = true; renderPanel();
+      });
+      return;
+    }
     if (act === 'item-edit') { editItem = b.dataset.iid; renderPanel(); var ie = $('#ieText'); if (ie) ie.focus(); return; }
     if (act === 'item-cancel') { editItem = null; renderPanel(); return; }
     if (act === 'item-save') {
@@ -1847,7 +1912,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       var lowAll = allSports().map(function (s) { return s.toLowerCase(); });
       if (lowAll.indexOf(nv.toLowerCase()) < 0 && customSports.length < 30) { customSports.push(nv); saveSports(); }
       addingSport = false; renderPanel();
-      $('#sportType').value = nv; $('#sportMin').focus();
+      $('#sportType').value = nv;
     } else if (act === 'del-csport') {
       var oldList = customSports.slice();
       customSports = customSports.filter(function (s) { return s !== b.dataset.v; });
@@ -1855,7 +1920,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
       undoable(b.dataset.v + ' aus der Auswahl entfernt', function () { customSports = oldList; saveSports(); renderPanel(); });
     } else if (act === 'chip') {
       $('#sportType').value = b.dataset.v;
-      $('#sportMin').focus();
     } else if (act === 'del-weight' && d) {
       var oldW = d.weight, kW = selected;
       d.weight = null; commit(selected); refreshAfterEdit(true);
@@ -1925,6 +1989,17 @@ textarea.autogrow { resize: none; overflow: hidden; }
   });
   elPanel.addEventListener('keydown', function (e) {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.ev[data-spid]')) { e.preventDefault(); toggleSport(e.target); }
+  });
+  elPanel.addEventListener('input', function (e) {
+    if (e.target.classList && e.target.classList.contains('exname') && ready) {
+      var fi = findEx(e.target.dataset.sid, e.target.dataset.xid); if (!fi || !fi.x) return;
+      fi.x.n = e.target.value.slice(0, 60); commit(selected, 700);
+    }
+  });
+  elPanel.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || !e.target.classList || !e.target.classList.contains('exname')) return;
+    e.preventDefault();
+    var addb = elPanel.querySelector('button[data-act="ex-add"][data-sid="' + e.target.dataset.sid + '"]'); if (addb) addb.click();
   });
   elPanel.addEventListener('input', function (e) {
     if (e.target.id !== 'spNoteIn' || !ready) return;
