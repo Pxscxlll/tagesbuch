@@ -347,7 +347,7 @@ textarea.evnote { min-height: 72px; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 21</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 22</p>
 </main>
 
 <script>
@@ -952,12 +952,12 @@ textarea.evnote { min-height: 72px; }
       return '<div class="ev' + (open ? ' open' : '') + '" data-evkey="' + esc(key) + '" role="button" tabindex="0" aria-expanded="' + open + '"><span class="t">' + esc(t) + '</span><span class="x">' + esc(e.title) +
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
         (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
-        (note && !open ? '<small class="evnote-prev">📝 Neu: ' + esc(snip(note)) + '</small>' : '') + '</span>' +
+        '</span>' +
         (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>' +
         (open ? '<div class="evnotes">' +
           '<label for="evNoteIn">Neu</label>' +
           '<textarea class="evnote" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
-          '<label for="evGenIn">Allgemein <span class="lbl-sub">gilt für alle Termine „' + esc(e.title) + '“</span></label>' +
+          '<label for="evGenIn">Allgemein</label>' +
           '<textarea class="evnote" id="evGenIn" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Was gilt immer?"' + dis() + '>' + esc(evGeneral[titleKey(e.title)] || '') + '</textarea>' +
           '</div>' : '');
     }).join('');
