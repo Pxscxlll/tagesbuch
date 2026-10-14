@@ -165,7 +165,7 @@ input:disabled, textarea:disabled, button:disabled { opacity: 0.55; cursor: not-
 .item-min { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .del { border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 6px; font-size: 1.1rem; line-height: 1; flex: none; }
 .del:hover { background: var(--surface-2); color: var(--danger); }
-.list li.editing input[type="text"] { flex: 1 1 160px; }
+.list li.editing > input[type="text"] { flex: 1 1 160px; }
 .list li.editing { flex-wrap: wrap; }
 .list input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 .done .item-main { text-decoration: line-through; color: var(--muted); }
@@ -354,7 +354,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 29</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 30</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" id="toastUndo">Rückgängig</button></div>
 
@@ -401,7 +401,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var abos = {};        // id -> { name, updated, events: [{ id, date, time, end, title, loc, m }] }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
-  var wImportMsg = null, openEv = null, openSport = null, editTask = null, evGeneral = {};
+  var wImportMsg = null, openEv = null, openSport = null, editTask = null, editItem = null, evGeneral = {};
   try { var egr = JSON.parse(localStorage.getItem('tagesbuch:evgen') || '{}'); if (egr && typeof egr === 'object') evGeneral = egr; } catch (e) {}
   function titleKey(t) { return String(t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   var customSports = [], addingSport = false, sImportMsg = null;
@@ -1273,9 +1273,22 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var h = '<div class="field"><span class="label">Übungen</span>';
     if (due.length) {
       h += '<ul class="list">' + due.map(function (it) {
+        if (editItem === it.id) {
+          return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
+            '<div class="field"><label for="ieText">Übung</label><input id="ieText" type="text" maxlength="120" autocomplete="off" value="' + esc(it.text) + '"' + dis() + '></div>' +
+            '<div class="row">' +
+            '<div class="field" style="flex-basis:130px"><label for="ieRep">Wiederholen</label><select id="ieRep"' + dis() + '>' +
+            REPS.map(function (r) { return '<option value="' + r[0] + '"' + (r[0] === it.rep ? ' selected' : '') + '>' + r[1] + '</option>'; }).join('') + '</select></div>' +
+            '<div class="field" style="flex-basis:130px"><label for="ieFrom">Von</label><input id="ieFrom" type="date" value="' + esc(it.start) + '"' + dis() + '></div>' +
+            '<div class="field" style="flex-basis:130px"><label for="ieTo">Bis (optional)</label><input id="ieTo" type="date" value="' + esc(it.until || '') + '"' + dis() + '></div>' +
+            '</div><p class="err" id="ieErr" role="alert"></p>' +
+            '<div class="row"><button type="button" class="btn" data-act="item-save" data-iid="' + esc(it.id) + '"' + dis() + '>Speichern</button>' +
+            '<button type="button" class="btn ghost" data-act="item-cancel">Abbrechen</button></div></div></li>';
+        }
         var on = isChecked(selected, id, it.id), cid = 'ci_' + it.id;
         return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="ctoggle" data-iid="' + esc(it.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
           '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + (it.rep === 'once' ? '' : ' · ' + (it.until ? shortDate(it.start) + ' – ' + shortDate(it.until) : 'ab ' + shortDate(it.start))) + '</small></label>' +
+          '<button type="button" class="del pen" data-act="item-edit" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' bearbeiten">✎</button>' +
           '<button type="button" class="del" data-act="citem-del" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' ab diesem Tag entfernen">×</button></li>';
       }).join('') + '</ul><p class="sum">' + nDone + ' von ' + due.length + ' erledigt</p>';
     } else {
@@ -1793,6 +1806,23 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (act === 'task-cancel') { editTask = null; renderPanel(); return; }
     if (act === 'task-save') { saveTaskEdit(); return; }
+    if (act === 'item-edit') { editItem = b.dataset.iid; renderPanel(); var ie = $('#ieText'); if (ie) ie.focus(); return; }
+    if (act === 'item-cancel') { editItem = null; renderPanel(); return; }
+    if (act === 'item-save') {
+      var et = tabById(tab.slice(2)); if (!et) return;
+      var ntxt = $('#ieText').value.trim().slice(0, 120), nrep = $('#ieRep').value, nfrom = $('#ieFrom').value, nto = $('#ieTo').value;
+      if (!ntxt) { $('#ieErr').textContent = 'Bitte einen Namen eingeben.'; return; }
+      if (!nfrom) { $('#ieErr').textContent = 'Bitte ein Startdatum wählen.'; return; }
+      if (nto && nto < nfrom) { $('#ieErr').textContent = 'Das Enddatum liegt vor dem Startdatum.'; return; }
+      var prevItems = (et.items || []).slice();
+      et.items = (et.items || []).map(function (it) {
+        if (it.id !== b.dataset.iid) return it;
+        var o = { id: it.id, text: ntxt, rep: nrep, start: nfrom }; if (nto) o.until = nto; return o;
+      });
+      editItem = null; savePrefs(); renderPanel(); renderCal();
+      undoable('Übung geändert', function () { var e2 = tabById(et.id); if (!e2) return; e2.items = prevItems; savePrefs(); renderPanel(); renderCal(); });
+      return;
+    }
     if (act === 'citem-del') {
       var ct = tabById(tab.slice(2));
       if (!ct) return;
