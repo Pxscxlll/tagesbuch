@@ -309,7 +309,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 34</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 35</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -417,6 +417,35 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
   var pImportMsg = null;
+  var deletedTabs = [];
+  try { var dtr = JSON.parse(localStorage.getItem('tagesbuch:deltabs') || '[]'); if (Array.isArray(dtr)) deletedTabs = dtr; } catch (e) {}
+  function saveDeleted() {
+    try { localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); } catch (e) {}
+    meta.deltabs = Date.now(); saveMeta(); scheduleSync();
+  }
+  function orphanTabs() {
+    var known = {}, found = {};
+    customTabs.forEach(function (c) { known[c.id] = 1; });
+    deletedTabs.forEach(function (c) { known[c.id] = 1; });
+    Object.keys(days).forEach(function (k) {
+      var d = days[k];
+      Object.keys(d.custom || {}).concat(Object.keys(d.checks || {})).forEach(function (id) {
+        if (known[id]) return;
+        var f = found[id] = found[id] || { id: id, n: 0, first: k, last: k };
+        f.n++; if (k < f.first) f.first = k; if (k > f.last) f.last = k;
+      });
+    });
+    return Object.keys(found).map(function (id) { return found[id]; });
+  }
+  function restoreTab(t, name) {
+    if (customTabs.some(function (c) { return c.id === t.id; })) return;
+    customTabs.push({ id: t.id, name: (name || t.name || 'Wiederhergestellt').slice(0, 24), items: t.items || [] });
+    deletedTabs = deletedTabs.filter(function (c) { return c.id !== t.id; });
+    savePrefs(); saveDeleted();
+    addingTab = false; tab = 'c_' + t.id; wtab = tab;
+    try { localStorage.setItem('tagesbuch:tab', tab); } catch (e) {}
+    renderAll();
+  }
   var wImportMsg = null, openEv = null, openSport = null, editTask = null, editItem = null, evGeneral = {};
   try { var egr = JSON.parse(localStorage.getItem('tagesbuch:evgen') || '{}'); if (egr && typeof egr === 'object') evGeneral = egr; } catch (e) {}
   function titleKey(t) { return String(t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
@@ -1263,6 +1292,19 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button>' +
       '<button type="button" class="btn ghost" data-act="cancel-tab">Abbrechen</button></form>' +
       '<p class="hint">Der Tab erscheint hier und in der Wochenansicht. Pro Tag trägst du darin einen Text oder Wert ein.</p>';
+    var orph = orphanTabs();
+    if (deletedTabs.length || orph.length) {
+      elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Gelöschte Tabs</span><ul class="list">' +
+        deletedTabs.map(function (t) {
+          return '<li><div class="item-main">' + esc(t.name) + '<small>' + ((t.items || []).length ? (t.items.length + ' Übungen · ') : '') + 'gelöscht am ' + esc(shortDate(t.at || todayKey)) + '</small></div>' +
+            '<button type="button" class="btn ghost" style="height:36px" data-act="tab-restore" data-id="' + esc(t.id) + '">Wiederherstellen</button></li>';
+        }).join('') +
+        orph.map(function (o) {
+          return '<li><div class="item-main">Tab ohne Namen<small>Einträge an ' + o.n + (o.n === 1 ? ' Tag' : ' Tagen') + ' · ' + esc(shortDate(o.first)) + ' – ' + esc(shortDate(o.last)) + '</small></div>' +
+            '<button type="button" class="btn ghost" style="height:36px" data-act="tab-restore-orphan" data-id="' + esc(o.id) + '">Wiederherstellen</button></li>';
+        }).join('') + '</ul>' +
+        (orph.length ? '<p class="hint">Bei „Tab ohne Namen“ trag oben zuerst den Namen ein, zum Beispiel „Physio“, und tippe dann auf Wiederherstellen.</p>' : '') + '</div>';
+    }
     var i = $('#tabName'); if (i) i.focus();
   }
   var REPS = [['daily', 'Täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'Wöchentlich'], ['once', 'Nur an diesem Tag']];
@@ -1918,10 +1960,27 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (act === 'tab-del-ask') { delTabAsk = true; renderPanel(); return; }
     if (act === 'tab-del-no') { delTabAsk = false; renderPanel(); return; }
     if (act === 'tab-del-yes') {
-      var cid = tab.slice(2);
+      var cid = tab.slice(2), gone = tabById(cid);
       customTabs = customTabs.filter(function (x) { return x.id !== cid; });
+      if (gone) {
+        deletedTabs = deletedTabs.filter(function (x) { return x.id !== cid; });
+        deletedTabs.unshift({ id: gone.id, name: gone.name, items: gone.items || [], at: todayKey });
+        deletedTabs = deletedTabs.slice(0, 20); saveDeleted();
+        undoable('Tab „' + gone.name + '“ entfernt', function () { restoreTab(gone); });
+      }
       savePrefs(); delTabAsk = false; tab = 'events'; wtab = 'events';
       renderAll();
+      return;
+    }
+    if (act === 'tab-restore') {
+      var dt0 = deletedTabs.filter(function (x) { return x.id === b.dataset.id; })[0];
+      if (dt0) restoreTab(dt0);
+      return;
+    }
+    if (act === 'tab-restore-orphan') {
+      var nm0 = ($('#tabName') && $('#tabName').value.trim()) || '';
+      if (!nm0) { var tn = $('#tabName'); if (tn) { tn.placeholder = 'Bitte zuerst einen Namen eintragen'; tn.focus(); } return; }
+      restoreTab({ id: b.dataset.id, name: nm0, items: [] }, nm0);
       return;
     }
     if (act === 'edit-task') {
@@ -2184,10 +2243,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var GCLIENT = '67815585819-na1pqnbgj6dg0fcp0flhccu6irdefgk0.apps.googleusercontent.com';
   var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
   var SYNC_FILE = 'tagesbuch.json';
-  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0 };
+  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0, deltabs: 0 };
   try {
     var mraw = localStorage.getItem('tagesbuch:meta');
-    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; }
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; meta.deltabs = mo.deltabs || 0; }
   } catch (e) {}
   function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
   function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
@@ -2316,6 +2375,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var re = remote.evgen || { t: 0 }, le = meta.evgen || 0, ret = re.t || 0;
     if (ret > le && re.v && typeof re.v === 'object') { evGeneral = re.v; meta.evgen = ret; changed = true; }
     else if (le > ret) dirty = true;
+    var rdt = remote.deltabs || { t: 0 }, ldt = meta.deltabs || 0, rdtt = rdt.t || 0;
+    if (rdtt > ldt && Array.isArray(rdt.v)) { deletedTabs = rdt.v; meta.deltabs = rdtt; changed = true; }
+    else if (ldt > rdtt) dirty = true;
     return { changed: changed, dirty: dirty };
   }
   function buildPayload() {
@@ -2323,6 +2385,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (gsel) out.gcal = { t: meta.gcal || 1, v: gsel };
     if (meta.taborder) out.taborder = { t: meta.taborder, v: tabOrder };
     if (meta.evgen) out.evgen = { t: meta.evgen, v: evGeneral };
+    if (meta.deltabs) out.deltabs = { t: meta.deltabs, v: deletedTabs };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
     Object.keys(keys).forEach(function (k) {
       var t = localTs(k); if (!t) return;
@@ -2337,7 +2400,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function persistLocalAll() {
     saveLocal(); saveLocalAbos(); saveMeta();
-    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); } catch (e) {}
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); } catch (e) {}
   }
 
   function sync(interactive) {
