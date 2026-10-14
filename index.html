@@ -9,6 +9,7 @@
   --bg: #EEF2F0;
   --surface: #FFFFFF;
   --surface-2: #E3EAE6;
+  --hover: #D3DED8;
   --line: #D1DAD5;
   --fg: #15201C;
   --muted: #5A6760;
@@ -27,6 +28,7 @@
     --bg: #0C1110;
     --surface: #18211E;
     --surface-2: #2A3832;
+  --hover: #3A4B44;
     --line: #3B4B44;
     --fg: #F3F8F5;
     --muted: #B6C4BD;
@@ -44,6 +46,7 @@
   --bg: #0C1110;
   --surface: #18211E;
   --surface-2: #2A3832;
+  --hover: #3A4B44;
   --line: #3B4B44;
   --fg: #F3F8F5;
   --muted: #B6C4BD;
@@ -314,11 +317,21 @@ textarea.autogrow { resize: none; overflow: hidden; }
   .top-actions .text-btn { font-size: 0.85rem; padding: 0 9px; }
   h1 { font-size: 1.2rem; }
 }
+/* Einheitlicher Hover für alle Buttons: Hintergrund wird etwas heller bzw. dunkler. */
+@media (hover: hover) {
+  button:not(:disabled):hover { background-color: var(--surface-2); }
+  .tab:not([aria-selected="true"]):not(.lifted):not(:disabled):hover,
+  .mode:not([aria-selected="true"]):hover,
+  .stepper button:not(:disabled):hover,
+  button.mtile:hover { background-color: var(--hover); color: var(--fg); filter: none; }
+  .tab[aria-selected="true"]:not(.lifted):hover, .mode[aria-selected="true"]:hover { background-color: var(--surface); box-shadow: 0 0 0 1px var(--muted); }
+  .btn:not(.ghost):not(:disabled):hover, .toast button:hover { background-color: var(--accent); filter: brightness(1.15); }
+}
 </style>
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 52</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 53</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
