@@ -315,7 +315,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 44</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 45</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2016,11 +2016,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return;
     }
     if (act === 'bk-load') { bkLoad(); return; }
-    if (act === 'bk-restore') {
-      if (bkArm !== b.dataset.id) { bkArm = b.dataset.id; renderBk(); return; }
-      bkArm = null; renderBk(); restoreBackup(b.dataset.id, b.dataset.k);
-      return;
-    }
+    if (act === 'bk-restore') { bkArm = b.dataset.id; renderBk(); return; }
+    if (act === 'bk-no') { bkArm = null; renderBk(); return; }
+    if (act === 'bk-yes') { bkArm = null; renderBk(); restoreBackup(b.dataset.id, b.dataset.k); return; }
     if (act === 'tab-restore') {
       var dt0 = deletedTabs.filter(function (x) { return x.id === b.dataset.id; })[0];
       if (dt0) restoreTab(dt0);
@@ -2464,8 +2462,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (!bkList.length) return '<p class="hint">Noch kein Backup vorhanden. Das erste legt die App beim nächsten Abgleich an.</p>';
     return '<ul class="list">' + bkList.map(function (f) {
       var arm = bkArm === f.id;
-      return '<li><div class="item-main">Stand vom ' + esc(shortDate(f.k) + f.k.slice(0, 4)) + '</div>' +
-        '<button type="button" class="btn ' + (arm ? '' : 'ghost') + '" style="height:36px" data-act="bk-restore" data-id="' + esc(f.id) + '" data-k="' + esc(f.k) + '">' + (arm ? 'Sicher? Nochmal tippen' : 'Wiederherstellen') + '</button></li>';
+      var att = ' data-id="' + esc(f.id) + '" data-k="' + esc(f.k) + '"';
+      return '<li><div class="item-main">Stand vom ' + esc(shortDate(f.k) + f.k.slice(0, 4)) + (arm ? '<small>Alle Einträge durch diesen Stand ersetzen?</small>' : '') + '</div>' +
+        (arm ? '<button type="button" class="btn" style="height:36px" data-act="bk-yes"' + att + '>Ja</button>' +
+               '<button type="button" class="btn ghost" style="height:36px" data-act="bk-no">Abbrechen</button>'
+             : '<button type="button" class="btn ghost" style="height:36px" data-act="bk-restore"' + att + '>Wiederherstellen</button>') + '</li>';
     }).join('') + '</ul>';
   }
   function renderBk() { var box = document.getElementById('bkBox'); if (box) box.innerHTML = bkHtml(); }
