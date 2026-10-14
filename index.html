@@ -247,6 +247,7 @@ button.wrow:hover { background: var(--surface-2); }
 .ev small { display: block; color: var(--muted); font-size: 0.85rem; }
 .maplink { display: inline-block; margin-top: 4px; font-size: 0.88rem; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .ev .del { align-self: center; }
+.del.pen { transform: scaleX(-1); }
 .ev.tap, .ev[data-evkey] { cursor: pointer; border-radius: 8px; padding: 8px; margin: 0 -8px; }
 .ev.tap:hover, .ev[data-evkey]:hover { background: var(--surface-2); }
 .ev.open { background: var(--surface-2); }
@@ -349,7 +350,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 27</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 28</p>
 </main>
 
 <script>
@@ -1467,7 +1468,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         }
         return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" data-act="toggle" data-id="' + esc(t.id) + '" id="t_' + esc(t.id) + '"' + (t.done ? ' checked' : '') + dis() + '>' +
           '<label for="t_' + esc(t.id) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.text) + '</label>' +
-          '<button type="button" class="del" data-act="edit-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe bearbeiten">✎</button>' +
+          '<button type="button" class="del pen" data-act="edit-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe bearbeiten">✎</button>' +
           '<button type="button" class="del" data-act="del-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe entfernen">×</button></li>';
       }).join('') + '</ul><p class="sum">' + done + ' von ' + d.tasks.length + ' erledigt</p>';
     } else {
