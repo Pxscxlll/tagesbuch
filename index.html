@@ -105,7 +105,7 @@ button.cell:hover { background: var(--surface-2); }
 .cell.today { border-color: var(--accent); }
 .cell.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .dots { display: flex; gap: 3px; min-height: 7px; }
-.dot { width: 7px; height: 7px; border-radius: 50%; display: block; }
+.dot { width: 7px; height: 7px; border-radius: 50%; display: block; flex: none; }
 .dot.w { background: var(--c-weight); }
 .dot.s { background: var(--c-sport); }
 .dot.t { background: var(--c-task); }
@@ -311,7 +311,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 36</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 37</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
