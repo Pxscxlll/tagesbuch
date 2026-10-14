@@ -250,7 +250,10 @@ button.wrow:hover { background: var(--surface-2); }
 .ev[data-evkey]:hover { background: var(--surface-2); }
 .ev.open { background: var(--surface-2); }
 .evnote-prev { font-style: italic; }
-textarea.evnote { min-height: 90px; margin-top: -4px; }
+textarea.evnote { min-height: 72px; }
+.evnotes { display: flex; flex-direction: column; gap: 6px; margin-top: -2px; }
+.evnotes label { margin-top: 4px; }
+.lbl-sub { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .wparts span { max-width: 100%; overflow-wrap: anywhere; }
 .abo h3 { font-size: 1rem; }
 .abo summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
@@ -344,7 +347,7 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 20</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 21</p>
 </main>
 
 <script>
@@ -390,7 +393,9 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   var abos = {};        // id -> { name, updated, events: [{ id, date, time, end, title, loc, m }] }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
-  var wImportMsg = null, openEv = null;
+  var wImportMsg = null, openEv = null, evGeneral = {};
+  try { var egr = JSON.parse(localStorage.getItem('tagesbuch:evgen') || '{}'); if (egr && typeof egr === 'object') evGeneral = egr; } catch (e) {}
+  function titleKey(t) { return String(t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   var customSports = [], addingSport = false, sImportMsg = null;
   try { var csr = localStorage.getItem('tagesbuch:csports'); if (csr) customSports = JSON.parse(csr); } catch (e) {}
   try {
@@ -936,7 +941,7 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
     var el = $('#events'), list = evIdx[selected] || [];
     if (tab !== 'events' || addingTab || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
     var ae = document.activeElement;
-    if (ae && ae.id === 'evNoteIn' && el.contains(ae)) return;
+    if (ae && (ae.id === 'evNoteIn' || ae.id === 'evGenIn') && el.contains(ae)) return;
     el.hidden = false;
     var notes = (days[selected] && days[selected].evnotes) || {};
     var keys = list.map(function (x) { return x.aid + '|' + x.e.id; });
@@ -947,9 +952,14 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
       return '<div class="ev' + (open ? ' open' : '') + '" data-evkey="' + esc(key) + '" role="button" tabindex="0" aria-expanded="' + open + '"><span class="t">' + esc(t) + '</span><span class="x">' + esc(e.title) +
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
         (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
-        (note && !open ? '<small class="evnote-prev">📝 ' + esc(snip(note)) + '</small>' : '') + '</span>' +
+        (note && !open ? '<small class="evnote-prev">📝 Neu: ' + esc(snip(note)) + '</small>' : '') + '</span>' +
         (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>' +
-        (open ? '<textarea class="evnote" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Notiz zu diesem Termin"' + dis() + '>' + esc(note) + '</textarea>' : '');
+        (open ? '<div class="evnotes">' +
+          '<label for="evNoteIn">Neu</label>' +
+          '<textarea class="evnote" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
+          '<label for="evGenIn">Allgemein <span class="lbl-sub">gilt für alle Termine „' + esc(e.title) + '“</span></label>' +
+          '<textarea class="evnote" id="evGenIn" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Was gilt immer?"' + dis() + '>' + esc(evGeneral[titleKey(e.title)] || '') + '</textarea>' +
+          '</div>' : '');
     }).join('');
   }
 
@@ -1573,6 +1583,13 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.ev[data-evkey]')) { e.preventDefault(); toggleEv(e.target); }
   });
   $('#events').addEventListener('input', function (e) {
+    if (e.target.id === 'evGenIn' && ready) {
+      var tk = e.target.dataset.tkey, gv = e.target.value.slice(0, 5000);
+      if (gv.trim()) evGeneral[tk] = gv; else delete evGeneral[tk];
+      try { localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); } catch (err) {}
+      meta.evgen = Date.now(); saveMeta(); scheduleSync();
+      return;
+    }
     if (e.target.id !== 'evNoteIn' || !ready) return;
     var d = ensure(selected), k = e.target.dataset.evkey, v = e.target.value.slice(0, 5000);
     if (v.trim()) d.evnotes[k] = v; else delete d.evnotes[k];
@@ -1878,10 +1895,10 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   var GCLIENT = '67815585819-na1pqnbgj6dg0fcp0flhccu6irdefgk0.apps.googleusercontent.com';
   var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
   var SYNC_FILE = 'tagesbuch.json';
-  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0 };
+  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0 };
   try {
     var mraw = localStorage.getItem('tagesbuch:meta');
-    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; }
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; }
   } catch (e) {}
   function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
   function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
@@ -2007,12 +2024,16 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
     var ro = remote.taborder || { t: 0 }, lo = meta.taborder || 0, rot = ro.t || 0;
     if (rot > lo && Array.isArray(ro.v)) { tabOrder = ro.v.filter(function (x) { return typeof x === 'string'; }).slice(0, 40); meta.taborder = rot; changed = true; }
     else if (lo > rot) dirty = true;
+    var re = remote.evgen || { t: 0 }, le = meta.evgen || 0, ret = re.t || 0;
+    if (ret > le && re.v && typeof re.v === 'object') { evGeneral = re.v; meta.evgen = ret; changed = true; }
+    else if (le > ret) dirty = true;
     return { changed: changed, dirty: dirty };
   }
   function buildPayload() {
     var out = { v: 1, days: {}, abos: {}, tabs: { t: meta.tabs || (customTabs.length ? 1 : 0), v: customTabs }, sports: { t: meta.sports || 1, v: customSports, full: true } };
     if (gsel) out.gcal = { t: meta.gcal || 1, v: gsel };
     if (meta.taborder) out.taborder = { t: meta.taborder, v: tabOrder };
+    if (meta.evgen) out.evgen = { t: meta.evgen, v: evGeneral };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
     Object.keys(keys).forEach(function (k) {
       var t = localTs(k); if (!t) return;
@@ -2027,7 +2048,7 @@ textarea.evnote { min-height: 90px; margin-top: -4px; }
   }
   function persistLocalAll() {
     saveLocal(); saveLocalAbos(); saveMeta();
-    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); } catch (e) {}
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); } catch (e) {}
   }
 
   function sync(interactive) {
