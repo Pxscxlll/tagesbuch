@@ -118,6 +118,9 @@ button.cell:hover { background: var(--surface-2); }
 /* Tagesmaske */
 .day-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
 .day-sub { margin: 0; color: var(--muted); font-size: 0.9rem; }
+/* Keine Scrollleiste für die Seite: sonst springt das Layout beim Tabwechsel, wenn die Leiste kommt oder geht */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
 .tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { flex: 1 0 auto; white-space: nowrap; border: 0; background: transparent; border-radius: 7px; padding: 8px 4px; font-weight: 500; font-size: 0.92rem; display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--muted); }
@@ -315,7 +318,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 47</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 48</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
