@@ -168,6 +168,7 @@ input:disabled, textarea:disabled, button:disabled { opacity: 0.55; cursor: not-
 .del { border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 6px; font-size: 1.1rem; line-height: 1; flex: none; }
 .del:hover { background: var(--surface-2); color: var(--danger); }
 .list li.editing > input[type="text"] { flex: 1 1 160px; }
+.list li > input.tabren { flex: 1; }
 .list li.editing { flex-wrap: wrap; }
 .list input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 .done .item-main { text-decoration: line-through; color: var(--muted); }
@@ -313,7 +314,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 39</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 40</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -674,8 +675,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   var tabOrder = [];
   try { var tor = JSON.parse(localStorage.getItem('tagesbuch:taborder') || '[]'); if (Array.isArray(tor)) tabOrder = tor.filter(function (x) { return typeof x === 'string'; }).slice(0, 40); } catch (e) {}
+  var tabNames = {};
+  try { var tnr = JSON.parse(localStorage.getItem('tagesbuch:tabnames') || '{}'); if (tnr && typeof tnr === 'object') tabNames = tnr; } catch (e) {}
+  function saveTabNames() {
+    try { localStorage.setItem('tagesbuch:tabnames', JSON.stringify(tabNames)); } catch (e) {}
+    meta.tabnames = Date.now(); saveMeta(); scheduleSync();
+  }
   function allTabs() {
-    var list = TABS.concat(customTabs.map(function (c) { return ['c_' + c.id, c.name]; }));
+    var list = TABS.map(function (t) { return [t[0], tabNames[t[0]] || t[1]]; }).concat(customTabs.map(function (c) { return ['c_' + c.id, c.name]; }));
     if (!tabOrder.length) return list;
     return list.map(function (t, i) { var o = tabOrder.indexOf(t[0]); return { t: t, o: o < 0 ? 1000 + i : o }; })
       .sort(function (a, b) { return a.o - b.o; }).map(function (x) { return x.t; });
@@ -1299,6 +1306,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button>' +
       '<button type="button" class="btn ghost" data-act="cancel-tab">Abbrechen</button></form>' +
       '<p class="hint">Der Tab erscheint hier und in der Wochenansicht. Pro Tag trägst du darin einen Text oder Wert ein.</p>';
+    elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Tabs umbenennen</span><ul class="list">' +
+      allTabs().map(function (t) {
+        var def = TABS.filter(function (x) { return x[0] === t[0]; })[0];
+        return '<li><input type="text" class="tabren" data-tid="' + esc(t[0]) + '" maxlength="24" autocomplete="off" value="' + esc(t[1]) + '" aria-label="Name für ' + esc(t[1]) + '"' + (def ? ' placeholder="' + esc(def[1]) + '"' : '') + dis() + '></li>';
+      }).join('') + '</ul><p class="hint">Neuen Namen eintippen, mit Enter oder durch Antippen außerhalb wird er gespeichert. Bei den festen Tabs stellt ein leeres Feld den ursprünglichen Namen wieder her.</p></div>';
     var orph = orphanTabs();
     if (deletedTabs.length || orph.length) {
       elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Gelöschte Tabs</span><ul class="list">' +
@@ -2133,6 +2145,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     editTask = null; refreshAfterEdit(true);
   }
   elPanel.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('tabren')) { e.preventDefault(); e.target.blur(); }
+  });
+  elPanel.addEventListener('keydown', function (e) {
     if (e.target.id !== 'taskEditIn') return;
     if (e.key === 'Enter') { e.preventDefault(); saveTaskEdit(); }
     else if (e.key === 'Escape') { editTask = null; renderPanel(); }
@@ -2172,6 +2187,21 @@ textarea.autogrow { resize: none; overflow: hidden; }
   });
   elPanel.addEventListener('change', function (e) {
     var el = e.target;
+    if (el.classList && el.classList.contains('tabren') && ready) {
+      var tid = el.dataset.tid, nv = el.value.trim().slice(0, 24);
+      if (/^c_/.test(tid)) {
+        var ct = tabById(tid.slice(2));
+        if (ct && nv && nv !== ct.name) { ct.name = nv; savePrefs(); }
+        else if (ct && !nv) el.value = ct.name;
+      } else {
+        var def = TABS.filter(function (x) { return x[0] === tid; })[0];
+        if (!nv || (def && nv === def[1])) delete tabNames[tid]; else tabNames[tid] = nv;
+        saveTabNames();
+        if (!nv && def) el.value = def[1];
+      }
+      renderTabs(); renderCal();
+      return;
+    }
     if (el.dataset && el.dataset.act === 'ctoggle' && ready) {
       var tid = tab.slice(2), dd = ensure(selected);
       dd.checks[tid] = dd.checks[tid] || {};
@@ -2250,10 +2280,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var GCLIENT = '67815585819-na1pqnbgj6dg0fcp0flhccu6irdefgk0.apps.googleusercontent.com';
   var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
   var SYNC_FILE = 'tagesbuch.json';
-  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0, deltabs: 0 };
+  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0, deltabs: 0, tabnames: 0 };
   try {
     var mraw = localStorage.getItem('tagesbuch:meta');
-    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; meta.deltabs = mo.deltabs || 0; }
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; meta.deltabs = mo.deltabs || 0; meta.tabnames = mo.tabnames || 0; }
   } catch (e) {}
   function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
   function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
@@ -2385,6 +2415,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var rdt = remote.deltabs || { t: 0 }, ldt = meta.deltabs || 0, rdtt = rdt.t || 0;
     if (rdtt > ldt && Array.isArray(rdt.v)) { deletedTabs = rdt.v; meta.deltabs = rdtt; changed = true; }
     else if (ldt > rdtt) dirty = true;
+    var rtn = remote.tabnames || { t: 0 }, ltn = meta.tabnames || 0, rtnt = rtn.t || 0;
+    if (rtnt > ltn && rtn.v && typeof rtn.v === 'object') { tabNames = rtn.v; meta.tabnames = rtnt; changed = true; }
+    else if (ltn > rtnt) dirty = true;
     return { changed: changed, dirty: dirty };
   }
   function buildPayload() {
@@ -2393,6 +2426,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (meta.taborder) out.taborder = { t: meta.taborder, v: tabOrder };
     if (meta.evgen) out.evgen = { t: meta.evgen, v: evGeneral };
     if (meta.deltabs) out.deltabs = { t: meta.deltabs, v: deletedTabs };
+    if (meta.tabnames) out.tabnames = { t: meta.tabnames, v: tabNames };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
     Object.keys(keys).forEach(function (k) {
       var t = localTs(k); if (!t) return;
@@ -2407,7 +2441,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function persistLocalAll() {
     saveLocal(); saveLocalAbos(); saveMeta();
-    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); } catch (e) {}
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); localStorage.setItem('tagesbuch:tabnames', JSON.stringify(tabNames)); } catch (e) {}
   }
 
   function sync(interactive) {
