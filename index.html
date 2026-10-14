@@ -165,6 +165,8 @@ input:disabled, textarea:disabled, button:disabled { opacity: 0.55; cursor: not-
 .item-min { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .del { border: 0; background: transparent; color: var(--muted); width: 32px; height: 32px; border-radius: 6px; font-size: 1.1rem; line-height: 1; flex: none; }
 .del:hover { background: var(--surface-2); color: var(--danger); }
+.list li.editing input[type="text"] { flex: 1 1 160px; }
+.list li.editing { flex-wrap: wrap; }
 .list input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
 .done .item-main { text-decoration: line-through; color: var(--muted); }
 .carry h3 { font-size: 0.95rem; margin-bottom: 4px; }
@@ -347,7 +349,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 25</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 26</p>
 </main>
 
 <script>
@@ -393,7 +395,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var abos = {};        // id -> { name, updated, events: [{ id, date, time, end, title, loc, m }] }
   var evIdx = {};       // Datum -> [{ abo, aid, e }]
   var acol = null;
-  var wImportMsg = null, openEv = null, openSport = null, evGeneral = {};
+  var wImportMsg = null, openEv = null, openSport = null, editTask = null, evGeneral = {};
   try { var egr = JSON.parse(localStorage.getItem('tagesbuch:evgen') || '{}'); if (egr && typeof egr === 'object') evGeneral = egr; } catch (e) {}
   function titleKey(t) { return String(t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
   var customSports = [], addingSport = false, sImportMsg = null;
@@ -1458,8 +1460,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (d.tasks.length) {
       var done = d.tasks.filter(function (t) { return t.done; }).length;
       h += '<ul class="list">' + d.tasks.map(function (t) {
+        if (editTask === t.id) {
+          return '<li class="editing"><input type="text" id="taskEditIn" data-id="' + esc(t.id) + '" maxlength="200" autocomplete="off" value="' + esc(t.text) + '"' + dis() + '>' +
+            '<button type="button" class="btn" data-act="task-save" data-id="' + esc(t.id) + '"' + dis() + '>Speichern</button>' +
+            '<button type="button" class="btn ghost" data-act="task-cancel">Abbrechen</button></li>';
+        }
         return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" data-act="toggle" data-id="' + esc(t.id) + '" id="t_' + esc(t.id) + '"' + (t.done ? ' checked' : '') + dis() + '>' +
           '<label for="t_' + esc(t.id) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.text) + '</label>' +
+          '<button type="button" class="del" data-act="edit-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe bearbeiten">✎</button>' +
           '<button type="button" class="del" data-act="del-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe entfernen">×</button></li>';
       }).join('') + '</ul><p class="sum">' + done + ' von ' + d.tasks.length + ' erledigt</p>';
     } else {
@@ -1772,6 +1780,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
       renderAll();
       return;
     }
+    if (act === 'edit-task') {
+      editTask = b.dataset.id; renderPanel();
+      var ti = $('#taskEditIn'); if (ti) { ti.focus(); ti.setSelectionRange(ti.value.length, ti.value.length); }
+      return;
+    }
+    if (act === 'task-cancel') { editTask = null; renderPanel(); return; }
+    if (act === 'task-save') { saveTaskEdit(); return; }
     if (act === 'citem-del') {
       var ct = tabById(tab.slice(2));
       if (!ct) return;
@@ -1819,6 +1834,18 @@ textarea.autogrow { resize: none; overflow: hidden; }
       commit(b.dataset.k); commit(todayKey);
       refreshAfterEdit(true);
     }
+  });
+  function saveTaskEdit() {
+    var inp = $('#taskEditIn'); if (!inp) return;
+    var v = inp.value.trim().slice(0, 200);
+    var t = ((days[selected] || {}).tasks || []).filter(function (x) { return x.id === inp.dataset.id; })[0];
+    if (t && v && v !== t.text) { t.text = v; commit(selected); }
+    editTask = null; refreshAfterEdit(true);
+  }
+  elPanel.addEventListener('keydown', function (e) {
+    if (e.target.id !== 'taskEditIn') return;
+    if (e.key === 'Enter') { e.preventDefault(); saveTaskEdit(); }
+    else if (e.key === 'Escape') { editTask = null; renderPanel(); }
   });
   function toggleSport(row) {
     var id = row.dataset.spid;
