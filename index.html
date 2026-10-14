@@ -336,7 +336,7 @@ button.wrow:hover { background: var(--surface-2); }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 17</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 18</p>
 </main>
 
 <script>
@@ -1144,7 +1144,7 @@ button.wrow:hover { background: var(--surface-2); }
     if (!tabExists(tab)) tab = 'events';
     elTabs.innerHTML = allTabs().map(function (t) {
       return '<button type="button" role="tab" class="tab" data-tab="' + esc(t[0]) + '" aria-selected="' + (!addingTab && tab === t[0]) + '">' +
-        esc(t[1]) + (hasData(t[0]) ? '<i class="mark" aria-hidden="true"></i>' : '') + '</button>';
+        esc(t[1]) + '</button>';
     }).join('') + '<button type="button" class="tab add" data-act="add-tab" aria-label="Eigenen Tab hinzufügen" aria-selected="' + addingTab + '">+</button>';
   }
 
