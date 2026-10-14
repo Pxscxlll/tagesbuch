@@ -315,7 +315,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 41</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 42</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -706,10 +706,26 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var NOTE_IC = '<span class="noteic" role="img" aria-label="Notiz vorhanden" title="Notiz vorhanden"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3.5 1.5h6l3 3v10h-9z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.5 1.5v3h3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M5.5 8h5M5.5 10.5h5M5.5 13h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span>';
   // Kurze Zahlen (z. B. „CAD 3“) nicht allein in die nächste Zeile umbrechen
   function nbTitle(s) { return esc(s).replace(/ (\d{1,3})(?=\s|$)/g, '&nbsp;$1').replace(/\/(?=\S)/g, '/<wbr>'); }
+  function genNote(n, key, title) { var v = n['g|' + key]; return String(v != null ? v : (n['gt:' + titleKey(title)] || '')); }
   function evHasNote(k, x) {
     var n = (days[k] && days[k].evnotes) || {}, key = x.aid + '|' + x.e.id;
     var v = n[key] != null ? n[key] : n['t:' + titleKey(x.e.title)];
-    return !!(v && String(v).trim());
+    return !!((v && String(v).trim()) || genNote(n, key, x.e.title).trim());
+  }
+  // Früher galt „Allgemein“ für alle gleichnamigen Termine. Einmalig auf die Termintage aus dem Import verteilen.
+  function migrateEvGen() {
+    var tks = Object.keys(evGeneral || {});
+    if (!tks.length) return;
+    tks.forEach(function (tk) {
+      var txt = evGeneral[tk];
+      Object.keys(days).forEach(function (k) {
+        var n = days[k].evnotes || {};
+        if (n['t:' + tk] != null && n['gt:' + tk] == null) { n['gt:' + tk] = txt; commit(k); }
+      });
+    });
+    evGeneral = {};
+    try { localStorage.setItem('tagesbuch:evgen', '{}'); } catch (e) {}
+    meta.evgen = Date.now(); saveMeta(); scheduleSync();
   }
   function weekParts(k, t) {
     var d = days[k], p = [];
@@ -1025,13 +1041,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return '<div class="ev' + (open ? ' open' : '') + '" data-evkey="' + esc(key) + '" role="button" tabindex="0" aria-expanded="' + open + '"><span class="t">' + esc(t) + '</span><span class="x">' + nbTitle(e.title) +
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
         (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
-        '</span>' + (!open && note && String(note).trim() ? NOTE_IC : '') +
+        '</span>' + (!open && ((note && String(note).trim()) || genNote(notes, key, e.title).trim()) ? NOTE_IC : '') +
         (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>' +
         (open ? '<div class="evnotes">' +
           '<label for="evNoteIn">Neu</label>' +
           '<textarea class="evnote autogrow" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
           '<label for="evGenIn">Allgemein</label>' +
-          '<textarea class="evnote autogrow" id="evGenIn" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Was gilt immer?"' + dis() + '>' + esc(evGeneral[titleKey(e.title)] || '') + '</textarea>' +
+          '<textarea class="evnote autogrow" id="evGenIn" data-evkey="' + esc(key) + '" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Allgemeine Notiz zu diesem Termin"' + dis() + '>' + esc(genNote(notes, key, e.title)) + '</textarea>' +
           '</div>' : '');
     }).join('');
   }
@@ -1738,10 +1754,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
   });
   $('#events').addEventListener('input', function (e) {
     if (e.target.id === 'evGenIn' && ready) {
-      var tk = e.target.dataset.tkey, gv = e.target.value.slice(0, 5000);
-      if (gv.trim()) evGeneral[tk] = gv; else delete evGeneral[tk];
-      try { localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); } catch (err) {}
-      meta.evgen = Date.now(); saveMeta(); scheduleSync();
+      var dg = ensure(selected), gk = e.target.dataset.evkey, gv = e.target.value.slice(0, 5000);
+      delete dg.evnotes['gt:' + e.target.dataset.tkey];
+      if (gv.trim()) dg.evnotes['g|' + gk] = gv; else delete dg.evnotes['g|' + gk];
+      commit(selected, 700);
       return;
     }
     if (e.target.id !== 'evNoteIn' || !ready) return;
@@ -1865,10 +1881,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
           return;
         }
         if (head === 'allgemein') {
-          if (!pp[1]) { res2.bad++; return; }
-          evGeneral[titleKey(ptab.name)] = pp.slice(1).join(' | ');
-          try { localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); } catch (err) {}
-          meta.evgen = Date.now(); saveMeta(); res2.gen++;
+          var gdk = pdate(pp[1]);
+          if (!gdk || !pp[2]) { res2.bad++; return; }
+          ensure(gdk).evnotes['gt:' + titleKey(ptab.name)] = pp.slice(2).join(' | ');
+          touched[gdk] = 1; res2.gen++;
           return;
         }
         if (head === 'termin') {
@@ -1901,7 +1917,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (res2.days) parts.push(res2.days + (res2.days === 1 ? ' Tag' : ' Tage'));
       if (res2.notes) parts.push(res2.notes + (res2.notes === 1 ? ' Notiz' : ' Notizen'));
       if (res2.ev) parts.push(res2.ev + (res2.ev === 1 ? ' Terminnotiz' : ' Terminnotizen'));
-      if (res2.gen) parts.push('„Allgemein“');
+      if (res2.gen) parts.push(res2.gen + '× „Allgemein“');
       pImportMsg = parts.length
         ? { ok: !res2.bad, t: 'Übernommen: ' + parts.join(', ') + '.' + (res2.bad ? ' ' + res2.bad + ' Angaben nicht erkannt.' : '') }
         : { ok: false, t: 'Nichts erkannt. Prüfe das Format der Zeilen.' };
@@ -2459,6 +2475,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       .then(function (id) { return id ? download(id) : null; })
       .then(function (remote) {
         var m = merge(remote);
+        if (Object.keys(evGeneral || {}).length) { migrateEvGen(); m.dirty = true; }
         if (m.changed) {
           persistLocalAll(); rebuildEv(); renderAll();
           if (aboOpen) renderAbos();
@@ -2545,6 +2562,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     mode = 'local';
     if (!gMcp && GCLIENT) { gMcp = makeCalShim(); gCacheLoad(); }
     loadLocal();
+    migrateEvGen();
     loadLocalAbos();
     rebuildEv();
     ready = true;
