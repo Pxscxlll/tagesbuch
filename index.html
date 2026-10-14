@@ -250,7 +250,8 @@ button.wrow:hover { background: var(--surface-2); }
 .ev[data-evkey]:hover { background: var(--surface-2); }
 .ev.open { background: var(--surface-2); }
 .evnote-prev { font-style: italic; }
-textarea.evnote { min-height: 72px; }
+textarea.evnote { min-height: 140px; }
+textarea.autogrow { resize: none; overflow: hidden; }
 .evnotes { display: flex; flex-direction: column; gap: 6px; margin-top: -2px; }
 .evnotes label { margin-top: 4px; }
 .lbl-sub { text-transform: none; letter-spacing: 0; font-weight: 400; }
@@ -347,7 +348,7 @@ textarea.evnote { min-height: 72px; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 22</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 23</p>
 </main>
 
 <script>
@@ -956,9 +957,9 @@ textarea.evnote { min-height: 72px; }
         (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>' +
         (open ? '<div class="evnotes">' +
           '<label for="evNoteIn">Neu</label>' +
-          '<textarea class="evnote" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
+          '<textarea class="evnote autogrow" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
           '<label for="evGenIn">Allgemein</label>' +
-          '<textarea class="evnote" id="evGenIn" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Was gilt immer?"' + dis() + '>' + esc(evGeneral[titleKey(e.title)] || '') + '</textarea>' +
+          '<textarea class="evnote autogrow" id="evGenIn" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Was gilt immer?"' + dis() + '>' + esc(evGeneral[titleKey(e.title)] || '') + '</textarea>' +
           '</div>' : '');
     }).join('');
   }
@@ -1280,7 +1281,7 @@ textarea.evnote { min-height: 72px; }
       '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>' +
       '<p class="hint">Neue Übungen gelten ab dem gewählten Tag. × beendet eine Übung ab diesem Tag, frühere Häkchen bleiben erhalten.</p>';
     elPanel.innerHTML = h + '<div class="field"><label for="customIn">Notiz</label>' +
-      '<textarea id="customIn" placeholder="Eintrag für diesen Tag"' + dis() + '>' + esc((d.custom && d.custom[id]) || '') + '</textarea></div>' +
+      '<textarea class="autogrow" id="customIn" placeholder="Eintrag für diesen Tag"' + dis() + '>' + esc((d.custom && d.custom[id]) || '') + '</textarea></div>' +
       (delTabAsk
         ? '<p class="hint">Tab „' + esc(c ? c.name : '') + '“ wirklich entfernen? Die Einträge bleiben gespeichert, sind aber nicht mehr sichtbar.</p><div class="row"><button type="button" class="btn" data-act="tab-del-yes">Ja, entfernen</button><button type="button" class="btn ghost" data-act="tab-del-no">Behalten</button></div>'
         : '<div class="row" style="margin-top:12px"><button type="button" class="btn ghost" data-act="tab-del-ask"' + dis() + '>Tab entfernen</button></div>');
@@ -1475,7 +1476,7 @@ textarea.evnote { min-height: 72px; }
   function renderNote() {
     var d = days[selected] || blank();
     elPanel.innerHTML = '<div class="field"><label for="noteIn">Notiz zum Tag</label>' +
-      '<textarea id="noteIn" placeholder="Wie lief der Tag? Was ist dir aufgefallen?"' + dis() + '>' + esc(d.note) + '</textarea></div>';
+      '<textarea class="autogrow" id="noteIn" placeholder="Wie lief der Tag? Was ist dir aufgefallen?"' + dis() + '>' + esc(d.note) + '</textarea></div>';
   }
 
   function renderPanel() {
@@ -2110,6 +2111,13 @@ textarea.evnote { min-height: 72px; }
     g.appendChild(mk('text', { 'class': 'tip-txt', x: x + w / 2, y: y + 13.5, 'text-anchor': 'middle' }, txt));
     svg.appendChild(g);
   });
+
+  /* ---------- Textfelder wachsen mit dem Text ---------- */
+  function autoGrow(t) { if (!t) return; t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; }
+  function growAll() { [].forEach.call(document.querySelectorAll('textarea.autogrow'), autoGrow); }
+  document.addEventListener('input', function (e) { if (e.target.classList && e.target.classList.contains('autogrow')) autoGrow(e.target); });
+  new MutationObserver(function () { growAll(); }).observe(document.getElementById('dayCard'), { childList: true, subtree: true });
+  window.addEventListener('resize', growAll);
 
   /* ---------- Start ---------- */
   renderAll();
