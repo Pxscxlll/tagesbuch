@@ -251,11 +251,13 @@ button.wrow:hover { background: var(--surface-2); }
 .exlist { display: flex; flex-direction: column; gap: 0; }
 .exrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .exrow .exname { flex: 1 1 calc(100% - 48px); order: 0; }
-.exrow .stepper, .exrow .xmul { order: 2; }
+.sets { order: 2; flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.sets-lbl { flex: 1 1 100%; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.setbtns { display: inline-flex; gap: 6px; }
 .stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .stepper button { width: 38px; height: 38px; border: 0; background: var(--surface-2); font-size: 1.15rem; line-height: 1; }
 .stepper button:hover { filter: brightness(0.96); }
-.stepper > span { padding: 0 8px; min-width: 76px; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.92rem; color: var(--muted); }
+.stepper > span { padding: 0 6px; min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.92rem; color: var(--muted); }
 .stepper > span b { color: var(--fg); font-size: 1rem; }
 .xmul { color: var(--muted); }
 .exrow .del { order: 1; }
@@ -366,7 +368,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 31</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 32</p>
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastText"></span><button type="button" id="toastUndo">Rückgängig</button></div>
 
@@ -1444,11 +1446,17 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (s.min) p.push(s.min + ' min');
     return p.length ? '<small>' + esc(p.join(' · ')) + '</small>' : '';
   }
-  function stepper(sid, x, f, label) {
-    var v = f === 's' ? (x.s || 1) : (x.r || 1);
-    return '<span class="stepper"><button type="button" data-act="ex-dec" data-f="' + f + '" data-sid="' + esc(sid) + '" data-xid="' + esc(x.id) + '" aria-label="' + label + ' weniger"' + dis() + '>−</button>' +
-      '<span><b>' + v + '</b> ' + label + '</span>' +
-      '<button type="button" data-act="ex-inc" data-f="' + f + '" data-sid="' + esc(sid) + '" data-xid="' + esc(x.id) + '" aria-label="' + label + ' mehr"' + dis() + '>+</button></span>';
+  function getReps(x) {
+    if (Array.isArray(x.reps) && x.reps.length) return x.reps;
+    var n = Math.max(1, x.s || 3), r = x.r || 10, a = [];
+    for (var i = 0; i < n; i++) a.push(r);
+    return a;
+  }
+  function stepper(sid, x, i, v) {
+    var at = ' data-i="' + i + '" data-sid="' + esc(sid) + '" data-xid="' + esc(x.id) + '"';
+    return '<span class="stepper"><button type="button" data-act="ex-dec"' + at + ' aria-label="Satz ' + (i + 1) + ' weniger"' + dis() + '>−</button>' +
+      '<span><small>' + (i + 1) + '.</small> <b>' + v + '</b></span>' +
+      '<button type="button" data-act="ex-inc"' + at + ' aria-label="Satz ' + (i + 1) + ' mehr"' + dis() + '>+</button></span>';
   }
   function findEx(sid, xid) {
     var s = ((days[selected] || {}).sports || []).filter(function (y) { return y.id === sid; })[0];
@@ -1471,9 +1479,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
           '<button type="button" class="del" data-act="del-sport" data-id="' + esc(s.id) + '" aria-label="' + esc(s.type) + ' entfernen">×</button></div>' +
           (open ? '<div class="evnotes"><span class="label">Übungen</span><div class="exlist">' +
             (s.ex || []).map(function (x) {
-              return '<div class="exrow"><input class="exname" type="text" maxlength="60" autocomplete="off" placeholder="Übung, z. B. Push-Ups" data-sid="' + esc(s.id) + '" data-xid="' + esc(x.id) + '" value="' + esc(x.n || '') + '"' + dis() + '>' +
-                stepper(s.id, x, 's', 'Sätze') + '<span class="xmul" aria-hidden="true">×</span>' + stepper(s.id, x, 'r', 'Wdh.') +
-                '<button type="button" class="del" data-act="ex-del" data-sid="' + esc(s.id) + '" data-xid="' + esc(x.id) + '" aria-label="Übung entfernen">×</button></div>';
+              var reps = getReps(x), at = ' data-sid="' + esc(s.id) + '" data-xid="' + esc(x.id) + '"';
+              return '<div class="exrow"><input class="exname" type="text" maxlength="60" autocomplete="off" placeholder="Übung, z. B. Push-Ups"' + at + ' value="' + esc(x.n || '') + '"' + dis() + '>' +
+                '<button type="button" class="del" data-act="ex-del"' + at + ' aria-label="Übung entfernen">×</button>' +
+                '<div class="sets"><span class="sets-lbl">Wiederholungen pro Satz</span>' +
+                reps.map(function (v, i) { return stepper(s.id, x, i, v); }).join('') +
+                '<span class="setbtns"><button type="button" class="chip" data-act="set-add"' + at + dis() + '>+ Satz</button>' +
+                (reps.length > 1 ? '<button type="button" class="chip" data-act="set-del"' + at + dis() + '>− Satz</button>' : '') + '</span></div></div>';
             }).join('') +
             '<button type="button" class="btn ghost exadd" data-act="ex-add" data-sid="' + esc(s.id) + '"' + dis() + '>+ Übung</button></div>' +
             '<label for="spNoteIn">Notiz (optional)</label>' +
@@ -1846,7 +1858,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (act === 'task-save') { saveTaskEdit(); return; }
     if (act === 'ex-add') {
       var fa = findEx(b.dataset.sid); if (!fa) return;
-      var nx = { id: uid(), n: '', s: 3, r: 10 };
+      var nx = { id: uid(), n: '', reps: [10, 10, 10] };
       fa.s.ex.push(nx); commit(selected);
       sportForce = true; renderPanel();
       var ni = elPanel.querySelector('.exname[data-xid="' + nx.id + '"]'); if (ni) ni.focus();
@@ -1854,10 +1866,19 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (act === 'ex-inc' || act === 'ex-dec') {
       var fs = findEx(b.dataset.sid, b.dataset.xid); if (!fs || !fs.x) return;
-      var fld = b.dataset.f, mx = fld === 's' ? 20 : 200;
-      fs.x[fld] = Math.max(1, Math.min(mx, (fs.x[fld] || 1) + (act === 'ex-inc' ? 1 : -1)));
+      var rr = getReps(fs.x).slice(), ii = Number(b.dataset.i);
+      rr[ii] = Math.max(0, Math.min(300, (rr[ii] || 0) + (act === 'ex-inc' ? 1 : -1)));
+      fs.x.reps = rr; delete fs.x.s; delete fs.x.r;
       commit(selected);
-      var lbl = b.parentNode.querySelector('b'); if (lbl) lbl.textContent = fs.x[fld];
+      var lbl = b.parentNode.querySelector('b'); if (lbl) lbl.textContent = rr[ii];
+      return;
+    }
+    if (act === 'set-add' || act === 'set-del') {
+      var fz = findEx(b.dataset.sid, b.dataset.xid); if (!fz || !fz.x) return;
+      var rz = getReps(fz.x).slice();
+      if (act === 'set-add') { if (rz.length < 20) rz.push(rz[rz.length - 1] || 10); } else if (rz.length > 1) rz.pop();
+      fz.x.reps = rz; delete fz.x.s; delete fz.x.r;
+      commit(selected); sportForce = true; renderPanel();
       return;
     }
     if (act === 'ex-del') {
