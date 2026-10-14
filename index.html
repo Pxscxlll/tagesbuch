@@ -241,6 +241,7 @@ button.wrow:hover { background: var(--surface-2); }
 .ev .t { font-variant-numeric: tabular-nums; color: var(--c-event); font-weight: 600; flex: none; }
 .ev .x { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .ev small { display: block; color: var(--muted); font-size: 0.85rem; }
+.maplink { display: inline-block; margin-top: 4px; font-size: 0.88rem; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .ev .del { align-self: center; }
 .wparts span { max-width: 100%; overflow-wrap: anywhere; }
 .abo h3 { font-size: 1rem; }
@@ -335,7 +336,7 @@ button.wrow:hover { background: var(--surface-2); }
       <div class="panel" id="panel" role="tabpanel"></div>
     </section>
   </div>
-  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 16</p>
+  <p class="hint" style="text-align:center;font-size:0.75rem" id="appVer">Version 17</p>
 </main>
 
 <script>
@@ -898,7 +899,8 @@ button.wrow:hover { background: var(--surface-2); }
     el.innerHTML = list.map(function (x) {
       var e = x.e, t = e.time ? e.time + (e.end ? '–' + e.end : '') : 'ganztägig';
       return '<div class="ev"><span class="t">' + esc(t) + '</span><span class="x">' + esc(e.title) +
-        '<small>' + esc(x.abo) + (e.loc ? ' · ' + esc(e.loc) : '') + (e.desc ? ' · ' + esc(e.desc) : '') + '</small></span>' +
+        '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
+        (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') + '</span>' +
         (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>';
     }).join('');
   }
