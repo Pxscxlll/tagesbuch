@@ -315,7 +315,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 43</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 44</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1346,7 +1346,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
         }).join('') + '</ul>' +
         (orph.length ? '<p class="hint">Bei „Tab ohne Namen“ trag oben zuerst den Namen ein, zum Beispiel „Physio“, und tippe dann auf Wiederherstellen.</p>' : '') + '</div>';
     }
-    var i = $('#tabName'); if (i) i.focus();
+    if (GCLIENT && connected()) {
+      bkArm = null;
+      elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Backups</span><div id="bkBox">' + bkHtml() + '</div>' +
+        '<p class="hint">Einmal pro Woche legt die App automatisch eine Kopie aller Daten in deinem Google Drive an. Die letzten 8 bleiben erhalten. Wiederherstellen ersetzt alle Einträge durch diesen Stand.</p></div>';
+    }
   }
   var REPS = [['daily', 'Täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'Wöchentlich'], ['once', 'Nur an diesem Tag']];
   function repLabel(r, start) {
@@ -2011,6 +2015,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
       renderAll();
       return;
     }
+    if (act === 'bk-load') { bkLoad(); return; }
+    if (act === 'bk-restore') {
+      if (bkArm !== b.dataset.id) { bkArm = b.dataset.id; renderBk(); return; }
+      bkArm = null; renderBk(); restoreBackup(b.dataset.id, b.dataset.k);
+      return;
+    }
     if (act === 'tab-restore') {
       var dt0 = deletedTabs.filter(function (x) { return x.id === b.dataset.id; })[0];
       if (dt0) restoreTab(dt0);
@@ -2380,13 +2390,91 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return gfetch('https://www.googleapis.com/upload/drive/v3/files/' + gFileId + '?uploadType=media',
         { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: body });
     }
+    return createFile(SYNC_FILE, body).then(function (id) { gFileId = id; });
+  }
+  function createFile(name, body) {
     var bd = 'tb' + Math.random().toString(36).slice(2);
     var multi = '--' + bd + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
-      JSON.stringify({ name: SYNC_FILE, parents: ['appDataFolder'] }) +
+      JSON.stringify({ name: name, parents: ['appDataFolder'] }) +
       '\r\n--' + bd + '\r\nContent-Type: application/json\r\n\r\n' + body + '\r\n--' + bd + '--';
     return gfetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
       { method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + bd }, body: multi })
-      .then(function (r) { return r.json(); }).then(function (j) { gFileId = j.id; });
+      .then(function (r) { return r.json(); }).then(function (j) { return j.id; });
+  }
+
+  /* ---------- Wöchentliche Backups im App-Ordner von Drive ---------- */
+  var BK_PRE = 'planner-backup-', BK_KEEP = 8, BK_EVERY = 7 * 864e5, bkList = null, bkArm = null;
+  function listBackups() {
+    var q = encodeURIComponent("name contains '" + BK_PRE + "' and trashed=false");
+    return gfetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=100&fields=files(id,name)&q=' + q)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        return (j.files || []).filter(function (f) { return /^planner-backup-\d{4}-\d{2}-\d{2}\.json$/.test(f.name); })
+          .map(function (f) { return { id: f.id, k: f.name.slice(BK_PRE.length, BK_PRE.length + 10) }; })
+          .sort(function (a, b) { return a.k < b.k ? 1 : a.k > b.k ? -1 : 0; });
+      });
+  }
+  function maybeBackup() {
+    var last = 0; try { last = Number(localStorage.getItem('tagesbuch:lastbk')) || 0; } catch (e) {}
+    if (Date.now() - last < BK_EVERY) return Promise.resolve();
+    function mark(t) { try { localStorage.setItem('tagesbuch:lastbk', String(t)); } catch (e) {} }
+    return listBackups().then(function (list) {
+      var newest = list[0] ? parseKey(list[0].k).getTime() : 0;
+      if (Date.now() - newest < BK_EVERY) { mark(newest); bkList = list; return; }
+      var k = keyOf(new Date());
+      return createFile(BK_PRE + k + '.json', JSON.stringify(buildPayload())).then(function (id) {
+        list.unshift({ id: id, k: k }); mark(Date.now());
+        return Promise.all(list.slice(BK_KEEP).map(function (f) {
+          return gfetch('https://www.googleapis.com/drive/v3/files/' + f.id, { method: 'DELETE' }).catch(function () {});
+        })).then(function () { bkList = list.slice(0, BK_KEEP); renderBk(); });
+      });
+    }).catch(function () {});
+  }
+  // Ersetzt alle Daten durch einen gespeicherten Stand. Alles bekommt einen neuen Zeitstempel,
+  // damit der Stand beim Abgleich auf allen Geräten gewinnt.
+  function applySnapshot(snap) {
+    snap = snap && typeof snap === 'object' ? snap : {};
+    var now = Date.now(), b = { v: 1, days: {}, abos: {} }, sd = snap.days || {}, sa = snap.abos || {};
+    Object.keys(days).concat(Object.keys(meta.days)).forEach(function (k) { b.days[k] = { t: now, d: null }; });
+    Object.keys(sd).forEach(function (k) { b.days[k] = { t: now, d: sd[k] && sd[k].d || null }; });
+    Object.keys(abos).concat(Object.keys(meta.abos)).forEach(function (id) { b.abos[id] = { t: now, d: null }; });
+    Object.keys(sa).forEach(function (id) { b.abos[id] = { t: now, d: sa[id] && sa[id].d || null }; });
+    ['tabs', 'sports', 'gcal', 'taborder', 'evgen', 'deltabs', 'tabnames'].forEach(function (n) {
+      if (snap[n] && typeof snap[n] === 'object') b[n] = Object.assign({}, snap[n], { t: now });
+    });
+    merge(b);
+    if (Object.keys(evGeneral || {}).length) migrateEvGen();
+    persistLocalAll(); rebuildEv(); renderAll();
+    if (aboOpen) renderAbos();
+    return upload(buildPayload()).catch(function () { scheduleSync(); });
+  }
+  function restoreBackup(id, k) {
+    var before = buildPayload(), label = 'Stand vom ' + shortDate(k) + k.slice(0, 4);
+    setSync('Stelle Backup wieder her …', 'busy');
+    getToken(true).then(function () { return download(id); }).then(function (snap) {
+      return applySnapshot(snap).then(function () {
+        setSync(label + ' wiederhergestellt', 'ok');
+        undoable(label + ' geladen', function () { applySnapshot(before); setSync('Wiederherstellen rückgängig gemacht', 'ok'); });
+      });
+    }).catch(function () { setSync('Wiederherstellen fehlgeschlagen', 'err'); });
+  }
+  function bkHtml() {
+    if (bkList === 'load') return '<p class="hint">Lade Backups …</p>';
+    if (!bkList) return '<button type="button" class="btn ghost" data-act="bk-load">Backups anzeigen</button>';
+    if (!bkList.length) return '<p class="hint">Noch kein Backup vorhanden. Das erste legt die App beim nächsten Abgleich an.</p>';
+    return '<ul class="list">' + bkList.map(function (f) {
+      var arm = bkArm === f.id;
+      return '<li><div class="item-main">Stand vom ' + esc(shortDate(f.k) + f.k.slice(0, 4)) + '</div>' +
+        '<button type="button" class="btn ' + (arm ? '' : 'ghost') + '" style="height:36px" data-act="bk-restore" data-id="' + esc(f.id) + '" data-k="' + esc(f.k) + '">' + (arm ? 'Sicher? Nochmal tippen' : 'Wiederherstellen') + '</button></li>';
+    }).join('') + '</ul>';
+  }
+  function renderBk() { var box = document.getElementById('bkBox'); if (box) box.innerHTML = bkHtml(); }
+  function bkLoad() {
+    bkList = 'load'; renderBk();
+    getToken(true).then(function () { return listBackups(); })
+      .then(function (l) { bkList = l; })
+      .catch(function () { bkList = null; setSync('Backups konnten nicht geladen werden', 'err'); })
+      .then(renderBk);
   }
 
   // Zusammenführen: pro Tag, pro Abo und für die Tab-Liste gewinnt der jüngere Stand.
@@ -2479,7 +2567,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         }
         if (m.dirty || !gFileId) return upload(buildPayload());
       })
-      .then(function () { setSync('Stand ' + hhmm(), 'ok'); if (gMcp) gEnsure(true); })
+      .then(function () { setSync('Stand ' + hhmm(), 'ok'); if (gMcp) gEnsure(true); return maybeBackup(); })
       .catch(function () {
         setSync(interactive ? 'Abgleich fehlgeschlagen. Zum Wiederholen tippen.' : 'Nicht abgeglichen. Tippe auf Aktualisieren.', 'err');
       })
