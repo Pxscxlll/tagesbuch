@@ -144,6 +144,15 @@ input[type="text"], input[type="number"], input[type="date"], input[type="time"]
 }
 textarea { resize: vertical; min-height: 160px; line-height: 1.5; }
 input:disabled, textarea:disabled, button:disabled { opacity: 0.55; cursor: not-allowed; }
+/* iPad/iPhone (Safari): Datums- und Zeitfelder haben sonst eine eigene Mindestbreite und Höhe und ragen ins Nachbarfeld. */
+input[type="date"], input[type="time"] { -webkit-appearance: none; appearance: none; display: block; max-width: 100%; }
+input[type="text"], input[type="number"], input[type="date"], input[type="time"], select { height: 44px; line-height: 1.2; }
+input[type="file"] { height: auto; }
+input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
+.evdel { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -2px 0 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.evdel > span:first-child { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; }
+.evdel-b { display: flex; gap: 8px; flex: none; }
+form[data-form="rem"] { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { flex: 1 1 140px; }
 .btn { border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600; border-radius: 8px; padding: 0 16px; height: 42px; }
@@ -331,7 +340,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 55</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 56</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1069,7 +1078,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
         (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
         '</span>' + (!open && ((note && String(note).trim()) || genNote(notes, key, e.title).trim()) ? NOTE_IC : '') +
-        (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') + '</div>' +
+        (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') +
+        (e.pl && remDelAsk !== e.gid ? '<button type="button" class="del" data-act="rem-del-ask" data-gid="' + esc(e.gid) + '" aria-label="Erinnerung aus Google-Kalender löschen">×</button>' : '') + '</div>' +
+        (e.pl && remDelAsk === e.gid ? '<div class="evdel"><span>„' + esc(e.title) + '“ aus dem Google-Kalender löschen?</span>' +
+          '<span class="evdel-b"><button type="button" class="btn" style="height:36px" data-act="rem-del" data-gid="' + esc(e.gid) + '"' + (remBusy ? ' disabled' : '') + '>Löschen</button>' +
+          '<button type="button" class="btn ghost" style="height:36px" data-act="rem-del-no">Abbrechen</button></span></div>' : '') +
         (open ? '<div class="evnotes">' +
           '<label for="evNoteIn">Neu</label>' +
           '<textarea class="evnote autogrow" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
@@ -1185,7 +1198,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
       for (var d = addDays(sDate, 1), n = 0; d <= last && n < 30; d = addDays(d, 1), n++) dates.push(d);
     }
     return dates.map(function (dt, i) {
-      return { id: String(ev.id || uid()) + '_' + dt, date: dt, time: i === 0 ? sTime : '', end: i === 0 && eDate === sDate ? eTime : '', title: title, loc: loc, desc: desc };
+      var xp = ev.extendedProperties || {}, pl = !!((xp.shared && xp.shared.planner) || (xp['private'] && xp['private'].planner)) || remIds.indexOf(String(ev.id)) >= 0;
+      var o = { id: String(ev.id || uid()) + '_' + dt, date: dt, time: i === 0 ? sTime : '', end: i === 0 && eDate === sDate ? eTime : '', title: title, loc: loc, desc: desc };
+      if (pl && ev.id) { o.pl = 1; o.gid = String(ev.id); }
+      return o;
     });
   }
   async function gFetch(calId, start, end) {
@@ -1689,6 +1705,20 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   /* ---------- Erinnerung direkt in Pascals Google-Kalender eintragen ---------- */
   var REM_ACCOUNT = 'pascal.gerlach23@gmail.com', REM_MIN = 60;
+  var remDelAsk = null, remIds = [];
+  try { remIds = JSON.parse(localStorage.getItem('tagesbuch:remids') || '[]'); if (!Array.isArray(remIds)) remIds = []; } catch (e) {}
+  function remDelete(gid) {
+    return remToken().then(function (tok) {
+      return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/' + encodeURIComponent(gid), { method: 'DELETE', headers: { Authorization: 'Bearer ' + tok } });
+    }).then(function (r) {
+      if (r.status === 401) { remTok = null; remTokExp = 0; }
+      if (!r.ok && r.status !== 404 && r.status !== 410) throw new Error('http ' + r.status);
+      Object.keys(gStore).forEach(function (c) { gStore[c] = (gStore[c] || []).filter(function (x) { return x.id.indexOf(gid + '_') !== 0; }); });
+      remIds = remIds.filter(function (x) { return x !== gid; });
+      try { localStorage.setItem('tagesbuch:remids', JSON.stringify(remIds)); } catch (e) {}
+      gCacheSave(); rebuildEv();
+    });
+  }
   var remOpen = false, remMsg = null, remBusy = false, remTok = null, remTokExp = 0, remClient = null, remResolve = null;
   function renderEvPanel() {
     var keep = {};
@@ -1738,7 +1768,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var a = new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1]), b = new Date(a.getTime() + dur * 60000);
     function loc(d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
     var body = { summary: title, start: { dateTime: loc(a), timeZone: 'Europe/Berlin' }, end: { dateTime: loc(b), timeZone: 'Europe/Berlin' },
-      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: REM_MIN }] } };
+      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: REM_MIN }] }, extendedProperties: { shared: { planner: '1' } } };
     return remToken().then(function (tok) {
       return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
@@ -1869,6 +1899,23 @@ textarea.autogrow { resize: none; overflow: hidden; }
     commit(selected, 700);
   });
   $('#events').addEventListener('click', function (e) {
+    var rb = e.target.closest('button[data-act^="rem-del"]');
+    if (rb) {
+      var ra = rb.dataset.act;
+      if (ra === 'rem-del-ask') { remDelAsk = rb.dataset.gid; renderEvents(); return; }
+      if (ra === 'rem-del-no') { remDelAsk = null; renderEvents(); return; }
+      if (ra === 'rem-del' && !remBusy) {
+        var gid = rb.dataset.gid; remBusy = true; renderEvents();
+        remDelete(gid).then(function () {
+          remBusy = false; remDelAsk = null; remMsg = { ok: true, t: 'Erinnerung gelöscht.' };
+          renderAll();
+        }).catch(function (err) {
+          remBusy = false; remMsg = { ok: false, t: 'Löschen hat nicht geklappt (' + String(err && err.message || '') + ').' };
+          renderEvents(); renderPanel();
+        });
+      }
+      return;
+    }
     var b = e.target.closest('button[data-act="del-ev"]');
     if (!b || !ready || !abos[b.dataset.aid]) return;
     var a = abos[b.dataset.aid];
@@ -1957,6 +2004,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       remBusy = true; remMsg = null; renderPanel();
       remCreate(rt, rk, rtime, rdur).then(function (ev) {
         remBusy = false; remOpen = false;
+        if (ev && ev.id) { remIds = remIds.concat([String(ev.id)]).slice(-200); try { localStorage.setItem('tagesbuch:remids', JSON.stringify(remIds)); } catch (e) {} }
         remMsg = { ok: true, t: '„' + rt + '“ am ' + shortDate(rk) + ' um ' + rtime + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + '. Erinnerung 1 Std vorher.' };
         renderPanel();
         Object.keys(gLoaded).forEach(function (x) { if (x.slice(-7) === rk.slice(0, 7)) delete gLoaded[x]; });
