@@ -344,7 +344,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 58</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 59</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1568,6 +1568,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (uniView === 'plan') {
       var ls = lessonsOn(c, selected);
       h += ls.length ? '<div class="events uniplan">' + ls.map(lessonHtml).join('') + '</div>' : '<p class="hint">Keine Veranstaltungen an diesem Tag.</p>';
+      if (uniMsg && !uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
       var all = (UNI.lessons || []).slice().sort(function (a, b) { var x = (a.k || String(a.d)) + a.f, y = (b.k || String(b.d)) + b.f; return x < y ? -1 : x > y ? 1 : 0; });
       h += '<details class="abo"' + (uniEditPlan ? ' open' : '') + ' data-uni-det="1"><summary>Stundenplan bearbeiten (' + all.length + ')</summary><div class="panel" style="margin-top:10px">';
       if (all.length) {
@@ -1592,8 +1593,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (all.length) h += uniClearAsk
         ? '<div class="evdel"><span>Ganzen Stundenplan löschen?</span><span class="evdel-b"><button type="button" class="btn" style="height:36px" data-act="uni-lclear">Löschen</button><button type="button" class="btn ghost" style="height:36px" data-act="uni-lclear-no">Abbrechen</button></span></div>'
         : '<div class="row"><button type="button" class="btn ghost" data-act="uni-lclear-ask"' + dis() + '>Stundenplan leeren</button></div>';
-      if (uniMsg) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
-      h += '</div></details>';
+      if (uniMsg && uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
+      h += '<div class="row"><button type="button" class="btn" data-act="uni-done">Fertig</button></div></div></details>';
       elPanel.innerHTML = h;
       return;
     }
@@ -2346,7 +2347,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
       } else {
         var pr = parseLessonLines($('#ulImp').value);
         UNI.lessons = (UNI.lessons || []).concat(pr.items).slice(0, 120);
-        uniMsg = { ok: pr.items.length > 0, t: pr.items.length + (pr.items.length === 1 ? ' Veranstaltung' : ' Veranstaltungen') + ' übernommen' + (pr.bad ? ', ' + pr.bad + (pr.bad === 1 ? ' Zeile' : ' Zeilen') + ' nicht erkannt.' : '.') }; uniEditPlan = true;
+        uniMsg = { ok: pr.items.length > 0, t: pr.items.length + (pr.items.length === 1 ? ' Veranstaltung' : ' Veranstaltungen') + ' übernommen und gespeichert' + (pr.bad ? ', ' + pr.bad + (pr.bad === 1 ? ' Zeile' : ' Zeilen') + ' nicht erkannt.' : '.') };
+        uniEditPlan = !pr.items.length || pr.bad > 0;
       }
       var ucx = /^c_/.test(tab) ? tabById(tab.slice(2)) : null; if (ucx && ucx.kind !== 'uni') { uniMark(ucx); savePrefs(); }
       saveUni(); renderPanel(); renderCal();
@@ -2442,6 +2444,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       undoable(act === 'uni-tdel' ? 'Aufgabe gelöscht' : act === 'uni-lclear' ? 'Stundenplan geleert' : 'Veranstaltung entfernt', function () { UNI.lessons = snapL; UNI.todos = snapT; saveUni(); renderPanel(); renderCal(); });
       return;
     }
+    if (act === 'uni-done') { uniEditPlan = false; uniMsg = null; renderPanel(); return; }
     if (act === 'uni-lclear-ask') { uniClearAsk = true; uniEditPlan = true; renderPanel(); return; }
     if (act === 'uni-lclear-no') { uniClearAsk = false; renderPanel(); return; }
     if (act === 'tab-del-ask') { delTabAsk = true; renderPanel(); return; }
