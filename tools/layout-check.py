@@ -19,7 +19,10 @@ with sync_playwright() as p:
     b=p.chromium.launch()
     for name,(w,h) in {'handy':(390,844),'ipad-hoch':(820,1180),'ipad-quer':(1180,820),'laptop':(1366,768)}.items():
         c=b.new_context(service_workers='block', viewport={'width':w,'height':h}, color_scheme='dark')
-        c.add_init_script("if(!sessionStorage.x){sessionStorage.x=1;localStorage.setItem('tagesbuch:days',%s)}"%json.dumps(json.dumps(d)))
+        UNI=[{'id':'uni1','name':'Uni','kind':'uni','items':[],
+              'lessons':[{'id':'l%d'%i,'s':'Technische Mechanik 3 – Festigkeitslehre','a':'Vorlesung','r':'Raum B 123 (Campus Minden)','d':i,'f':'08:15','t':'09:45'} for i in range(1,8)],
+              'todos':[{'id':'t1','x':'Übungsblatt 3 Technische Mechanik abgeben','from':'2026-10-01','due':'2026-12-24'},{'id':'t2','x':'Skript lesen','from':'2026-10-01','day':'2026-10-15'}]}]
+        c.add_init_script("if(!sessionStorage.x){sessionStorage.x=1;localStorage.setItem('tagesbuch:days',%s);localStorage.setItem('tagesbuch:ctabs',%s)}"%(json.dumps(json.dumps(d)),json.dumps(json.dumps(UNI))))
         pg=c.new_page(); pg.goto('http://localhost:8766/'); pg.wait_for_timeout(700)
         for mode in ['Tag','Woche','Monat','Jahr']:
             pg.click('.mode:has-text("%s")'%mode); pg.wait_for_timeout(150)
@@ -34,6 +37,14 @@ with sync_playwright() as p:
                     pg.click('[data-act="rem-open"]'); pg.wait_for_timeout(100)
                 r=pg.evaluate(CHK)
                 if r['hscroll'] or r['over'] or r['overlap']: print(name,mode,tabs.nth(i).inner_text(),r)
+                if mode=='Tag' and pg.query_selector('[data-act=uni-view]'):
+                    pg.click('summary:has-text("Stundenplan bearbeiten")'); pg.wait_for_timeout(100)
+                    for v in ('plan','todo'):
+                        pg.click('[data-act=uni-view][data-v=%s]'%v); pg.wait_for_timeout(100)
+                        r=pg.evaluate(CHK)
+                        if r['hscroll'] or r['over'] or r['overlap']: print(name,'Uni',v,r)
+                        pg.locator('#panel').screenshot(path=S+'L_%s_uni_%s.png'%(name,v))
+                    pg.click('[data-act=uni-view][data-v=plan]')
             pg.screenshot(path=S+'L_%s_%s.png'%(name,mode))
         pg.click('.mode:has-text("Tag")'); pg.click('button[data-act="add-tab"]'); pg.wait_for_timeout(200); r=pg.evaluate(CHK)
         if r['hscroll'] or r['over'] or r['overlap']: print(name,'plus',r)
