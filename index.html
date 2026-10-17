@@ -156,6 +156,9 @@ input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 .ev.uni .t { color: var(--accent); }
 .uniplan { margin-bottom: 14px; }
 .list small.late { color: var(--danger); }
+.combo { display: flex; gap: 6px; min-width: 0; }
+.combo input { flex: 1 1 60px; min-width: 0; }
+.combo select { flex: 0 0 88px; width: 88px; }
 form[data-form="rem"] { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { flex: 1 1 140px; }
@@ -344,7 +347,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 59</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 60</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1957,18 +1960,18 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var remOpen = false, remMsg = null, remBusy = false, remTok = null, remTokExp = 0, remClient = null, remResolve = null;
   function renderEvPanel() {
     var keep = {};
-    ['remTitle', 'remTime', 'remDur'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['remTitle', 'remTime', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var h = (evIdx[selected] || []).length ? '' : '<p class="hint">Keine Termine an diesem Tag.</p>';
     if (GCLIENT) {
       if (!remOpen) h += '<div class="row"><button type="button" class="btn ghost" data-act="rem-open">+ Erinnerung</button></div>';
       else {
-        var durs = [[15, '15 min'], [30, '30 min'], [60, '1 Std'], [90, '1,5 Std'], [120, '2 Std'], [180, '3 Std']];
-        var dsel = keep.remDur || '30';
+        function unitSel(id, opts, cur) { return '<select id="' + id + '" aria-label="Einheit">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
         h += '<form data-form="rem" class="panel" novalidate><h3>Erinnerung am ' + esc(shortDate(selected)) + '</h3>' +
           '<div class="field"><label for="remTitle">Was?</label><input id="remTitle" type="text" maxlength="120" autocomplete="off" placeholder="z. B. Übungsblatt abgeben" value="' + esc(keep.remTitle || '') + '"></div>' +
           '<div class="row"><div class="field"><label for="remTime">Uhrzeit</label><input id="remTime" type="time" value="' + esc(keep.remTime || '') + '"></div>' +
-          '<div class="field"><label for="remDur">Dauer</label><select id="remDur">' + durs.map(function (d) { return '<option value="' + d[0] + '"' + (String(d[0]) === dsel ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></div></div>' +
-          '<p class="hint">Wird in deinen Google-Kalender eingetragen. Die Benachrichtigung kommt 1 Stunde vorher.</p>' +
+          '<div class="field"><label for="remDurN">Dauer</label><div class="combo"><input id="remDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remDurN || '30') + '">' + unitSel('remDurU', [['1', 'Min'], ['60', 'Std']], keep.remDurU || '1') + '</div></div></div>' +
+          '<div class="field"><label for="remPreN">Benachrichtigung vorher</label><div class="combo"><input id="remPreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remPreN || '1') + '">' + unitSel('remPreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], keep.remPreU || '60') + '</div></div>' +
+          '<p class="hint">Wird in deinen Google-Kalender eingetragen. 0 heißt: Benachrichtigung genau zur Uhrzeit.</p>' +
           '<div class="row"><button type="submit" class="btn"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Trage ein …' : 'Eintragen') + '</button>' +
           '<button type="button" class="btn ghost" data-act="rem-cancel">Abbrechen</button></div></form>';
       }
@@ -1997,13 +2000,19 @@ textarea.autogrow { resize: none; overflow: hidden; }
       });
     });
   }
-  function remCreate(title, k, time, dur) {
+  function preText(m) {
+    if (!m) return 'zur Uhrzeit';
+    if (m % 1440 === 0) return (m / 1440) + (m === 1440 ? ' Tag' : ' Tage') + ' vorher';
+    if (m % 60 === 0) return (m / 60) + ' Std vorher';
+    return m + ' min vorher';
+  }
+  function remCreate(title, k, time, dur, pre) {
     var p = k.split('-'), t = time.split(':');
     // Ortszeit ohne Zeitzonen-Versatz schreiben, Google rechnet mit Europe/Berlin.
     var a = new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1]), b = new Date(a.getTime() + dur * 60000);
     function loc(d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
     var body = { summary: title, start: { dateTime: loc(a), timeZone: 'Europe/Berlin' }, end: { dateTime: loc(b), timeZone: 'Europe/Berlin' },
-      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: REM_MIN }] }, extendedProperties: { shared: { planner: '1' } } };
+      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] }, extendedProperties: { shared: { planner: '1' } } };
     return remToken().then(function (tok) {
       return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
@@ -2233,14 +2242,19 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (!ready) return;
     var f = e.target.dataset.form;
     if (f === 'rem') {
-      var rt = $('#remTitle').value.trim(), rtime = $('#remTime').value, rdur = Number($('#remDur').value) || 30, rk = selected;
+      var rt = $('#remTitle').value.trim(), rtime = $('#remTime').value, rk = selected;
+      var rdur = Math.round(parseFloat(String($('#remDurN').value).replace(',', '.')) * Number($('#remDurU').value));
+      var rpre = Math.round(parseFloat(String($('#remPreN').value).replace(',', '.')) * Number($('#remPreU').value));
+      if (!(rdur > 0)) rdur = 30;
+      if (!(rpre >= 0)) { remMsg = { ok: false, t: 'Bitte angeben, wie lange vorher du benachrichtigt werden willst.' }; renderPanel(); return; }
+      if (rpre > 40320) { remMsg = { ok: false, t: 'Google erlaubt höchstens 4 Wochen Vorlauf.' }; renderPanel(); return; }
       if (!rt) { $('#remTitle').placeholder = 'Bitte eintragen, worum es geht'; return; }
       if (!/^\d{2}:\d{2}$/.test(rtime)) { remMsg = { ok: false, t: 'Bitte eine Uhrzeit wählen.' }; renderPanel(); return; }
       remBusy = true; remMsg = null; renderPanel();
-      remCreate(rt, rk, rtime, rdur).then(function (ev) {
+      remCreate(rt, rk, rtime, rdur, rpre).then(function (ev) {
         remBusy = false; remOpen = false;
         if (ev && ev.id) { remIds = remIds.concat([String(ev.id)]).slice(-200); try { localStorage.setItem('tagesbuch:remids', JSON.stringify(remIds)); } catch (e) {} }
-        remMsg = { ok: true, t: '„' + rt + '“ am ' + shortDate(rk) + ' um ' + rtime + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + '. Erinnerung 1 Std vorher.' };
+        remMsg = { ok: true, t: '„' + rt + '“ am ' + shortDate(rk) + ' um ' + rtime + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + '. Benachrichtigung ' + preText(rpre) + '.' };
         renderPanel();
         Object.keys(gLoaded).forEach(function (x) { if (x.slice(-7) === rk.slice(0, 7)) delete gLoaded[x]; });
         gEnsure(true);
