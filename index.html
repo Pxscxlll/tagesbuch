@@ -159,6 +159,11 @@ input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 .combo { display: flex; gap: 6px; min-width: 0; }
 .combo input { flex: 1 1 60px; min-width: 0; }
 .combo select { flex: 0 0 88px; width: 88px; }
+.grid[data-notime="1"] { grid-template-columns: minmax(0, 1fr); }
+.grid[data-notime="1"] #viewCard, .grid[data-notime="1"] #dayLabel { display: none; }
+.idea-t { background: none; border: 0; padding: 4px 0; text-align: left; font: inherit; color: inherit; cursor: pointer; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+@media (hover: hover) { .idea-t:not(:disabled):hover { background: none; text-decoration: underline; } }
+.list.ideas li.idea-edit { border-top: 0; padding-top: 0; }
 form[data-form="rem"] { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { flex: 1 1 140px; }
@@ -347,7 +352,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 60</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 61</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -418,7 +423,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   var WDLONG = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
   var SPORTS = ['Laufen','Radfahren','Krafttraining','Schwimmen','Yoga','Wandern','Fußball','Klettern','Gehen'];
-  var TABS = [['events','Termine'],['weight','Gewicht'],['sport','Sport'],['tasks','Aufgaben'],['note','Notiz']];
+  var TABS = [['events','Termine'],['weight','Gewicht'],['sport','Sport'],['tasks','Aufgaben'],['note','Notiz'],['ideas','Ideen']];
 
   function pad(n) { return String(n).padStart(2, '0'); }
   function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
@@ -712,6 +717,18 @@ textarea.autogrow { resize: none; overflow: hidden; }
   try { var tnr = JSON.parse(localStorage.getItem('tagesbuch:tabnames') || '{}'); if (tnr && typeof tnr === 'object') tabNames = tnr; } catch (e) {}
   // Uni-Daten (Stundenplan und Aufgaben mit Frist), unabhängig vom Tab gespeichert
   var UNI = { lessons: [], todos: [] };
+  // Ideen-Liste: langfristige Aufgaben und Projektideen ohne Datum
+  var IDEAS = [], ideasLoaded = false, openIdea = null, ideaTimer = null;
+  function normIdeas(a) {
+    return (Array.isArray(a) ? a : []).filter(function (x) { return x && typeof x.id === 'string' && typeof x.x === 'string'; })
+      .map(function (x) { var o = { id: x.id.slice(0, 20), x: x.x.slice(0, 140) }; if (typeof x.n === 'string' && x.n) o.n = x.n.slice(0, 5000); if (x.done) o.done = 1; return o; }).slice(0, 300);
+  }
+  function loadIdeasLocal() { if (ideasLoaded) return; ideasLoaded = true; try { IDEAS = normIdeas(JSON.parse(localStorage.getItem('tagesbuch:ideas') || '[]')); } catch (e) {} }
+  function saveIdeas(delay) {
+    clearTimeout(ideaTimer);
+    var go = function () { try { localStorage.setItem('tagesbuch:ideas', JSON.stringify(IDEAS)); } catch (e) {} meta.ideas = Date.now(); saveMeta(); scheduleSync(); };
+    if (delay) ideaTimer = setTimeout(go, delay); else go();
+  }
   var uniLoaded = false;
   function loadUniLocal() { if (uniLoaded) return; uniLoaded = true; try { var ur = JSON.parse(localStorage.getItem('tagesbuch:uni') || 'null'); if (ur && typeof ur === 'object') UNI = { lessons: normLessons(ur.lessons), todos: normTodos(ur.todos) }; } catch (e) {} }
   function saveUni() {
@@ -723,7 +740,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function uniActive() { return (tab === 'tasks' && uniTasksMode()) || (/^c_/.test(tab) && isUni(tabById(tab.slice(2)))); }
   // Früher im eigenen Tab gespeicherte Uni-Daten in den gemeinsamen Speicher übernehmen
   function migrateUni() {
-    loadUniLocal();
+    loadUniLocal(); loadIdeasLocal();
     var moved = false;
     customTabs.forEach(function (c) {
       if ((c.lessons && c.lessons.length) || (c.todos && c.todos.length)) {
@@ -752,7 +769,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function tabExists(t) { return allTabs().some(function (x) { return x[0] === t; }); }
   function dayHas(d, t) {
-    if (!d) return false;
+    if (!d || t === 'ideas') return false;
     if (t === 'weight') return d.weight != null;
     if (t === 'sport') return d.sports.length > 0;
     if (t === 'tasks') return d.tasks.length > 0;
@@ -2023,8 +2040,28 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return r.json();
     });
   }
+  function renderIdeas() {
+    function row(it) {
+      var open = openIdea === it.id, cid = 'id_' + it.id;
+      return '<li class="' + (it.done ? 'done' : '') + (open ? ' editing' : '') + '"><input type="checkbox" data-act="idea-toggle" data-iid="' + esc(it.id) + '" id="' + esc(cid) + '"' + (it.done ? ' checked' : '') + dis() + ' aria-label="Erledigt">' +
+        '<button type="button" class="item-main idea-t" data-act="idea-open" data-iid="' + esc(it.id) + '" aria-expanded="' + open + '">' + esc(it.x) + '</button>' +
+        (!open && it.n && it.n.trim() ? NOTE_IC : '') +
+        '<button type="button" class="del" data-act="idea-del" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.x) + ' löschen">×</button></li>' +
+        (open ? '<li class="idea-edit"><div class="field" style="flex:1"><label for="ideaTitle">Titel</label><input id="ideaTitle" type="text" maxlength="140" autocomplete="off" data-iid="' + esc(it.id) + '" value="' + esc(it.x) + '"' + dis() + '>' +
+          '<label for="ideaNote" style="margin-top:8px">Notizen</label><textarea class="autogrow" id="ideaNote" data-iid="' + esc(it.id) + '" placeholder="Details, nächste Schritte, Links …"' + dis() + '>' + esc(it.n || '') + '</textarea></div></li>' : '');
+    }
+    var openL = IDEAS.filter(function (x) { return !x.done; }), doneL = IDEAS.filter(function (x) { return x.done; });
+    var h = '<form data-form="idea" class="row" novalidate><div class="field"><label for="ideaIn">Neue Idee oder langfristige Aufgabe</label><input id="ideaIn" type="text" maxlength="140" autocomplete="off" placeholder="z. B. 3D-Drucker-Projekt, Bewerbung Praxissemester"' + dis() + '></div>' +
+      '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>';
+    h += openL.length ? '<ul class="list ideas">' + openL.map(row).join('') + '</ul>' : '<p class="hint">Noch nichts auf der Liste.</p>';
+    if (doneL.length) h += '<details class="abo"' + (doneL.some(function (x) { return x.id === openIdea; }) ? ' open' : '') + '><summary>Erledigt (' + doneL.length + ')</summary><ul class="list ideas">' + doneL.map(row).join('') + '</ul></details>';
+    h += '<p class="hint">Tipp auf einen Eintrag öffnet Titel und Notizen. Die Liste gilt unabhängig vom Datum.</p>';
+    elPanel.innerHTML = h;
+  }
   function renderPanel() {
+    $('#grid').dataset.notime = tab === 'ideas' && !addingTab ? '1' : '';
     if (addingTab) renderAddTab();
+    else if (tab === 'ideas') renderIdeas();
     else if (tab === 'events') renderEvPanel();
     else if (/^c_/.test(tab)) renderCustom();
     else if (tab === 'weight') renderWeight();
@@ -2341,6 +2378,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
       refreshAfterEdit(true);
       return;
     }
+    if (f === 'idea') {
+      var iv = $('#ideaIn').value.trim().slice(0, 140);
+      if (!iv) return;
+      IDEAS.unshift({ id: uid(), x: iv }); saveIdeas(); renderPanel();
+      return;
+    }
     if (f === 'unitodo' || f === 'unilesson' || f === 'uniimport') {
       if (!uniActive()) return;
       if (f === 'unitodo') {
@@ -2456,6 +2499,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
       else { UNI.lessons = []; uniClearAsk = false; }
       saveUni(); uniEditPlan = act !== 'uni-tdel'; uniMsg = null; renderPanel(); renderCal();
       undoable(act === 'uni-tdel' ? 'Aufgabe gelöscht' : act === 'uni-lclear' ? 'Stundenplan geleert' : 'Veranstaltung entfernt', function () { UNI.lessons = snapL; UNI.todos = snapT; saveUni(); renderPanel(); renderCal(); });
+      return;
+    }
+    if (act === 'idea-open') { openIdea = openIdea === b.dataset.iid ? null : b.dataset.iid; renderPanel(); return; }
+    if (act === 'idea-del') {
+      var snapI = IDEAS.slice(), di = IDEAS.filter(function (x) { return x.id === b.dataset.iid; })[0];
+      IDEAS = IDEAS.filter(function (x) { return x.id !== b.dataset.iid; }); if (openIdea === b.dataset.iid) openIdea = null;
+      saveIdeas(); renderPanel();
+      undoable('„' + (di ? di.x : '') + '“ gelöscht', function () { IDEAS = snapI; saveIdeas(); renderPanel(); });
       return;
     }
     if (act === 'uni-done') { uniEditPlan = false; uniMsg = null; renderPanel(); return; }
@@ -2675,6 +2726,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     s.note = e.target.value.slice(0, 5000);
     commit(selected, 700);
   });
+  elPanel.addEventListener('input', function (e) {
+    if ((e.target.id !== 'ideaTitle' && e.target.id !== 'ideaNote') || !ready) return;
+    var it = IDEAS.filter(function (x) { return x.id === e.target.dataset.iid; })[0]; if (!it) return;
+    if (e.target.id === 'ideaTitle') { var tv = e.target.value.trim().slice(0, 140); if (tv) { it.x = tv; var tb = elPanel.querySelector('.idea-t[data-iid="' + it.id + '"]'); if (tb) tb.textContent = tv; } }
+    else { var nv2 = e.target.value.slice(0, 5000); if (nv2.trim()) it.n = nv2; else delete it.n; }
+    saveIdeas(700);
+  });
   elPanel.addEventListener('toggle', function (e) { if (e.target.dataset && e.target.dataset.uniDet) uniEditPlan = e.target.open; }, true);
   elPanel.addEventListener('change', function (e) {
     var el = e.target;
@@ -2691,6 +2749,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
         if (!nv && def) el.value = def[1];
       }
       renderTabs(); renderCal();
+      return;
+    }
+    if (el.dataset && el.dataset.act === 'idea-toggle' && ready) {
+      var ii = IDEAS.filter(function (x) { return x.id === el.dataset.iid; })[0];
+      if (!ii) return;
+      if (el.checked) ii.done = 1; else delete ii.done;
+      saveIdeas(); renderPanel();
       return;
     }
     if (el.dataset && el.dataset.act === 'uni-ttoggle' && ready) {
@@ -2781,7 +2846,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0, deltabs: 0, tabnames: 0 };
   try {
     var mraw = localStorage.getItem('tagesbuch:meta');
-    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; meta.deltabs = mo.deltabs || 0; meta.tabnames = mo.tabnames || 0; meta.uni = mo.uni || 0; }
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; meta.deltabs = mo.deltabs || 0; meta.tabnames = mo.tabnames || 0; meta.uni = mo.uni || 0; meta.ideas = mo.ideas || 0; }
   } catch (e) {}
   function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
   function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
@@ -2994,6 +3059,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var rdt = remote.deltabs || { t: 0 }, ldt = meta.deltabs || 0, rdtt = rdt.t || 0;
     if (rdtt > ldt && Array.isArray(rdt.v)) { deletedTabs = rdt.v; meta.deltabs = rdtt; changed = true; }
     else if (ldt > rdtt) dirty = true;
+    var rid = remote.ideas || { t: 0 }, lid = meta.ideas || 0, ridt = rid.t || 0;
+    if (ridt > lid && Array.isArray(rid.v)) { IDEAS = normIdeas(rid.v); meta.ideas = ridt; changed = true; }
+    else if (lid > ridt) dirty = true;
     var ru = remote.uni || { t: 0 }, lu = meta.uni || 0, rut = ru.t || 0;
     if (rut > lu && ru.v && typeof ru.v === 'object') { UNI = { lessons: normLessons(ru.v.lessons), todos: normTodos(ru.v.todos) }; meta.uni = rut; changed = true; }
     else if (lu > rut) dirty = true;
@@ -3010,6 +3078,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (meta.deltabs) out.deltabs = { t: meta.deltabs, v: deletedTabs };
     if (meta.tabnames) out.tabnames = { t: meta.tabnames, v: tabNames };
     if (meta.uni) out.uni = { t: meta.uni, v: UNI };
+    if (meta.ideas) out.ideas = { t: meta.ideas, v: IDEAS };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
     Object.keys(keys).forEach(function (k) {
       var t = localTs(k); if (!t) return;
@@ -3024,7 +3093,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function persistLocalAll() {
     saveLocal(); saveLocalAbos(); saveMeta();
-    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); localStorage.setItem('tagesbuch:tabnames', JSON.stringify(tabNames)); localStorage.setItem('tagesbuch:uni', JSON.stringify(UNI)); } catch (e) {}
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); localStorage.setItem('tagesbuch:tabnames', JSON.stringify(tabNames)); localStorage.setItem('tagesbuch:uni', JSON.stringify(UNI)); localStorage.setItem('tagesbuch:ideas', JSON.stringify(IDEAS)); } catch (e) {}
   }
 
   function sync(interactive) {
