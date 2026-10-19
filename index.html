@@ -164,6 +164,7 @@ input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 .idea-t { background: none; border: 0; padding: 4px 0; text-align: left; font: inherit; color: inherit; cursor: pointer; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 @media (hover: hover) { .idea-t:not(:disabled):hover { background: none; text-decoration: underline; } }
 .list.ideas li.idea-edit { border-top: 0; padding-top: 0; }
+.allev { margin-top: 4px; }
 form[data-form="rem"] { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { flex: 1 1 140px; }
@@ -352,7 +353,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 61</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 62</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -423,7 +424,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   var WDLONG = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
   var SPORTS = ['Laufen','Radfahren','Krafttraining','Schwimmen','Yoga','Wandern','Fußball','Klettern','Gehen'];
-  var TABS = [['events','Termine'],['weight','Gewicht'],['sport','Sport'],['tasks','Aufgaben'],['note','Notiz'],['ideas','Ideen']];
+  var TABS = [['all','Alle'],['events','Termine'],['weight','Gewicht'],['sport','Sport'],['tasks','Aufgaben'],['note','Notiz'],['ideas','Ideen']];
 
   function pad(n) { return String(n).padStart(2, '0'); }
   function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
@@ -441,10 +442,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var todayKey = keyOf(new Date());
   var selected = todayKey;
   var viewDate = new Date(parseKey(todayKey).getFullYear(), parseKey(todayKey).getMonth(), 1);
-  var tab = 'events'; // Beim Öffnen immer Termine
+  var tab = 'all'; // Beim Öffnen immer die Übersicht „Alle“
   var customTabs = [], addingTab = false, delTabAsk = false;
-  var wtab = 'events';
-  try { var sw = localStorage.getItem('tagesbuch:wtab'); if (sw) wtab = sw; } catch (e) {}
+  var wtab = 'all'; // Wochenansicht folgt beim Start ebenfalls „Alle“
   var VMODES = ['day', 'week', 'month', 'year'];
   var vmode = 'day'; // Beim Öffnen immer die Tagesansicht von heute
 
@@ -628,6 +628,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       var dots = '', parts = [];
       if (tab === 'weight' && info && info.weight != null) { dots += '<i class="dot w"></i>'; parts.push(fmtKg(info.weight) + ' kg'); }
       else if (tab === 'sport' && info && info.sports.length) { dots += '<i class="dot s"></i>'; parts.push('Sport'); }
+      else if (tab === 'all') { var mc = allCounts(k); if (mc.ev) { dots += '<i class="dot e"></i>'; parts.push(mc.ev + ' Termine'); } if (mc.open) { dots += '<i class="dot t open"></i>'; parts.push(mc.open + ' offen'); } }
       else if (tab === 'tasks' && uniTasksMode()) { if (uniHas(k, tab)) { dots += '<i class="dot c"></i>'; parts.push('Uni'); } }
       else if (tab === 'tasks' && info && info.tasks.length) {
         var open = info.tasks.filter(function (t) { return !t.done; }).length;
@@ -644,6 +645,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     elDays.innerHTML = h;
     var LEG = { events: '<li><i class="dot e"></i>Termine</li>', weight: '<li><i class="dot w"></i>Gewicht eingetragen</li>',
       sport: '<li><i class="dot s"></i>Sport eingetragen</li>', tasks: '<li><i class="dot t"></i>Aufgaben erledigt</li><li><i class="dot t open"></i>Aufgaben offen</li>' };
+    LEG.all = '<li><i class="dot e"></i>Termine</li><li><i class="dot t open"></i>Aufgaben offen</li>';
     $('#legend').innerHTML = LEG[tab] || '<li><i class="dot c"></i>Eintrag vorhanden</li>';
   }
 
@@ -760,7 +762,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function allTabs() {
     var list = TABS.map(function (t) { return [t[0], tabNames[t[0]] || t[1]]; }).concat(customTabs.map(function (c) { return ['c_' + c.id, c.name]; }));
     if (!tabOrder.length) return list;
-    return list.map(function (t, i) { var o = tabOrder.indexOf(t[0]); return { t: t, o: o < 0 ? 1000 + i : o }; })
+    return list.map(function (t, i) { var o = tabOrder.indexOf(t[0]); return { t: t, o: o < 0 ? (t[0] === 'all' ? -1 : 1000 + i) : o }; })
       .sort(function (a, b) { return a.o - b.o; }).map(function (x) { return x.t; });
   }
   function saveTabOrder() {
@@ -769,7 +771,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function tabExists(t) { return allTabs().some(function (x) { return x[0] === t; }); }
   function dayHas(d, t) {
-    if (!d || t === 'ideas') return false;
+    if (!d || t === 'ideas' || t === 'all') return false;
     if (t === 'weight') return d.weight != null;
     if (t === 'sport') return d.sports.length > 0;
     if (t === 'tasks') return d.tasks.length > 0;
@@ -815,6 +817,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
         p.push('<span><i class="dot e"></i><span class="evt">' + (x.e.time ? esc(x.e.time) + '&nbsp;' : '') + nbTitle(x.e.title) + '</span>' + (evHasNote(k, x) ? NOTE_IC : '') + '</span>');
       });
       return { p: p, none: 'Keine Termine' };
+    }
+    if (t === 'all') {
+      var ac = allCounts(k);
+      if (ac.ev) p.push('<span><i class="dot e"></i>' + ac.ev + (ac.ev === 1 ? ' Termin' : ' Termine') + '</span>');
+      if (ac.open) p.push('<span><i class="dot t open"></i>' + ac.open + ' offen</span>');
+      return { p: p, none: '–' };
     }
     if ((t === 'tasks' && uniTasksMode()) || (/^c_/.test(t) && isUni(tabById(t.slice(2))))) {
       var uc = /^c_/.test(t) ? tabById(t.slice(2)) : null, ul = lessonsOn(uc, k), uo = todosOn(uc, k).filter(function (x) { return !x.done; });
@@ -931,7 +939,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { hiddenAt = Date.now(); return; }
     if (!hiddenAt || Date.now() - hiddenAt < 30 * 60000) return;
-    hiddenAt = 0; todayKey = keyOf(new Date()); selected = todayKey; vmode = 'day'; tab = 'events'; addingTab = false; delTabAsk = false;
+    hiddenAt = 0; todayKey = keyOf(new Date()); selected = todayKey; vmode = 'day'; tab = 'all'; addingTab = false; delTabAsk = false;
     viewDate = new Date(parseKey(todayKey).getFullYear(), parseKey(todayKey).getMonth(), 1);
     renderAll();
   });
@@ -964,7 +972,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     elDayLabel.textContent = WDLONG[d.getDay()] + ', ' + d.getDate() + '. ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + (selected === todayKey ? ' (heute)' : '');
     elDaySub.textContent = ''; elDaySub.hidden = true;
     renderEvents();
-    if (tab === 'events' && !addingTab) renderPanel();
+    if ((tab === 'events' || tab === 'all') && !addingTab) renderPanel();
   }
 
   /* ---------- Kalender-Abos (ICS) ---------- */
@@ -2040,6 +2048,50 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return r.json();
     });
   }
+  /* ---------- Tab „Alle“: Termine, Stundenplan und offene Aufgaben eines Tages ---------- */
+  function tabLabelOf(t) { var x = allTabs().filter(function (y) { return y[0] === t; })[0]; return x ? x[1] : ''; }
+  function allEvents(k) {
+    var out = (evIdx[k] || []).map(function (x) { return { time: x.e.time || '', end: x.e.end || '', title: x.e.title, sub: x.abo, uni: false, go: 'events' }; });
+    lessonsOn(null, k).forEach(function (l) { out.push({ time: l.f, end: l.t, title: l.s, sub: [tabLabelOf('tasks') || 'Uni', l.a, l.r].filter(Boolean).join(' · '), uni: true, go: uniTasksMode() ? 'tasks' : '' }); });
+    return out.sort(function (a, b) { return a.time < b.time ? -1 : a.time > b.time ? 1 : 0; });
+  }
+  // Alle abhakbaren Einträge eines Tages; carry = offene Tagesaufgaben früherer Tage (nur für heute)
+  function allTodos(k, carry) {
+    var out = [], d = days[k], tl = tabLabelOf('tasks');
+    todosOn(null, k).forEach(function (t) {
+      out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: tl + (t.due ? ' · ' + dueText(t, k) : ''), late: !t.done && t.due && t.due < k, go: 'tasks' });
+    });
+    if (d) d.tasks.forEach(function (t) { out.push({ kind: 'task', id: t.id, k: k, text: t.text, done: !!t.done, sub: tl, go: 'tasks' }); });
+    if (carry) Object.keys(days).sort().forEach(function (dk) {
+      if (dk < k) days[dk].tasks.forEach(function (t) { if (!t.done) out.push({ kind: 'task', id: t.id, k: dk, text: t.text, done: false, sub: tl + ' · vom ' + shortDate(dk), late: true, go: 'tasks' }); });
+    });
+    customTabs.forEach(function (c) {
+      if (isUni(c)) return;
+      dueItems(c.id, k).forEach(function (it) { out.push({ kind: 'citem', id: it.id, tid: c.id, k: k, text: it.text, done: isChecked(k, c.id, it.id), sub: c.name, go: 'c_' + c.id }); });
+    });
+    return out;
+  }
+  function allCounts(k) {
+    return { ev: allEvents(k).length, open: allTodos(k, false).filter(function (x) { return !x.done; }).length };
+  }
+  function renderAllTab() {
+    var evs = allEvents(selected), tds = allTodos(selected, selected === todayKey);
+    var h = '<div class="field"><span class="label">Termine</span>';
+    h += evs.length ? '<div class="events allev">' + evs.map(function (e) {
+      return '<div class="ev' + (e.uni ? ' uni' : '') + (e.go ? ' tap' : '') + '"' + (e.go ? ' data-act="all-go" data-go="' + esc(e.go) + '" role="button" tabindex="0"' : '') + '><span class="t">' + (e.time ? esc(e.time) + (e.end ? '–' + esc(e.end) : '') : 'ganztägig') + '</span><span class="x">' + nbTitle(e.title) + (e.sub ? '<small>' + esc(e.sub) + '</small>' : '') + '</span></div>';
+    }).join('') + '</div>' : '<p class="hint">Keine Termine.</p>';
+    h += '</div><div class="field" style="margin-top:14px"><span class="label">Aufgaben</span>';
+    if (tds.length) {
+      var nd = tds.filter(function (x) { return x.done; }).length;
+      h += '<ul class="list">' + tds.map(function (t, i) {
+        var cid = 'al_' + i;
+        return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
+          '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.text) + '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small></label>' +
+          '<button type="button" class="del" data-act="all-go" data-go="' + esc(t.go) + '" aria-label="Im Tab ' + esc(t.sub.split(' · ')[0]) + ' öffnen">›</button></li>';
+      }).join('') + '</ul><p class="sum">' + nd + ' von ' + tds.length + ' erledigt</p>';
+    } else h += '<p class="hint">Nichts offen.</p>';
+    elPanel.innerHTML = h + '</div>';
+  }
   function renderIdeas() {
     function row(it) {
       var open = openIdea === it.id, cid = 'id_' + it.id;
@@ -2062,6 +2114,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     $('#grid').dataset.notime = tab === 'ideas' && !addingTab ? '1' : '';
     if (addingTab) renderAddTab();
     else if (tab === 'ideas') renderIdeas();
+    else if (tab === 'all') renderAllTab();
     else if (tab === 'events') renderEvPanel();
     else if (/^c_/.test(tab)) renderCustom();
     else if (tab === 'weight') renderWeight();
@@ -2501,6 +2554,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       undoable(act === 'uni-tdel' ? 'Aufgabe gelöscht' : act === 'uni-lclear' ? 'Stundenplan geleert' : 'Veranstaltung entfernt', function () { UNI.lessons = snapL; UNI.todos = snapT; saveUni(); renderPanel(); renderCal(); });
       return;
     }
+    if (act === 'all-go') { var g = b.dataset.go; if (g && tabExists(g)) { tab = g; wtab = g; try { localStorage.setItem('tagesbuch:tab', tab); } catch (er) {} if (g === 'tasks' && uniTasksMode()) uniView = 'todo'; renderAll(); renderEvents(); } return; }
     if (act === 'idea-open') { openIdea = openIdea === b.dataset.iid ? null : b.dataset.iid; renderPanel(); return; }
     if (act === 'idea-del') {
       var snapI = IDEAS.slice(), di = IDEAS.filter(function (x) { return x.id === b.dataset.iid; })[0];
@@ -2749,6 +2803,24 @@ textarea.autogrow { resize: none; overflow: hidden; }
         if (!nv && def) el.value = def[1];
       }
       renderTabs(); renderCal();
+      return;
+    }
+    if (el.dataset && el.dataset.act === 'all-toggle' && ready) {
+      var kd = el.dataset.kind, ak = el.dataset.k, aid = el.dataset.id;
+      if (kd === 'uni') {
+        var ut = (UNI.todos || []).filter(function (x) { return x.id === aid; })[0]; if (!ut) return;
+        if (el.checked) ut.done = ak; else delete ut.done; saveUni();
+      } else if (kd === 'task') {
+        var tt2 = ((days[ak] || {}).tasks || []).filter(function (x) { return x.id === aid; })[0]; if (!tt2) return;
+        tt2.done = el.checked; commit(ak);
+      } else if (kd === 'citem') {
+        var ad = ensure(ak), atid = el.dataset.tid;
+        ad.checks[atid] = ad.checks[atid] || {};
+        if (el.checked) ad.checks[atid][aid] = 1; else delete ad.checks[atid][aid];
+        if (!Object.keys(ad.checks[atid]).length) delete ad.checks[atid];
+        commit(ak);
+      }
+      renderPanel(); renderCal();
       return;
     }
     if (el.dataset && el.dataset.act === 'idea-toggle' && ready) {
