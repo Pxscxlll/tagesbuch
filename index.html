@@ -165,6 +165,10 @@ input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 @media (hover: hover) { .idea-t:not(:disabled):hover { background: none; text-decoration: underline; } }
 .list.ideas li.idea-edit { border-top: 0; padding-top: 0; }
 .allev { margin-top: 4px; }
+.allgrp { margin-top: 16px; }
+.allgrp-h { display: flex; align-items: center; gap: 10px; }
+.allgrp-h .label { flex: none; }
+.allgrp-n { flex: 1; min-width: 0; font-size: 0.82rem; color: var(--muted); }
 form[data-form="rem"] { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { flex: 1 1 140px; }
@@ -353,7 +357,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 63</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 64</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2059,15 +2063,15 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function allTodos(k, carry) {
     var out = [], d = days[k], tl = tabLabelOf('tasks');
     todosOn(null, k).forEach(function (t) {
-      out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: tl + (t.due ? ' · ' + dueText(t, k) : ''), late: !t.done && t.due && t.due < k, go: 'tasks' });
+      out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: 'tasks' });
     });
-    if (d) d.tasks.forEach(function (t) { out.push({ kind: 'task', id: t.id, k: k, text: t.text, done: !!t.done, sub: tl, go: 'tasks' }); });
+    if (d) d.tasks.forEach(function (t) { out.push({ kind: 'task', id: t.id, k: k, text: t.text, done: !!t.done, sub: '', go: 'tasks' }); });
     if (carry) Object.keys(days).sort().forEach(function (dk) {
-      if (dk < k) days[dk].tasks.forEach(function (t) { if (!t.done) out.push({ kind: 'task', id: t.id, k: dk, text: t.text, done: false, sub: tl + ' · vom ' + shortDate(dk), late: true, go: 'tasks' }); });
+      if (dk < k) days[dk].tasks.forEach(function (t) { if (!t.done) out.push({ kind: 'task', id: t.id, k: dk, text: t.text, done: false, sub: 'vom ' + shortDate(dk), late: true, go: 'tasks' }); });
     });
     customTabs.forEach(function (c) {
       if (isUni(c)) return;
-      dueItems(c.id, k).forEach(function (it) { out.push({ kind: 'citem', id: it.id, tid: c.id, k: k, text: it.text, done: isChecked(k, c.id, it.id), sub: c.name, go: 'c_' + c.id }); });
+      dueItems(c.id, k).forEach(function (it) { out.push({ kind: 'citem', id: it.id, tid: c.id, k: k, text: it.text, done: isChecked(k, c.id, it.id), sub: '', go: 'c_' + c.id }); });
     });
     return out;
   }
@@ -2080,17 +2084,23 @@ textarea.autogrow { resize: none; overflow: hidden; }
     h += evs.length ? '<div class="events allev">' + evs.map(function (e) {
       return '<div class="ev' + (e.uni ? ' uni' : '') + (e.go ? ' tap' : '') + '"' + (e.go ? ' data-act="all-go" data-go="' + esc(e.go) + '" role="button" tabindex="0"' : '') + '><span class="t">' + (e.time ? esc(e.time) + (e.end ? '–' + esc(e.end) : '') : 'ganztägig') + '</span><span class="x">' + nbTitle(e.title) + (e.sub ? '<small>' + esc(e.sub) + '</small>' : '') + '</span></div>';
     }).join('') + '</div>' : '<p class="hint">Keine Termine.</p>';
-    h += '</div><div class="field" style="margin-top:14px"><span class="label">Aufgaben</span>';
+    h += '</div>';
     if (tds.length) {
-      var nd = tds.filter(function (x) { return x.done; }).length;
-      h += '<ul class="list">' + tds.map(function (t, i) {
-        var cid = 'al_' + i;
-        return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
-          '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.text) + '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small></label>' +
-          '<button type="button" class="del" data-act="all-go" data-go="' + esc(t.go) + '" aria-label="Im Tab ' + esc(t.sub.split(' · ')[0]) + ' öffnen">›</button></li>';
-      }).join('') + '</ul><p class="sum">' + nd + ' von ' + tds.length + ' erledigt</p>';
-    } else h += '<p class="hint">Nichts offen.</p>';
-    elPanel.innerHTML = h + '</div>';
+      // Nach Herkunft gruppieren, in der Reihenfolge der Tabs oben
+      var n = 0;
+      allTabs().forEach(function (tb) {
+        var grp = tds.filter(function (t) { return t.go === tb[0]; });
+        if (!grp.length) return;
+        var nd = grp.filter(function (x) { return x.done; }).length;
+        h += '<div class="field allgrp"><div class="allgrp-h"><span class="label">' + esc(tb[1]) + '</span><span class="allgrp-n">' + nd + ' von ' + grp.length + ' erledigt</span>' +
+          '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button></div><ul class="list">' + grp.map(function (t) {
+          var cid = 'al_' + (n++);
+          return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
+            '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.text) + (t.sub ? '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small>' : '') + '</label></li>';
+        }).join('') + '</ul></div>';
+      });
+    } else h += '<div class="field" style="margin-top:14px"><span class="label">Aufgaben</span><p class="hint">Nichts offen.</p></div>';
+    elPanel.innerHTML = h;
   }
   function renderIdeas() {
     function row(it) {
