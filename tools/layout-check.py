@@ -33,7 +33,7 @@ with sync_playwright() as p:
                 if r['hscroll'] or r['over'] or r['overlap']: print(name,mode,r)
             for i in range(n):
                 tabs.nth(i).click(); pg.wait_for_timeout(120)
-                if mode=='Tag' and i==0:
+                if mode=='Tag' and tabs.nth(i).inner_text().strip()=='Termine':
                     pg.click('[data-act="rem-open"]'); pg.wait_for_timeout(100)
                 r=pg.evaluate(CHK)
                 if r['hscroll'] or r['over'] or r['overlap']: print(name,mode,tabs.nth(i).inner_text(),r)
