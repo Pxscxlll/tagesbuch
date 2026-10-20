@@ -357,7 +357,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 64</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 65</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1144,7 +1144,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var el = $('#events'), list = evIdx[selected] || [];
     if (tab !== 'events' || addingTab || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
     var ae = document.activeElement;
-    if (ae && (ae.id === 'evNoteIn' || ae.id === 'evGenIn') && el.contains(ae)) return;
+    if (ae && (ae.id === 'evNoteIn' || ae.id === 'evGenIn' || (ae.closest && ae.closest('.evedit'))) && el.contains(ae) && !remBusy) return;
     el.hidden = false;
     var notes = (days[selected] && days[selected].evnotes) || {};
     var keys = list.map(function (x) { return x.aid + '|' + x.e.id; });
@@ -1166,6 +1166,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
           '<textarea class="evnote autogrow" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
           '<label for="evGenIn">Allgemein</label>' +
           '<textarea class="evnote autogrow" id="evGenIn" data-evkey="' + esc(key) + '" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Allgemeine Notiz zu diesem Termin"' + dis() + '>' + esc(genNote(notes, key, e.title)) + '</textarea>' +
+          (GCLIENT && /^g:/.test(x.aid) && e.gid && !e.md
+            ? (evEdit === key ? evEditHtml(x) : '<div class="row" style="margin-top:6px"><button type="button" class="btn ghost" data-act="ev-edit" data-evkey="' + esc(key) + '">Termin bearbeiten</button></div>')
+            : '') +
           '</div>' : '');
     }).join('');
   }
@@ -1278,7 +1281,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
     return dates.map(function (dt, i) {
       var xp = ev.extendedProperties || {}, pl = !!((xp.shared && xp.shared.planner) || (xp['private'] && xp['private'].planner)) || remIds.indexOf(String(ev.id)) >= 0;
       var o = { id: String(ev.id || uid()) + '_' + dt, date: dt, time: i === 0 ? sTime : '', end: i === 0 && eDate === sDate ? eTime : '', title: title, loc: loc, desc: desc };
-      if (pl && ev.id) { o.pl = 1; o.gid = String(ev.id); }
+      if (pl && ev.id) o.pl = 1;
+      if (ev.id) o.gid = String(ev.id);
+      if (dates.length > 1) o.md = 1;
+      var rm = ev.reminders || {};
+      if (rm.useDefault === false && Array.isArray(rm.overrides) && rm.overrides[0]) o.pre = Number(rm.overrides[0].minutes) || 0;
       return o;
     });
   }
@@ -1587,7 +1594,37 @@ textarea.autogrow { resize: none; overflow: hidden; }
     });
     return { items: out, bad: bad };
   }
-  var uniView = 'plan', uniEditPlan = false, uniClearAsk = false, uniMsg = null;
+  var uniView = 'plan', uniEditPlan = false, uniClearAsk = false, uniMsg = null, uniEditTodo = null, uniEditLesson = null;
+  function todoRow(t) {
+    if (uniEditTodo === t.id) {
+      return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
+        '<div class="field"><label for="utEx">Aufgabe</label><input id="utEx" type="text" maxlength="140" autocomplete="off" value="' + esc(t.x) + '"' + dis() + '></div>' +
+        '<div class="field" style="max-width:220px"><label for="utEd">Frist (leer = nur dieser Tag)</label><input id="utEd" type="date" value="' + esc(t.due || '') + '"' + dis() + '></div>' +
+        '<div class="row"><button type="button" class="btn" data-act="uni-tsave" data-tid="' + esc(t.id) + '"' + dis() + '>Speichern</button>' +
+        '<button type="button" class="btn ghost" data-act="uni-tcancel">Abbrechen</button></div></div></li>';
+    }
+    var on = !!t.done, cid = 'ut_' + t.id, late = !on && t.due && t.due < selected;
+    return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="uni-ttoggle" data-tid="' + esc(t.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
+      '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.x) +
+      (t.due ? '<small' + (late ? ' class="late"' : '') + '>' + esc(dueText(t, selected)) + '</small>' : '') + '</label>' +
+      '<button type="button" class="del pen" data-act="uni-tedit" data-tid="' + esc(t.id) + '" aria-label="' + esc(t.x) + ' bearbeiten">✎</button>' +
+      '<button type="button" class="del" data-act="uni-tdel" data-tid="' + esc(t.id) + '" aria-label="' + esc(t.x) + ' löschen">×</button></li>';
+  }
+  function lessonEditRow(l) {
+    var once = !!l.k;
+    return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
+      '<div class="field"><label for="leS">Fach</label><input id="leS" type="text" maxlength="80" autocomplete="off" value="' + esc(l.s) + '"' + dis() + '></div>' +
+      '<div class="row">' + (once
+        ? '<div class="field" style="flex-basis:150px"><label for="leK">Datum</label><input id="leK" type="date" value="' + esc(l.k) + '"' + dis() + '></div>'
+        : '<div class="field" style="flex-basis:110px"><label for="leD">Tag</label><select id="leD"' + dis() + '>' + WD_SHORT.map(function (w, i) { return '<option value="' + (i + 1) + '"' + (i + 1 === l.d ? ' selected' : '') + '>' + w + '</option>'; }).join('') + '</select></div>') +
+      '<div class="field" style="flex-basis:110px"><label for="leF">Von</label><input id="leF" type="time" value="' + esc(l.f) + '"' + dis() + '></div>' +
+      '<div class="field" style="flex-basis:110px"><label for="leT">Bis</label><input id="leT" type="time" value="' + esc(l.t) + '"' + dis() + '></div></div>' +
+      '<div class="row"><div class="field" style="flex-basis:130px"><label for="leA">Art</label><input id="leA" type="text" maxlength="30" autocomplete="off" value="' + esc(l.a || '') + '"' + dis() + '></div>' +
+      '<div class="field" style="flex-basis:130px"><label for="leR">Raum</label><input id="leR" type="text" maxlength="40" autocomplete="off" value="' + esc(l.r || '') + '"' + dis() + '></div></div>' +
+      '<p class="err" id="leErr" role="alert"></p>' +
+      '<div class="row"><button type="button" class="btn" data-act="uni-lsave" data-lid="' + esc(l.id) + '"' + dis() + '>Speichern</button>' +
+      '<button type="button" class="btn ghost" data-act="uni-lcancel">Abbrechen</button></div></div></li>';
+  }
   try { if (localStorage.getItem('tagesbuch:uniview') === 'todo') uniView = 'todo'; } catch (e) {}
   function lessonHtml(l) {
     var sub = [l.a, l.r].filter(Boolean).map(esc).join(' · ');
@@ -1605,9 +1642,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
       h += '<details class="abo"' + (uniEditPlan ? ' open' : '') + ' data-uni-det="1"><summary>Stundenplan bearbeiten (' + all.length + ')</summary><div class="panel" style="margin-top:10px">';
       if (all.length) {
         h += '<ul class="list">' + all.map(function (l) {
+          if (uniEditLesson === l.id) return lessonEditRow(l);
           var when = l.k ? shortDate(l.k) + l.k.slice(0, 4) : WD_SHORT[l.d - 1] + (l.w ? (l.w === 'g' ? ', gerade KW' : ', ungerade KW') : '');
           var rng = l.k ? '' : (l.from || l.until ? ' · ' + (l.from ? shortDate(l.from) : '') + '–' + (l.until ? shortDate(l.until) : '') : '');
           return '<li><div class="item-main">' + esc(l.s) + '<small>' + esc(when + ' ' + l.f + '–' + l.t) + esc(rng) + [l.a, l.r].filter(Boolean).map(function (x) { return ' · ' + esc(x); }).join('') + '</small></div>' +
+            '<button type="button" class="del pen" data-act="uni-ledit" data-lid="' + esc(l.id) + '" aria-label="' + esc(l.s) + ' bearbeiten">✎</button>' +
             '<button type="button" class="del" data-act="uni-ldel" data-lid="' + esc(l.id) + '" aria-label="' + esc(l.s) + ' entfernen">×</button></li>';
         }).join('') + '</ul>';
       }
@@ -1634,13 +1673,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (!c) {
       // Eingebauter Aufgaben-Tab heißt „Uni“: Fristen oben, darunter die normalen Tagesaufgaben mit optionaler Frist
       var fr = ts.filter(function (t) { return t.due; });
-      var fh = fr.length ? '<div class="field"><span class="label">Mit Frist</span><ul class="list">' + fr.map(function (t) {
-        var on = !!t.done, cid = 'ut_' + t.id, late = !on && t.due < selected;
-        return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="uni-ttoggle" data-tid="' + esc(t.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
-          '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.x) +
-          '<small' + (late ? ' class="late"' : '') + '>' + esc(dueText(t, selected)) + '</small></label>' +
-          '<button type="button" class="del" data-act="uni-tdel" data-tid="' + esc(t.id) + '" aria-label="' + esc(t.x) + ' löschen">×</button></li>';
-      }).join('') + '</ul></div>' : '';
+      var fh = fr.length ? '<div class="field"><span class="label">Mit Frist</span><ul class="list">' + fr.map(todoRow).join('') + '</ul></div>' : '';
       renderTasks();
       var tf = elPanel.querySelector('form[data-form="task"]');
       if (tf) {
@@ -1654,13 +1687,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return;
     }
     if (ts.length) {
-      h += '<ul class="list">' + ts.map(function (t) {
-        var on = !!t.done, cid = 'ut_' + t.id, late = !on && t.due && t.due < selected;
-        return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="uni-ttoggle" data-tid="' + esc(t.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
-          '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.x) +
-          (t.due ? '<small' + (late ? ' class="late"' : '') + '>' + esc(dueText(t, selected)) + '</small>' : '') + '</label>' +
-          '<button type="button" class="del" data-act="uni-tdel" data-tid="' + esc(t.id) + '" aria-label="' + esc(t.x) + ' löschen">×</button></li>';
-      }).join('') + '</ul>';
+      h += '<ul class="list">' + ts.map(todoRow).join('') + '</ul>';
     } else h += '<p class="hint">Keine Aufgaben für diesen Tag.</p>';
     h += '<form data-form="unitodo" class="row" novalidate>' +
       '<div class="field"><label for="utX">Neue Aufgabe</label><input id="utX" type="text" maxlength="140" autocomplete="off" placeholder="z. B. Übungsblatt 3 TM"' + dis() + '></div>' +
@@ -1972,7 +1999,73 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   /* ---------- Erinnerung direkt in Pascals Google-Kalender eintragen ---------- */
   var REM_ACCOUNT = 'pascal.gerlach23@gmail.com', REM_MIN = 60;
-  var remDelAsk = null, remIds = [];
+  var remDelAsk = null, remIds = [], evEdit = null, evEditMsg = null;
+  function evDur(e) {
+    if (!e.time || !e.end) return 60;
+    var a = e.time.split(':'), b = e.end.split(':'), m = (+b[0] * 60 + +b[1]) - (+a[0] * 60 + +a[1]);
+    return m > 0 ? m : 60;
+  }
+  function splitMin(m, units) { for (var i = units.length - 1; i >= 0; i--) { var u = +units[i][0]; if (m >= u && m % u === 0) return [String(m / u), String(u)]; } return [String(m), '1']; }
+  function remPatch(gid, body) {
+    return remToken().then(function (tok) {
+      return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/' + encodeURIComponent(gid), {
+        method: 'PATCH', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+    }).then(function (r) {
+      if (r.status === 401) { remTok = null; remTokExp = 0; }
+      if (r.status === 404 || r.status === 403) throw new Error('fremd');
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    });
+  }
+  function evEditHtml(x) {
+    var e = x.e, d = splitMin(evDur(e), [['1'], ['60']]), pr = e.pl ? splitMin(e.pre == null ? 60 : e.pre, [['1'], ['60'], ['1440']]) : null;
+    function us(id, opts, cur) { return '<select id="' + id + '" aria-label="Einheit">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
+    return '<form data-form="evedit" class="panel evedit" novalidate><h3>Termin bearbeiten</h3>' +
+      '<div class="field"><label for="eeT">Titel</label><input id="eeT" type="text" maxlength="120" autocomplete="off" value="' + esc(e.title) + '"></div>' +
+      '<div class="row"><div class="field" style="flex-basis:150px"><label for="eeD">Datum</label><input id="eeD" type="date" value="' + esc(e.date) + '"></div>' +
+      '<div class="field" style="flex-basis:120px"><label for="eeS">Uhrzeit (leer = ganztägig)</label><input id="eeS" type="time" value="' + esc(e.time || '') + '"></div></div>' +
+      '<div class="row"><div class="field" style="flex-basis:150px"><label for="eeDurN">Dauer</label><div class="combo"><input id="eeDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(d[0]) + '">' + us('eeDurU', [['1', 'Min'], ['60', 'Std']], d[1]) + '</div></div>' +
+      (pr ? '<div class="field" style="flex-basis:150px"><label for="eePreN">Benachrichtigung vorher</label><div class="combo"><input id="eePreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(pr[0]) + '">' + us('eePreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], pr[1]) + '</div></div>' : '') + '</div>' +
+      (evEditMsg ? '<p class="err" role="alert">' + esc(evEditMsg) + '</p>' : '') +
+      '<div class="row"><button type="submit" class="btn" data-gid="' + esc(e.gid) + '"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Speichere …' : 'Speichern') + '</button>' +
+      '<button type="button" class="btn ghost" data-act="ev-edit-no">Abbrechen</button></div></form>';
+  }
+  function saveEvEdit(form) {
+    var key = evEdit, x = (evIdx[selected] || []).filter(function (y) { return y.aid + '|' + y.e.id === key; })[0];
+    if (!x) return;
+    var t = $('#eeT').value.trim(), dk = $('#eeD').value, st = $('#eeS').value;
+    var dur = Math.round(parseFloat(String($('#eeDurN').value).replace(',', '.')) * Number($('#eeDurU').value));
+    if (!t || !KRE.test(dk)) { evEditMsg = 'Bitte Titel und Datum angeben.'; renderEvents(); return; }
+    if (!(dur > 0)) dur = 60;
+    var body = { summary: t };
+    if (HMRE.test(st)) {
+      var p = dk.split('-'), q = st.split(':'), a = new Date(+p[0], +p[1] - 1, +p[2], +q[0], +q[1]), b2 = new Date(a.getTime() + dur * 60000);
+      function loc(d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
+      body.start = { dateTime: loc(a), timeZone: 'Europe/Berlin', date: null };
+      body.end = { dateTime: loc(b2), timeZone: 'Europe/Berlin', date: null };
+    } else {
+      body.start = { date: dk, dateTime: null, timeZone: null };
+      body.end = { date: addDays(dk, 1), dateTime: null, timeZone: null };
+    }
+    if ($('#eePreN')) {
+      var pre = Math.round(parseFloat(String($('#eePreN').value).replace(',', '.')) * Number($('#eePreU').value));
+      if (!(pre >= 0) || pre > 40320) { evEditMsg = 'Benachrichtigung: zwischen 0 und 4 Wochen vorher.'; renderEvents(); return; }
+      body.reminders = { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] };
+    }
+    remBusy = true; evEditMsg = null; renderEvents();
+    var oldM = selected.slice(0, 7), newM = dk.slice(0, 7);
+    remPatch(x.e.gid, body).then(function () {
+      remBusy = false; evEdit = null;
+      Object.keys(gLoaded).forEach(function (z) { var m = z.slice(-7); if (m === oldM || m === newM) delete gLoaded[z]; });
+      Object.keys(gStore).forEach(function (c) { gStore[c] = (gStore[c] || []).filter(function (y) { return y.gid !== x.e.gid; }); });
+      rebuildEv(); renderAll(); gEnsure(true);
+    }).catch(function (err) {
+      remBusy = false;
+      evEditMsg = err && err.message === 'fremd' ? 'Dieser Termin gehört nicht zu deinem Kalender und kann hier nicht geändert werden.' : 'Speichern hat nicht geklappt (' + String(err && err.message || '') + ').';
+      renderEvents();
+    });
+  }
   try { remIds = JSON.parse(localStorage.getItem('tagesbuch:remids') || '[]'); if (!Array.isArray(remIds)) remIds = []; } catch (e) {}
   function remDelete(gid) {
     return remToken().then(function (tok) {
@@ -2214,12 +2307,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
   });
   function toggleEv(row) {
     var k = row.dataset.evkey;
-    openEv = openEv === k ? null : k;
+    openEv = openEv === k ? null : k; evEdit = null; evEditMsg = null;
     var ae = document.activeElement; if (ae && (ae.id === 'evNoteIn' || ae.id === 'evGenIn')) ae.blur();
     renderEvents(); renderCal();
   }
   $('#events').addEventListener('click', function (e) {
-    if (!e.target.closest('a, textarea, button')) {
+    if (!e.target.closest('a, textarea, button, input, select, form')) {
       var row = e.target.closest('.ev[data-evkey]');
       if (row) { toggleEv(row); return; }
     }
@@ -2242,7 +2335,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (v.trim()) d.evnotes[k] = v; else delete d.evnotes[k];
     commit(selected, 700);
   });
+  $('#events').addEventListener('submit', function (e) {
+    if (!e.target.dataset || e.target.dataset.form !== 'evedit') return;
+    e.preventDefault(); if (!remBusy) saveEvEdit(e.target);
+  });
   $('#events').addEventListener('click', function (e) {
+    var eb = e.target.closest('button[data-act="ev-edit"], button[data-act="ev-edit-no"]');
+    if (eb) { evEdit = eb.dataset.act === 'ev-edit' ? eb.dataset.evkey : null; evEditMsg = null; renderEvents(); return; }
     var rb = e.target.closest('button[data-act^="rem-del"]');
     if (rb) {
       var ra = rb.dataset.act;
@@ -2574,6 +2673,32 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return;
     }
     if (act === 'uni-done') { uniEditPlan = false; uniMsg = null; renderPanel(); return; }
+    if (act === 'uni-tedit') { uniEditTodo = b.dataset.tid; renderPanel(); return; }
+    if (act === 'uni-tcancel') { uniEditTodo = null; renderPanel(); return; }
+    if (act === 'uni-tsave') {
+      var et = (UNI.todos || []).filter(function (x) { return x.id === b.dataset.tid; })[0]; if (!et) return;
+      var ex = $('#utEx').value.trim().slice(0, 140), ed = $('#utEd').value;
+      if (!ex) { $('#utEx').placeholder = 'Bitte eintragen'; return; }
+      et.x = ex;
+      if (KRE.test(ed)) { et.due = ed; delete et.day; } else { delete et.due; et.day = selected; }
+      uniEditTodo = null; saveUni(); renderPanel(); renderCal();
+      return;
+    }
+    if (act === 'uni-ledit') { uniEditLesson = b.dataset.lid; uniEditPlan = true; renderPanel(); return; }
+    if (act === 'uni-lcancel') { uniEditLesson = null; renderPanel(); return; }
+    if (act === 'uni-lsave') {
+      var el2 = (UNI.lessons || []).filter(function (x) { return x.id === b.dataset.lid; })[0]; if (!el2) return;
+      var ls = $('#leS').value.trim(), lf = $('#leF').value, lt = $('#leT').value;
+      if (!ls || !HMRE.test(lf) || !HMRE.test(lt)) { $('#leErr').textContent = 'Bitte Fach, Beginn und Ende eintragen.'; return; }
+      if (lt <= lf) { $('#leErr').textContent = 'Das Ende liegt vor dem Beginn.'; return; }
+      el2.s = ls.slice(0, 80); el2.f = lf; el2.t = lt;
+      if (el2.k) { var lk = $('#leK').value; if (KRE.test(lk)) el2.k = lk; } else el2.d = +$('#leD').value;
+      var la = $('#leA').value.trim(), lr = $('#leR').value.trim();
+      if (la) el2.a = la.slice(0, 30); else delete el2.a;
+      if (lr) el2.r = lr.slice(0, 40); else delete el2.r;
+      uniEditLesson = null; saveUni(); renderPanel(); renderCal();
+      return;
+    }
     if (act === 'uni-lclear-ask') { uniClearAsk = true; uniEditPlan = true; renderPanel(); return; }
     if (act === 'uni-lclear-no') { uniClearAsk = false; renderPanel(); return; }
     if (act === 'tab-del-ask') { delTabAsk = true; renderPanel(); return; }
