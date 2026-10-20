@@ -161,6 +161,11 @@ input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 .combo select { flex: 0 0 88px; width: 88px; }
 .grid[data-notime="1"] { grid-template-columns: minmax(0, 1fr); }
 .grid[data-notime="1"] #viewCard, .grid[data-notime="1"] #dayLabel { display: none; }
+.tn-t { background: none; border: 0; padding: 4px 0; text-align: left; font: inherit; color: inherit; cursor: pointer; flex: 1; min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: flex-start; }
+@media (hover: hover) { .tn-t:not(:disabled):hover { background: none; text-decoration: underline; } }
+.list li.tnote { border-top: 0; padding-top: 0; }
+.list li.tnote textarea { width: 100%; min-height: 70px; }
+.inotes-opt { display: flex; align-items: center; gap: 8px; margin-top: 12px; text-transform: none; letter-spacing: 0; font-size: 0.9rem; }
 .idea-t { background: none; border: 0; padding: 4px 0; text-align: left; font: inherit; color: inherit; cursor: pointer; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 @media (hover: hover) { .idea-t:not(:disabled):hover { background: none; text-decoration: underline; } }
 .list.ideas li.idea-edit { border-top: 0; padding-top: 0; }
@@ -357,7 +362,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 65</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 66</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1436,10 +1441,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
         }).map(function (it) {
           var o = { id: it.id.slice(0, 20), text: it.text.slice(0, 120), rep: ['daily', 'weekdays', 'weekly', 'once'].indexOf(it.rep) >= 0 ? it.rep : 'daily', start: it.start };
           if (/^\d{4}-\d{2}-\d{2}$/.test(it.until || '')) o.until = it.until;
+          if (typeof it.n === 'string' && it.n) o.n = it.n.slice(0, 5000);
           return o;
         }).slice(0, 50);
         var o2 = { id: c.id.slice(0, 20), name: c.name.slice(0, 24), items: items };
         if (c.kind === 'uni') o2.kind = 'uni';
+        if (typeof c.inotes === 'boolean') o2.inotes = c.inotes;
         var lz = normLessons(c.lessons), tz = normTodos(c.todos);
         if (lz.length) o2.lessons = lz;
         if (tz.length) o2.todos = tz;
@@ -1527,6 +1534,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       var o = { id: t.id.slice(0, 20), x: t.x.slice(0, 140), from: t.from };
       if (KRE.test(t.due || '')) o.due = t.due; else o.day = t.day;
       if (KRE.test(t.done || '')) o.done = t.done;
+      if (typeof t.n === 'string' && t.n) o.n = t.n.slice(0, 5000);
       return o;
     }).slice(-300);
   }
@@ -1595,6 +1603,25 @@ textarea.autogrow { resize: none; overflow: hidden; }
     return { items: out, bad: bad };
   }
   var uniView = 'plan', uniEditPlan = false, uniClearAsk = false, uniMsg = null, uniEditTodo = null, uniEditLesson = null;
+  /* ---------- Notizen zu Aufgaben (aufklappbar) ---------- */
+  var openNote = null, noteSaveT = null;
+  function notesOn(c) { return !!c && (c.inotes != null ? !!c.inotes : !/physio/i.test(c.name)); }
+  function noteRef(kind, id, k, tid) {
+    if (kind === 'task') return ((days[k] || {}).tasks || []).filter(function (x) { return x.id === id; })[0];
+    if (kind === 'uni') return (UNI.todos || []).filter(function (x) { return x.id === id; })[0];
+    if (kind === 'citem') { var c = tabById(tid); return c && (c.items || []).filter(function (x) { return x.id === id; })[0]; }
+    return null;
+  }
+  function noteKeyOf(kind, id, k, tid) { return kind + '|' + id + '|' + (kind === 'task' ? k : '') + '|' + (tid || ''); }
+  // Text-Button, der die Notiz auf- und zuklappt (ersetzt das Label, Abhaken nur noch über das Kästchen)
+  function noteBtn(kind, id, k, tid, inner, note) {
+    var nk = noteKeyOf(kind, id, k, tid), open = openNote === nk;
+    return '<button type="button" class="item-main tn-t" data-act="tnote" data-nk="' + esc(nk) + '" aria-expanded="' + open + '">' + inner + '</button>' + (!open && note && String(note).trim() ? NOTE_IC : '');
+  }
+  function noteArea(kind, id, k, tid, note) {
+    if (openNote !== noteKeyOf(kind, id, k, tid)) return '';
+    return '<li class="tnote"><textarea class="autogrow" id="tnoteIn" data-kind="' + kind + '" data-id="' + esc(id) + '" data-k="' + esc(k || '') + '" data-tid="' + esc(tid || '') + '" aria-label="Notizen zur Aufgabe" placeholder="Notizen, z. B. was du besprechen oder machen willst"' + dis() + '>' + esc(note || '') + '</textarea></li>';
+  }
   function todoRow(t) {
     if (uniEditTodo === t.id) {
       return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
@@ -1605,10 +1632,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     var on = !!t.done, cid = 'ut_' + t.id, late = !on && t.due && t.due < selected;
     return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="uni-ttoggle" data-tid="' + esc(t.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
-      '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.x) +
-      (t.due ? '<small' + (late ? ' class="late"' : '') + '>' + esc(dueText(t, selected)) + '</small>' : '') + '</label>' +
+      noteBtn('uni', t.id, '', '', esc(t.x) + (t.due ? '<small' + (late ? ' class="late"' : '') + '>' + esc(dueText(t, selected)) + '</small>' : ''), t.n) +
       '<button type="button" class="del pen" data-act="uni-tedit" data-tid="' + esc(t.id) + '" aria-label="' + esc(t.x) + ' bearbeiten">✎</button>' +
-      '<button type="button" class="del" data-act="uni-tdel" data-tid="' + esc(t.id) + '" aria-label="' + esc(t.x) + ' löschen">×</button></li>';
+      '<button type="button" class="del" data-act="uni-tdel" data-tid="' + esc(t.id) + '" aria-label="' + esc(t.x) + ' löschen">×</button></li>' +
+      noteArea('uni', t.id, '', '', t.n);
   }
   function lessonEditRow(l) {
     var once = !!l.k;
@@ -1727,9 +1754,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
         }
         var on = isChecked(selected, id, it.id), cid = 'ci_' + it.id;
         return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="ctoggle" data-iid="' + esc(it.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
-          '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + (it.rep === 'once' ? '' : ' · ' + (it.until ? shortDate(it.start) + ' – ' + shortDate(it.until) : 'ab ' + shortDate(it.start))) + '</small></label>' +
+          (function () {
+            var inner = esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + (it.rep === 'once' ? '' : ' · ' + (it.until ? shortDate(it.start) + ' – ' + shortDate(it.until) : 'ab ' + shortDate(it.start))) + '</small>';
+            return notesOn(c) ? noteBtn('citem', it.id, '', id, inner, it.n) : '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + inner + '</label>';
+          })() +
           '<button type="button" class="del pen" data-act="item-edit" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' bearbeiten">✎</button>' +
-          '<button type="button" class="del" data-act="citem-del" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' ab diesem Tag entfernen">×</button></li>';
+          '<button type="button" class="del" data-act="citem-del" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' ab diesem Tag entfernen">×</button></li>' +
+          (notesOn(c) ? noteArea('citem', it.id, '', id, it.n) : '');
       }).join('') + '</ul><p class="sum">' + nDone + ' von ' + due.length + ' erledigt</p>';
     } else {
       h += '<p class="hint">Keine Übungen für diesen Tag.</p>';
@@ -1754,7 +1785,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<textarea class="autogrow" id="customIn" placeholder="Eintrag für diesen Tag"' + dis() + '>' + esc((d.custom && d.custom[id]) || '') + '</textarea></div>' +
       (delTabAsk
         ? '<p class="hint">Tab „' + esc(c ? c.name : '') + '“ wirklich entfernen? Die Einträge bleiben gespeichert, sind aber nicht mehr sichtbar.</p><div class="row"><button type="button" class="btn" data-act="tab-del-yes">Ja, entfernen</button><button type="button" class="btn ghost" data-act="tab-del-no">Behalten</button></div>'
-        : '<div class="row" style="margin-top:12px"><button type="button" class="btn ghost" data-act="tab-del-ask"' + dis() + '>Tab entfernen</button></div>') + imp;
+        : '<div class="row" style="margin-top:12px"><button type="button" class="btn ghost" data-act="tab-del-ask"' + dis() + '>Tab entfernen</button></div>') + imp +
+      (c ? '<label class="inotes-opt"><input type="checkbox" data-act="inotes"' + (notesOn(c) ? ' checked' : '') + dis() + '> Notizen zu einzelnen Einträgen</label>' : '');
   }
 
   /* ---------- Panels ---------- */
@@ -1969,9 +2001,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
             '<button type="button" class="btn ghost" data-act="task-cancel">Abbrechen</button></li>';
         }
         return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" data-act="toggle" data-id="' + esc(t.id) + '" id="t_' + esc(t.id) + '"' + (t.done ? ' checked' : '') + dis() + '>' +
-          '<label for="t_' + esc(t.id) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.text) + '</label>' +
+          noteBtn('task', t.id, selected, '', esc(t.text), t.n) +
           '<button type="button" class="del pen" data-act="edit-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe bearbeiten">✎</button>' +
-          '<button type="button" class="del" data-act="del-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe entfernen">×</button></li>';
+          '<button type="button" class="del" data-act="del-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe entfernen">×</button></li>' +
+          noteArea('task', t.id, selected, '', t.n);
       }).join('') + '</ul><p class="sum">' + done + ' von ' + d.tasks.length + ' erledigt</p>';
     } else {
       h += '<p class="hint">Keine Aufgaben für diesen Tag.</p>';
@@ -2189,7 +2222,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
           '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button></div><ul class="list">' + grp.map(function (t) {
           var cid = 'al_' + (n++);
           return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
-            '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(t.text) + (t.sub ? '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small>' : '') + '</label></li>';
+            (function () {
+              var inner = esc(t.text) + (t.sub ? '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small>' : '');
+              var ref = noteRef(t.kind, t.id, t.k, t.tid), can = t.kind !== 'citem' || notesOn(tabById(t.tid));
+              return can ? noteBtn(t.kind, t.id, t.k, t.tid, inner, ref && ref.n) : '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + inner + '</label>';
+            })() + '</li>' +
+            (t.kind !== 'citem' || notesOn(tabById(t.tid)) ? noteArea(t.kind, t.id, t.k, t.tid, (noteRef(t.kind, t.id, t.k, t.tid) || {}).n) : '');
         }).join('') + '</ul></div>';
       });
     } else h += '<div class="field" style="margin-top:14px"><span class="label">Aufgaben</span><p class="hint">Nichts offen.</p></div>';
@@ -2664,6 +2702,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return;
     }
     if (act === 'all-go') { var g = b.dataset.go; if (g && tabExists(g)) { tab = g; wtab = g; try { localStorage.setItem('tagesbuch:tab', tab); } catch (er) {} if (g === 'tasks' && uniTasksMode()) uniView = 'todo'; renderAll(); renderEvents(); } return; }
+    if (act === 'tnote') { openNote = openNote === b.dataset.nk ? null : b.dataset.nk; renderPanel(); return; }
     if (act === 'idea-open') { openIdea = openIdea === b.dataset.iid ? null : b.dataset.iid; renderPanel(); return; }
     if (act === 'idea-del') {
       var snapI = IDEAS.slice(), di = IDEAS.filter(function (x) { return x.id === b.dataset.iid; })[0];
@@ -2922,6 +2961,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
     else { var nv2 = e.target.value.slice(0, 5000); if (nv2.trim()) it.n = nv2; else delete it.n; }
     saveIdeas(700);
   });
+  elPanel.addEventListener('input', function (e) {
+    if (e.target.id !== 'tnoteIn' || !ready) return;
+    var ds = e.target.dataset, ref = noteRef(ds.kind, ds.id, ds.k, ds.tid); if (!ref) return;
+    var v = e.target.value.slice(0, 5000);
+    if (v.trim()) ref.n = v; else delete ref.n;
+    if (ds.kind === 'task') commit(ds.k, 700);
+    else { clearTimeout(noteSaveT); noteSaveT = setTimeout(function () { if (ds.kind === 'uni') saveUni(); else savePrefs(); }, 700); }
+  });
   elPanel.addEventListener('toggle', function (e) { if (e.target.dataset && e.target.dataset.uniDet) uniEditPlan = e.target.open; }, true);
   elPanel.addEventListener('change', function (e) {
     var el = e.target;
@@ -2938,6 +2985,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
         if (!nv && def) el.value = def[1];
       }
       renderTabs(); renderCal();
+      return;
+    }
+    if (el.dataset && el.dataset.act === 'inotes' && ready) {
+      var ic = tabById(tab.slice(2)); if (!ic) return;
+      ic.inotes = el.checked; savePrefs(); renderPanel();
       return;
     }
     if (el.dataset && el.dataset.act === 'all-toggle' && ready) {
