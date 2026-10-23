@@ -38,9 +38,10 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - **`UNI = {lessons, todos}`:**
   - Lessons: `{id,s,a,r,f,t, d (1–7) | k (Datum), from?, until?, w?}`
   - Todos: `{id,x,from, day | due, done?, n?}`
-  - Uni-Modus gilt, wenn der eingebaute Aufgaben-Tab „Uni“ heißt (bei Pascal so).
+  - Uni-Modus: `TABSET.uni` (der eingebaute Aufgaben-Tab heißt dann fest „Uni“, bei Pascal so). Früher wurde das über den Tab-Namen erkannt; ohne gespeichertes `TABSET` wird es aus `tabNames.tasks` übernommen.
 - **`IDEAS = [{id,x,n?,done?}]`:** Tab „Ideen“, eine Liste ohne Datum.
-- **Eigene Tabs:** `customTabs: [{id,name,items:[{id,text,rep,start,until?,n?}],kind?,inotes?}]`. Physio hat keine Notizen pro Eintrag, Sonstiges schon.
+- **Eigene Tabs:** `customTabs: [{id,name,items:[{id,text,rep,start,until?,n?}],kind?,inotes?}]` mit `kind` `uni` oder `physio`. Physio hat keine Notizen pro Eintrag, Sonstiges schon.
+- **`TABSET = {on:[ids], uni}`:** sichtbare feste Tabs, synchronisiert als `tabset`. Ohne gespeichertes `TABSET`: Nutzer mit alten Daten sehen alle festen Tabs, neue Nutzer nur `START_TABS` (Alle, Termine, Ideen, Notiz).
 
 ## Tabs
 - **Alle** (Standard beim Öffnen, ganz links): Termine und Stundenplan des Tages sowie offene Aufgaben, nach Herkunft gruppiert. Nur ansehen und abhaken, Notizen aufklappbar.
@@ -49,7 +50,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 ## Pascals UX-Regeln
 - Das Format muss auf Handy, iPad und PC/Laptop stimmen: keine Überschneidungen.
 - Nichts doppelt pflegen. Jeder Tab zeigt nur seine Daten, „Alle“ fasst nur zusammen.
-- Tabs gibt es nur in der oberen Leiste. Sie lassen sich verschieben und umbenennen.
+- Tabs gibt es nur in der oberen Leiste. Sie lassen sich verschieben, aber nicht umbenennen (feste Namen). Neue Tabs kommen über „+“ aus dem Katalog (`CATALOG`), dort lassen sie sich auch entfernen.
 - Beim Öffnen startet die App immer bei Tag → heute → Alle.
 - Keine Notiz-Vorschau, nur ein Notiz-Symbol.
 - Nie automatisch fokussieren (Tastatur). Einzige Ausnahme ist „+ Übung“.

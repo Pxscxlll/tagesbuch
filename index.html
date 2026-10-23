@@ -362,7 +362,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 66</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 67</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -489,7 +489,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function restoreTab(t, name) {
     if (customTabs.some(function (c) { return c.id === t.id; })) return;
-    customTabs.push({ id: t.id, name: (name || t.name || 'Wiederhergestellt').slice(0, 24), items: t.items || [] });
+    customTabs.push(Object.assign({ id: t.id, name: (name || t.name || 'Wiederhergestellt').slice(0, 24), items: t.items || [] }, t.kind ? { kind: t.kind } : {}, typeof t.inotes === 'boolean' ? { inotes: t.inotes } : {}));
     deletedTabs = deletedTabs.filter(function (c) { return c.id !== t.id; });
     savePrefs(); saveDeleted();
     addingTab = false; tab = 'c_' + t.id; wtab = tab;
@@ -747,7 +747,63 @@ textarea.autogrow { resize: none; overflow: hidden; }
     meta.uni = Date.now(); saveMeta(); scheduleSync();
   }
   function uniName(n) { return /^(uni|universität|studium|hochschule)$/i.test(String(n || '').trim()); }
-  function uniTasksMode() { return uniName(tabNames.tasks); }
+  function uniTasksMode() { return tabset().uni; }
+  // Tab, in dem Stundenplan und Uni-Aufgaben stehen (für „Alle“)
+  function uniGo() {
+    if (uniTasksMode() && tabset().on.indexOf('tasks') >= 0) return 'tasks';
+    var u = customTabs.filter(isUni)[0];
+    return u ? 'c_' + u.id : '';
+  }
+  /* ---------- Tab-Katalog: feste Namen, sichtbare Tabs und Vorlagen ---------- */
+  // Neue Nutzer starten mit diesen Tabs, alles Weitere kommt aus dem Katalog
+  var START_TABS = ['all', 'events', 'ideas', 'note'];
+  var CATALOG = [
+    ['events', 'Termine', 'Termine aus deinen Kalendern'],
+    ['note', 'Notiz', 'Freie Notiz für jeden Tag'],
+    ['ideas', 'Ideen', 'Projektideen und Aufgaben ohne Datum'],
+    ['tasks', 'Aufgaben', 'Aufgaben für einzelne Tage'],
+    ['weight', 'Gewicht', 'Gewicht eintragen, mit Verlauf'],
+    ['sport', 'Sport', 'Sporteinheiten eintragen'],
+    ['uni', 'Uni', 'Stundenplan und Aufgaben mit Frist'],
+    ['physio', 'Physio', 'Übungen mit Wiederholung zum Abhaken']
+  ];
+  // TABSET = { on: sichtbare feste Tabs, uni: „Aufgaben“ läuft als „Uni“ } – nur gesetzt, wenn im Katalog etwas geändert wurde
+  var TABSET = null, legacyUser = false, catDelAsk = null;
+  function normTabset(v) {
+    if (!v || !Array.isArray(v.on)) return null;
+    var ids = TABS.map(function (t) { return t[0]; });
+    var on = v.on.filter(function (x, i, a) { return ids.indexOf(x) >= 0 && a.indexOf(x) === i; });
+    if (on.indexOf('all') < 0) on.unshift('all');
+    return { on: on, uni: !!v.uni };
+  }
+  try { TABSET = normTabset(JSON.parse(localStorage.getItem('tagesbuch:tabset') || 'null')); } catch (e) {}
+  try { legacyUser = localStorage.getItem('tagesbuch:legacy') === '1'; } catch (e) {}
+  // Daten aus der Zeit vor dem Katalog: dann bleiben alle festen Tabs sichtbar
+  function legacyData() {
+    if (customTabs.length || Object.keys(tabNames).length || (UNI.lessons || []).length || (UNI.todos || []).length) return true;
+    return Object.keys(days).some(function (k) {
+      var d = days[k];
+      return d && (d.weight != null || (d.sports || []).length || (d.tasks || []).length || Object.keys(d.custom || {}).length || Object.keys(d.checks || {}).length);
+    });
+  }
+  function tabset() {
+    if (TABSET) return TABSET;
+    if (!legacyUser && legacyData()) { legacyUser = true; try { localStorage.setItem('tagesbuch:legacy', '1'); } catch (e) {} }
+    // Früher wurde „Aufgaben“ durch Umbenennen in „Uni“ zum Uni-Tab. Das wird hier einmalig übernommen.
+    return legacyUser ? { on: TABS.map(function (t) { return t[0]; }), uni: uniName(tabNames.tasks) } : { on: START_TABS.slice(), uni: false };
+  }
+  function setTabset(ts) {
+    TABSET = normTabset(ts);
+    try { localStorage.setItem('tagesbuch:tabset', JSON.stringify(TABSET)); } catch (e) {}
+    meta.tabset = Date.now(); saveMeta(); scheduleSync();
+  }
+  function isPhysio(c) { return !!c && (c.kind === 'physio' || (!c.kind && /^physio/i.test(String(c.name || '').trim()))); }
+  function catPresent(id) {
+    var ts = tabset();
+    if (id === 'uni') return (ts.uni && ts.on.indexOf('tasks') >= 0) || customTabs.some(isUni);
+    if (id === 'physio') return customTabs.some(isPhysio);
+    return ts.on.indexOf(id) >= 0;
+  }
   function uniActive() { return (tab === 'tasks' && uniTasksMode()) || (/^c_/.test(tab) && isUni(tabById(tab.slice(2)))); }
   // Früher im eigenen Tab gespeicherte Uni-Daten in den gemeinsamen Speicher übernehmen
   function migrateUni() {
@@ -769,7 +825,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     meta.tabnames = Date.now(); saveMeta(); scheduleSync();
   }
   function allTabs() {
-    var list = TABS.map(function (t) { return [t[0], tabNames[t[0]] || t[1]]; }).concat(customTabs.map(function (c) { return ['c_' + c.id, c.name]; }));
+    var ts = tabset();
+    var list = TABS.filter(function (t) { return ts.on.indexOf(t[0]) >= 0; }).map(function (t) { return [t[0], t[0] === 'tasks' && ts.uni ? 'Uni' : t[1]]; }).concat(customTabs.map(function (c) { return ['c_' + c.id, c.name]; }));
     if (!tabOrder.length) return list;
     return list.map(function (t, i) { var o = tabOrder.indexOf(t[0]); return { t: t, o: o < 0 ? (t[0] === 'all' ? -1 : 1000 + i) : o }; })
       .sort(function (a, b) { return a.o - b.o; }).map(function (x) { return x.t; });
@@ -863,7 +920,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     return { p: p, none: '–' };
   }
   function renderWeek() {
-    wtab = tabExists(tab) ? tab : 'events';
+    wtab = tabExists(tab) ? tab : 'all';
     var r = range('week');
     var h = '<div class="week">';
     for (var i = 0; i < 7; i++) {
@@ -1421,11 +1478,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
   /* ---------- Tabs ---------- */
   function hasData(t) { if (t === 'events') return !!(evIdx[selected] && evIdx[selected].length); return dayHas(days[selected], t); }
   function renderTabs() {
-    if (!tabExists(tab)) tab = 'events';
+    if (!tabExists(tab)) tab = 'all';
     elTabs.innerHTML = allTabs().map(function (t) {
       return '<button type="button" role="tab" class="tab" data-tab="' + esc(t[0]) + '" aria-selected="' + (!addingTab && tab === t[0]) + '">' +
         esc(t[1]) + '</button>';
-    }).join('') + '<button type="button" class="tab add" data-act="add-tab" aria-label="Eigenen Tab hinzufügen" aria-selected="' + addingTab + '">+</button>';
+    }).join('') + '<button type="button" class="tab add" data-act="add-tab" aria-label="Tab aus dem Katalog hinzufügen" aria-selected="' + addingTab + '">+</button>';
   }
 
   function savePrefs() {
@@ -1445,7 +1502,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
           return o;
         }).slice(0, 50);
         var o2 = { id: c.id.slice(0, 20), name: c.name.slice(0, 24), items: items };
-        if (c.kind === 'uni') o2.kind = 'uni';
+        if (c.kind === 'uni' || c.kind === 'physio') o2.kind = c.kind;
         if (typeof c.inotes === 'boolean') o2.inotes = c.inotes;
         var lz = normLessons(c.lessons), tz = normTodos(c.todos);
         if (lz.length) o2.lessons = lz;
@@ -1464,16 +1521,24 @@ textarea.autogrow { resize: none; overflow: hidden; }
     renderAll();
   }
   function renderAddTab() {
-    elPanel.innerHTML = '<form data-form="addtab" class="row" novalidate>' +
-      '<div class="field"><label for="tabName">Name des neuen Tabs</label><input id="tabName" type="text" maxlength="24" autocomplete="off" placeholder="z. B. Schlaf, Stimmung, Ernährung"' + dis() + '></div>' +
-      '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button>' +
-      '<button type="button" class="btn ghost" data-act="cancel-tab">Abbrechen</button></form>' +
-      '<p class="hint">Der Tab erscheint hier und in der Wochenansicht. Pro Tag trägst du darin einen Text oder Wert ein.</p>';
-    elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Tabs umbenennen</span><ul class="list">' +
-      allTabs().map(function (t) {
-        var def = TABS.filter(function (x) { return x[0] === t[0]; })[0];
-        return '<li><input type="text" class="tabren" data-tid="' + esc(t[0]) + '" maxlength="24" autocomplete="off" value="' + esc(t[1]) + '" aria-label="Name für ' + esc(t[1]) + '"' + (def ? ' placeholder="' + esc(def[1]) + '"' : '') + dis() + '></li>';
-      }).join('') + '</ul><p class="hint">Neuen Namen eintippen, mit Enter oder durch Antippen außerhalb wird er gespeichert. Bei den festen Tabs stellt ein leeres Feld den ursprünglichen Namen wieder her.</p></div>';
+    var cat = CATALOG.filter(function (x) { return !catPresent(x[0]); });
+    elPanel.innerHTML = '<div class="field"><span class="label">Katalog</span>' +
+      (cat.length ? '<ul class="list">' + cat.map(function (x) {
+        return '<li><div class="item-main">' + esc(x[1]) + '<small>' + esc(x[2]) + '</small></div>' +
+          '<button type="button" class="btn" style="height:36px" data-act="cat-add" data-id="' + esc(x[0]) + '"' + dis() + '>Hinzufügen</button></li>';
+      }).join('') + '</ul>' : '<p class="hint">Du hast schon alle Tabs aus dem Katalog.</p>') +
+      '<div class="row"><button type="button" class="btn ghost" data-act="cancel-tab">Schließen</button></div></div>';
+    var mine = allTabs().filter(function (t) { return t[0] !== 'all'; });
+    if (mine.length) {
+      elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Deine Tabs</span><ul class="list">' +
+        mine.map(function (t) {
+          var ask = catDelAsk === t[0];
+          return '<li><div class="item-main">' + esc(t[1]) + (ask ? '<small>Tab entfernen? Die Einträge bleiben gespeichert. Über den Katalog holst du ihn zurück.</small>' : '') + '</div>' +
+            (ask ? '<button type="button" class="btn" style="height:36px" data-act="cat-del-yes" data-id="' + esc(t[0]) + '">Entfernen</button>' +
+                   '<button type="button" class="btn ghost" style="height:36px" data-act="cat-del-no">Abbrechen</button>'
+                 : '<button type="button" class="btn ghost" style="height:36px" data-act="cat-del" data-id="' + esc(t[0]) + '"' + dis() + '>Entfernen</button>') + '</li>';
+        }).join('') + '</ul><p class="hint">Die Namen der Tabs sind fest. Die Reihenfolge änderst du, indem du die Tabs oben verschiebst.</p></div>';
+    }
     var orph = orphanTabs();
     if (deletedTabs.length || orph.length) {
       elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Gelöschte Tabs</span><ul class="list">' +
@@ -1485,7 +1550,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
           return '<li><div class="item-main">Tab ohne Namen<small>Einträge an ' + o.n + (o.n === 1 ? ' Tag' : ' Tagen') + ' · ' + esc(shortDate(o.first)) + ' – ' + esc(shortDate(o.last)) + '</small></div>' +
             '<button type="button" class="btn ghost" style="height:36px" data-act="tab-restore-orphan" data-id="' + esc(o.id) + '">Wiederherstellen</button></li>';
         }).join('') + '</ul>' +
-        (orph.length ? '<p class="hint">Bei „Tab ohne Namen“ trag oben zuerst den Namen ein, zum Beispiel „Physio“, und tippe dann auf Wiederherstellen.</p>' : '') + '</div>';
+        (orph.length ? '<div class="field"><label for="tabName">Name für „Tab ohne Namen“</label><input id="tabName" type="text" maxlength="24" autocomplete="off" placeholder="z. B. Physio"' + dis() + '></div>' +
+          '<p class="hint">Bei „Tab ohne Namen“ trag zuerst den Namen ein und tippe dann auf Wiederherstellen.</p>' : '') + '</div>';
     }
     if (GCLIENT && connected()) {
       bkArm = null;
@@ -2182,14 +2248,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function tabLabelOf(t) { var x = allTabs().filter(function (y) { return y[0] === t; })[0]; return x ? x[1] : ''; }
   function allEvents(k) {
     var out = (evIdx[k] || []).map(function (x) { return { time: x.e.time || '', end: x.e.end || '', title: x.e.title, sub: x.abo, uni: false, go: 'events' }; });
-    lessonsOn(null, k).forEach(function (l) { out.push({ time: l.f, end: l.t, title: l.s, sub: [tabLabelOf('tasks') || 'Uni', l.a, l.r].filter(Boolean).join(' · '), uni: true, go: uniTasksMode() ? 'tasks' : '' }); });
+    lessonsOn(null, k).forEach(function (l) { out.push({ time: l.f, end: l.t, title: l.s, sub: [(uniGo() && tabLabelOf(uniGo())) || 'Uni', l.a, l.r].filter(Boolean).join(' · '), uni: true, go: uniGo() }); });
     return out.sort(function (a, b) { return a.time < b.time ? -1 : a.time > b.time ? 1 : 0; });
   }
   // Alle abhakbaren Einträge eines Tages; carry = offene Tagesaufgaben früherer Tage (nur für heute)
   function allTodos(k, carry) {
     var out = [], d = days[k], tl = tabLabelOf('tasks');
     todosOn(null, k).forEach(function (t) {
-      out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: 'tasks' });
+      out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: uniGo() });
     });
     if (d) d.tasks.forEach(function (t) { out.push({ kind: 'task', id: t.id, k: k, text: t.text, done: !!t.done, sub: '', go: 'tasks' }); });
     if (carry) Object.keys(days).sort().forEach(function (dk) {
@@ -2503,18 +2569,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
       });
       return;
     }
-    if (f === 'addtab') {
-      var nm = $('#tabName').value.trim().slice(0, 24);
-      if (!nm) return;
-      if (allTabs().some(function (t) { return t[1].toLowerCase() === nm.toLowerCase(); })) { $('#tabName').value = ''; $('#tabName').placeholder = 'Den Namen gibt es schon'; return; }
-      if (customTabs.length >= 12) return;
-      var nt2 = { id: uid(), name: nm };
-      customTabs.push(nt2); savePrefs();
-      addingTab = false; tab = 'c_' + nt2.id; wtab = tab;
-      try { localStorage.setItem('tagesbuch:tab', tab); } catch (err) {}
-      renderAll();
-      return;
-    }
     if (f === 'pimport') {
       var ptab = tabById(tab.slice(2)); if (!ptab) return;
       var res2 = { items: 0, days: 0, notes: 0, ev: 0, gen: 0, bad: 0 }, touched = {};
@@ -2689,7 +2743,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var b = e.target.closest('[data-act]');
     if (!b || b.tagName === 'INPUT' || !ready) return;
     var act = b.dataset.act, d = days[selected];
-    if (act === 'cancel-tab') { addingTab = false; renderTabs(); renderPanel(); renderEvents(); return; }
+    if (act === 'cancel-tab') { addingTab = false; catDelAsk = null; renderTabs(); renderPanel(); renderEvents(); return; }
     if (act === 'uni-view') { uniView = b.dataset.v === 'todo' ? 'todo' : 'plan'; uniMsg = null; try { localStorage.setItem('tagesbuch:uniview', uniView); } catch (er) {} renderPanel(); return; }
     if (act === 'uni-ldel' || act === 'uni-tdel' || act === 'uni-lclear') {
       if (!uniActive()) return;
@@ -2747,11 +2801,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
       customTabs = customTabs.filter(function (x) { return x.id !== cid; });
       if (gone) {
         deletedTabs = deletedTabs.filter(function (x) { return x.id !== cid; });
-        deletedTabs.unshift({ id: gone.id, name: gone.name, items: gone.items || [], at: todayKey });
+        deletedTabs.unshift(Object.assign({ id: gone.id, name: gone.name, items: gone.items || [], at: todayKey }, gone.kind ? { kind: gone.kind } : {}, typeof gone.inotes === 'boolean' ? { inotes: gone.inotes } : {}));
         deletedTabs = deletedTabs.slice(0, 20); saveDeleted();
         undoable('Tab „' + gone.name + '“ entfernt', function () { restoreTab(gone); });
       }
-      savePrefs(); delTabAsk = false; tab = 'events'; wtab = 'events';
+      savePrefs(); delTabAsk = false; tab = 'all'; wtab = 'all';
       renderAll();
       return;
     }
@@ -2761,6 +2815,48 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (act === 'bk-restore') { bkArm = b.dataset.id; renderBk(); return; }
     if (act === 'bk-no') { bkArm = null; renderBk(); return; }
     if (act === 'bk-yes') { bkArm = null; renderBk(); restoreBackup(b.dataset.id, b.dataset.k); return; }
+    if (act === 'cat-add') {
+      var cad = b.dataset.id, ts0 = tabset(), on0 = ts0.on.slice(), uni0 = ts0.uni, go0 = cad;
+      if (cad === 'uni' && uni0 && on0.indexOf('tasks') < 0) { on0.push('tasks'); go0 = 'tasks'; }
+      else if (cad === 'uni' || cad === 'physio') {
+        // Früher entfernten Tab dieser Art samt Einträgen zurückholen, sonst neu anlegen
+        var old0 = deletedTabs.filter(function (x) { return cad === 'uni' ? isUni(x) : isPhysio(x); })[0];
+        if (old0) { setTabset({ on: on0, uni: uni0 }); restoreTab(old0); return; }
+        if (customTabs.length >= 12) return;
+        var nt0 = { id: uid(), name: cad === 'uni' ? 'Uni' : 'Physio', items: [], kind: cad };
+        if (cad === 'physio') nt0.inotes = false;
+        customTabs.push(nt0); savePrefs(); go0 = 'c_' + nt0.id;
+      } else {
+        if (on0.indexOf(cad) < 0) on0.push(cad);
+        if (cad === 'tasks') uni0 = false;
+      }
+      setTabset({ on: on0, uni: uni0 });
+      addingTab = false; catDelAsk = null; tab = go0; wtab = go0;
+      try { localStorage.setItem('tagesbuch:tab', tab); } catch (er) {}
+      renderAll();
+      return;
+    }
+    if (act === 'cat-del') { catDelAsk = b.dataset.id; renderPanel(); return; }
+    if (act === 'cat-del-no') { catDelAsk = null; renderPanel(); return; }
+    if (act === 'cat-del-yes') {
+      var cdl = b.dataset.id; catDelAsk = null;
+      if (/^c_/.test(cdl)) {
+        var gone1 = tabById(cdl.slice(2));
+        customTabs = customTabs.filter(function (x) { return x.id !== cdl.slice(2); });
+        if (gone1) {
+          deletedTabs = deletedTabs.filter(function (x) { return x.id !== gone1.id; });
+          deletedTabs.unshift(Object.assign({ id: gone1.id, name: gone1.name, items: gone1.items || [], at: todayKey }, gone1.kind ? { kind: gone1.kind } : {}, typeof gone1.inotes === 'boolean' ? { inotes: gone1.inotes } : {}));
+          deletedTabs = deletedTabs.slice(0, 20); saveDeleted();
+        }
+        savePrefs();
+      } else {
+        var ts1 = tabset();
+        setTabset({ on: ts1.on.filter(function (x) { return x !== cdl; }), uni: ts1.uni });
+      }
+      if (tab === cdl) { tab = 'all'; wtab = 'all'; }
+      renderAll();
+      return;
+    }
     if (act === 'tab-restore') {
       var dt0 = deletedTabs.filter(function (x) { return x.id === b.dataset.id; })[0];
       if (dt0) restoreTab(dt0);
@@ -2915,7 +3011,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
     editTask = null; refreshAfterEdit(true);
   }
   elPanel.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('tabren')) { e.preventDefault(); e.target.blur(); }
   });
   elPanel.addEventListener('keydown', function (e) {
     if (e.target.id !== 'taskEditIn') return;
@@ -2972,21 +3067,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
   elPanel.addEventListener('toggle', function (e) { if (e.target.dataset && e.target.dataset.uniDet) uniEditPlan = e.target.open; }, true);
   elPanel.addEventListener('change', function (e) {
     var el = e.target;
-    if (el.classList && el.classList.contains('tabren') && ready) {
-      var tid = el.dataset.tid, nv = el.value.trim().slice(0, 24);
-      if (/^c_/.test(tid)) {
-        var ct = tabById(tid.slice(2));
-        if (ct && nv && nv !== ct.name) { ct.name = nv; savePrefs(); }
-        else if (ct && !nv) el.value = ct.name;
-      } else {
-        var def = TABS.filter(function (x) { return x[0] === tid; })[0];
-        if (!nv || (def && nv === def[1])) delete tabNames[tid]; else tabNames[tid] = nv;
-        saveTabNames();
-        if (!nv && def) el.value = def[1];
-      }
-      renderTabs(); renderCal();
-      return;
-    }
     if (el.dataset && el.dataset.act === 'inotes' && ready) {
       var ic = tabById(tab.slice(2)); if (!ic) return;
       ic.inotes = el.checked; savePrefs(); renderPanel();
@@ -3102,10 +3182,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var GCLIENT = '67815585819-na1pqnbgj6dg0fcp0flhccu6irdefgk0.apps.googleusercontent.com';
   var GSCOPE = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
   var SYNC_FILE = 'tagesbuch.json';
-  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0, deltabs: 0, tabnames: 0 };
+  var meta = { days: {}, abos: {}, tabs: 0, sports: 0, gcal: 0, taborder: 0, evgen: 0, deltabs: 0, tabnames: 0, tabset: 0 };
   try {
     var mraw = localStorage.getItem('tagesbuch:meta');
-    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; meta.deltabs = mo.deltabs || 0; meta.tabnames = mo.tabnames || 0; meta.uni = mo.uni || 0; meta.ideas = mo.ideas || 0; }
+    if (mraw) { var mo = JSON.parse(mraw); meta.days = mo.days || {}; meta.abos = mo.abos || {}; meta.tabs = mo.tabs || 0; meta.sports = mo.sports || 0; meta.gcal = mo.gcal || 0; meta.taborder = mo.taborder || 0; meta.evgen = mo.evgen || 0; meta.deltabs = mo.deltabs || 0; meta.tabnames = mo.tabnames || 0; meta.uni = mo.uni || 0; meta.ideas = mo.ideas || 0; meta.tabset = mo.tabset || 0; }
   } catch (e) {}
   function saveMeta() { try { localStorage.setItem('tagesbuch:meta', JSON.stringify(meta)); } catch (e) {} }
   function touchDay(k) { meta.days[k] = Date.now(); saveMeta(); scheduleSync(); }
@@ -3232,7 +3312,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     Object.keys(sd).forEach(function (k) { b.days[k] = { t: now, d: sd[k] && sd[k].d || null }; });
     Object.keys(abos).concat(Object.keys(meta.abos)).forEach(function (id) { b.abos[id] = { t: now, d: null }; });
     Object.keys(sa).forEach(function (id) { b.abos[id] = { t: now, d: sa[id] && sa[id].d || null }; });
-    ['tabs', 'sports', 'gcal', 'taborder', 'evgen', 'deltabs', 'tabnames'].forEach(function (n) {
+    ['tabs', 'sports', 'gcal', 'taborder', 'evgen', 'deltabs', 'tabnames', 'tabset'].forEach(function (n) {
       if (snap[n] && typeof snap[n] === 'object') b[n] = Object.assign({}, snap[n], { t: now });
     });
     merge(b);
@@ -3327,6 +3407,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var rtn = remote.tabnames || { t: 0 }, ltn = meta.tabnames || 0, rtnt = rtn.t || 0;
     if (rtnt > ltn && rtn.v && typeof rtn.v === 'object') { tabNames = rtn.v; meta.tabnames = rtnt; changed = true; }
     else if (ltn > rtnt) dirty = true;
+    var rtse = remote.tabset || { t: 0 }, ltse = meta.tabset || 0, rtset = rtse.t || 0;
+    if (rtset > ltse && normTabset(rtse.v)) { TABSET = normTabset(rtse.v); meta.tabset = rtset; changed = true; }
+    else if (ltse > rtset) dirty = true;
     return { changed: changed, dirty: dirty };
   }
   function buildPayload() {
@@ -3336,6 +3419,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (meta.evgen) out.evgen = { t: meta.evgen, v: evGeneral };
     if (meta.deltabs) out.deltabs = { t: meta.deltabs, v: deletedTabs };
     if (meta.tabnames) out.tabnames = { t: meta.tabnames, v: tabNames };
+    if (meta.tabset && TABSET) out.tabset = { t: meta.tabset, v: TABSET };
     if (meta.uni) out.uni = { t: meta.uni, v: UNI };
     if (meta.ideas) out.ideas = { t: meta.ideas, v: IDEAS };
     var keys = {}; Object.keys(days).forEach(function (k) { keys[k] = 1; }); Object.keys(meta.days).forEach(function (k) { keys[k] = 1; });
@@ -3352,7 +3436,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function persistLocalAll() {
     saveLocal(); saveLocalAbos(); saveMeta();
-    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); localStorage.setItem('tagesbuch:tabnames', JSON.stringify(tabNames)); localStorage.setItem('tagesbuch:uni', JSON.stringify(UNI)); localStorage.setItem('tagesbuch:ideas', JSON.stringify(IDEAS)); } catch (e) {}
+    try { localStorage.setItem('tagesbuch:ctabs', JSON.stringify(customTabs)); localStorage.setItem('tagesbuch:csports', JSON.stringify(customSports)); localStorage.setItem('tagesbuch:gsel', JSON.stringify(gsel)); localStorage.setItem('tagesbuch:taborder', JSON.stringify(tabOrder)); localStorage.setItem('tagesbuch:evgen', JSON.stringify(evGeneral)); localStorage.setItem('tagesbuch:deltabs', JSON.stringify(deletedTabs)); localStorage.setItem('tagesbuch:tabnames', JSON.stringify(tabNames)); localStorage.setItem('tagesbuch:uni', JSON.stringify(UNI)); localStorage.setItem('tagesbuch:ideas', JSON.stringify(IDEAS)); if (TABSET) localStorage.setItem('tagesbuch:tabset', JSON.stringify(TABSET)); } catch (e) {}
   }
 
   function sync(interactive) {
