@@ -363,7 +363,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 68</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 69</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -430,6 +430,17 @@ textarea.autogrow { resize: none; overflow: hidden; }
 <script>
 (function () {
   'use strict';
+  // Nach Kontowechsel oder Abmelden: Browser-Daten löschen, bevor irgendetwas sie liest
+  try {
+    var wipe0 = JSON.parse(sessionStorage.getItem('tagesbuch:wipe') || 'null');
+    if (wipe0) {
+      sessionStorage.removeItem('tagesbuch:wipe');
+      var wk = [];
+      for (var wi = 0; wi < localStorage.length; wi++) { var wkk = localStorage.key(wi); if (wkk && wkk.indexOf('tagesbuch:') === 0) wk.push(wkk); }
+      wk.forEach(function (k) { localStorage.removeItem(k); });
+      if (wipe0.acct) { localStorage.setItem('tagesbuch:gconn2', '1'); localStorage.setItem('tagesbuch:acct', wipe0.acct.id); localStorage.setItem('tagesbuch:acctmail', wipe0.acct.mail); }
+    }
+  } catch (e) {}
 
   var MONTHS = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   var WDLONG = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
@@ -1558,6 +1569,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
       bkArm = null;
       elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Backups</span><div id="bkBox">' + bkHtml() + '</div>' +
         '<p class="hint">Einmal pro Woche legt die App automatisch eine Kopie aller Daten in deinem Google Drive an. Die letzten 8 bleiben erhalten. Wiederherstellen ersetzt alle Einträge durch diesen Stand.</p></div>';
+      logoutArm = false;
+      elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Konto</span><div id="acctBox">' + acctHtml() + '</div></div>';
     }
   }
   var REPS = [['daily', 'Täglich'], ['weekdays', 'Mo–Fr'], ['weekly', 'Wöchentlich'], ['once', 'Nur an diesem Tag']];
@@ -2818,6 +2831,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (act === 'rem-open') { remOpen = true; remMsg = null; renderPanel(); return; }
     if (act === 'rem-cancel') { remOpen = false; remMsg = null; renderPanel(); return; }
     if (act === 'bk-load') { bkLoad(); return; }
+    if (act === 'acct-out') { logoutArm = true; renderAcct(); return; }
+    if (act === 'acct-no') { logoutArm = false; renderAcct(); return; }
+    if (act === 'acct-yes') { logout(); return; }
     if (act === 'bk-restore') { bkArm = b.dataset.id; renderBk(); return; }
     if (act === 'bk-no') { bkArm = null; renderBk(); return; }
     if (act === 'bk-yes') { bkArm = null; renderBk(); restoreBackup(b.dataset.id, b.dataset.k); return; }
@@ -3147,6 +3163,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function calErr(code) { var e = new Error(code); e.code = code; return e; }
   function makeCalShim() {
     function api(path) {
+      // Nach dem Abmelden nicht still wieder anmelden
+      if (!gTok && !connected()) return Promise.reject(calErr('needs_reauth'));
       return getToken(false).catch(function () { throw calErr('needs_reauth'); }).then(function (tok) {
         return fetch('https://www.googleapis.com/calendar/v3/' + path, { headers: { Authorization: 'Bearer ' + tok } });
       }).then(function (r) {
@@ -3203,6 +3221,70 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var elSyncBtn = $('#syncBtn'), elSyncInfo = $('#syncInfo');
   var gTok = null, gTokExp = 0, gClient = null, gFileId = null, syncing = false, syncAgain = false, syncTimer = null, tokResolve = null;
   function connected() { try { return localStorage.getItem('tagesbuch:gconn2') === '1'; } catch (e) { return false; } }
+  // Nach einem Kontowechsel lädt die Seite neu; das Token wird nur für diesen Tab kurz weitergereicht.
+  var gAcct = null, gAcctTok = null, syncOk = false;
+  try {
+    var tok0 = JSON.parse(sessionStorage.getItem('tagesbuch:tok') || 'null'); sessionStorage.removeItem('tagesbuch:tok');
+    if (tok0 && tok0.t && Date.now() < tok0.e - 60000) { gTok = tok0.t; gTokExp = tok0.e; gAcct = tok0.a; gAcctTok = tok0.t; }
+  } catch (e) {}
+
+  /* ---------- Konto: Browser-Daten gehören immer zu genau einem Google-Konto ---------- */
+  function acctId() { try { return localStorage.getItem('tagesbuch:acct') || ''; } catch (e) { return ''; } }
+  function acctMail() { try { return localStorage.getItem('tagesbuch:acctmail') || ''; } catch (e) { return ''; } }
+  function setAcct(a) { try { localStorage.setItem('tagesbuch:acct', a.id); localStorage.setItem('tagesbuch:acctmail', a.mail); } catch (e) {} }
+  // Löschen passiert ganz am Anfang des nächsten Seitenaufrufs (siehe Skriptbeginn)
+  function wipeAndReload(acct) {
+    try {
+      sessionStorage.setItem('tagesbuch:wipe', JSON.stringify({ acct: acct || null }));
+      if (acct) sessionStorage.setItem('tagesbuch:tok', JSON.stringify({ t: gTok, e: gTokExp, a: acct }));
+      else sessionStorage.removeItem('tagesbuch:tok');
+    } catch (e) {}
+    location.reload();
+  }
+  function whoAmI() {
+    if (gAcct && gAcctTok === gTok) return Promise.resolve(gAcct);
+    return gfetch('https://www.googleapis.com/drive/v3/about?fields=user(permissionId,emailAddress)')
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var u = (j && j.user) || {};
+        if (!u.permissionId) throw new Error('acct');
+        gAcct = { id: u.permissionId, mail: u.emailAddress || '' }; gAcctTok = gTok;
+        return gAcct;
+      });
+  }
+  // Anderes Konto als beim letzten Abgleich: die Daten im Browser gehören dem alten Konto.
+  // Sie werden nicht hochgeladen, sondern gelöscht; danach lädt die Seite nur die Daten des neuen Kontos.
+  function checkAcct() {
+    return whoAmI().then(function (a) {
+      var old = acctId();
+      if (old && old !== a.id) {
+        wipeAndReload(a);
+        var err = new Error('switch'); err.switched = true; throw err;
+      }
+      if (old !== a.id || acctMail() !== a.mail) setAcct(a);
+    });
+  }
+  var logoutArm = false;
+  function acctHtml() {
+    var mail = acctMail();
+    if (logoutArm) return '<p class="hint">Abmelden? Deine Daten bleiben in deinem Google Drive. Nur dieses Gerät wird geleert.</p>' +
+      '<div class="row"><button type="button" class="btn" data-act="acct-yes">Abmelden</button><button type="button" class="btn ghost" data-act="acct-no">Abbrechen</button></div>';
+    return '<ul class="list"><li><div class="item-main">' + (mail ? 'Angemeldet als ' + esc(mail) : 'Mit Google Drive verbunden') + '</div>' +
+      '<button type="button" class="btn ghost" style="height:36px" data-act="acct-out">Abmelden</button></li></ul>';
+  }
+  function renderAcct() { var box = document.getElementById('acctBox'); if (box) box.innerHTML = acctHtml(); }
+  // Vor dem Abmelden alles nach Drive speichern. Klappt das nicht, bleibt alles, wie es ist.
+  function logout() {
+    logoutArm = false; renderAcct(); clearTimeout(syncTimer);
+    setSync('Speichere und melde ab …', 'busy');
+    (function attempt() {
+      if (syncing) { setTimeout(attempt, 300); return; }
+      sync(false).then(function () {
+        if (!syncOk) { setSync('Abmelden abgebrochen: Daten konnten nicht in Drive gespeichert werden.', 'err'); return; }
+        wipeAndReload(null);
+      });
+    })();
+  }
   function setSync(text, kind) {
     elSyncInfo.hidden = !text; elSyncInfo.textContent = text || ''; elSyncInfo.dataset.kind = kind || '';
   }
@@ -3449,7 +3531,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (!GCLIENT) { if (interactive) setSync('Drive ist noch nicht eingerichtet', 'err'); return Promise.resolve(); }
     if (syncing) { syncAgain = true; return Promise.resolve(); }
     syncing = true; elSyncBtn.disabled = true; setSync('Gleiche ab …', 'busy');
+    syncOk = false;
     return getToken(interactive)
+      .then(function () { return checkAcct(); })
       .then(function () { return findFile(); })
       .then(function (id) { return id ? download(id) : null; })
       .then(function (remote) {
@@ -3462,8 +3546,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
         }
         if (m.dirty || !gFileId) return upload(buildPayload());
       })
-      .then(function () { setSync('Stand ' + hhmm(), 'ok'); if (gMcp) gEnsure(true); return maybeBackup(); })
-      .catch(function () {
+      .then(function () { syncOk = true; setSync('Stand ' + hhmm(), 'ok'); if (gMcp) gEnsure(true); return maybeBackup(); })
+      .catch(function (e) {
+        if (e && e.switched) { setSync('Anderes Konto: lade dessen Daten …', 'busy'); return; }
         setSync(interactive ? 'Abgleich fehlgeschlagen. Zum Wiederholen tippen.' : 'Nicht abgeglichen. Tippe auf Aktualisieren.', 'err');
       })
       .then(function () {
@@ -3483,6 +3568,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     elSyncBtn.hidden = false; elStatus.hidden = true;
     if (connected()) setSync('Noch nicht abgeglichen', '');
     else setSync('Mit Drive verbinden: auf Aktualisieren tippen', '');
+    if (gTok && connected()) sync(false);
   }
 
   /* ---------- Diagramm: Punkt antippen ---------- */
