@@ -363,7 +363,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 69</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 70</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1569,7 +1569,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       bkArm = null;
       elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Backups</span><div id="bkBox">' + bkHtml() + '</div>' +
         '<p class="hint">Einmal pro Woche legt die App automatisch eine Kopie aller Daten in deinem Google Drive an. Die letzten 8 bleiben erhalten. Wiederherstellen ersetzt alle Einträge durch diesen Stand.</p></div>';
-      logoutArm = false;
+      logoutArm = false; delArm = false;
       elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Konto</span><div id="acctBox">' + acctHtml() + '</div></div>';
     }
   }
@@ -2831,8 +2831,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (act === 'rem-open') { remOpen = true; remMsg = null; renderPanel(); return; }
     if (act === 'rem-cancel') { remOpen = false; remMsg = null; renderPanel(); return; }
     if (act === 'bk-load') { bkLoad(); return; }
-    if (act === 'acct-out') { logoutArm = true; renderAcct(); return; }
-    if (act === 'acct-no') { logoutArm = false; renderAcct(); return; }
+    if (act === 'acct-out') { logoutArm = true; delArm = false; renderAcct(); return; }
+    if (act === 'acct-del') { delArm = true; logoutArm = false; renderAcct(); return; }
+    if (act === 'acct-del-yes') { deleteAll(); return; }
+    if (act === 'acct-no') { logoutArm = false; delArm = false; renderAcct(); return; }
     if (act === 'acct-yes') { logout(); return; }
     if (act === 'bk-restore') { bkArm = b.dataset.id; renderBk(); return; }
     if (act === 'bk-no') { bkArm = null; renderBk(); return; }
@@ -3264,13 +3266,41 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (old !== a.id || acctMail() !== a.mail) setAcct(a);
     });
   }
-  var logoutArm = false;
+  var logoutArm = false, delArm = false;
   function acctHtml() {
     var mail = acctMail();
+    if (delArm) return '<p class="hint"><b>Alle Daten von ' + esc(mail || 'diesem Konto') + ' endgültig löschen?</b> Auch alle Backups in Google Drive werden gelöscht. Das kann man nicht rückgängig machen.</p>' +
+      '<div class="row"><button type="button" class="btn" data-act="acct-del-yes">Löschen</button><button type="button" class="btn ghost" data-act="acct-no">Abbrechen</button></div>';
     if (logoutArm) return '<p class="hint">Abmelden? Deine Daten bleiben in deinem Google Drive. Nur dieses Gerät wird geleert.</p>' +
       '<div class="row"><button type="button" class="btn" data-act="acct-yes">Abmelden</button><button type="button" class="btn ghost" data-act="acct-no">Abbrechen</button></div>';
     return '<ul class="list"><li><div class="item-main">' + (mail ? 'Angemeldet als ' + esc(mail) : 'Mit Google Drive verbunden') + '</div>' +
-      '<button type="button" class="btn ghost" style="height:36px" data-act="acct-out">Abmelden</button></li></ul>';
+      '<button type="button" class="btn ghost" style="height:36px" data-act="acct-out">Abmelden</button></li>' +
+      '<li><div class="item-main">Alle Daten dieses Kontos löschen</div>' +
+      '<button type="button" class="btn ghost" style="height:36px" data-act="acct-del">Alle Daten löschen</button></li></ul>';
+  }
+  // Löscht im angemeldeten Konto die Planner-Datei und alle Backups in Drive, danach startet das Konto neu
+  function deleteAll() {
+    delArm = false; renderAcct(); clearTimeout(syncTimer);
+    setSync('Lösche alle Daten …', 'busy');
+    (function attempt() {
+      if (syncing) { setTimeout(attempt, 300); return; }
+      syncing = true;
+      getToken(true).then(function () { return checkAcct(); })
+        .then(function () {
+          return gfetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&pageSize=1000&fields=files(id,name)&q=' + encodeURIComponent('trashed=false'));
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (j) {
+          var fs = (j.files || []).filter(function (f) { return f.name === SYNC_FILE || f.name.indexOf(BK_PRE) === 0; });
+          return Promise.all(fs.map(function (f) { return gfetch('https://www.googleapis.com/drive/v3/files/' + f.id, { method: 'DELETE' }); }));
+        })
+        .then(function () { gFileId = null; wipeAndReload(gAcct); })
+        .catch(function (e) {
+          syncing = false;
+          if (e && e.switched) return;
+          setSync('Löschen fehlgeschlagen. Bitte noch einmal versuchen.', 'err');
+        });
+    })();
   }
   function renderAcct() { var box = document.getElementById('acctBox'); if (box) box.innerHTML = acctHtml(); }
   // Vor dem Abmelden alles nach Drive speichern. Klappt das nicht, bleibt alles, wie es ist.
