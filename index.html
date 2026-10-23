@@ -131,6 +131,7 @@ html::-webkit-scrollbar { display: none; }
 .tab { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .tab.lifted { background: var(--surface); color: var(--fg); box-shadow: 0 4px 14px rgba(0,0,0,0.18), 0 0 0 2px var(--accent); transform: scale(1.06); position: relative; z-index: 2; }
 .tabs.reordering .tab:not(.lifted) { opacity: 0.75; }
+body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .wk-tabs { margin: 0 0 10px; }
 .wk-ev { display: flex; flex-direction: column; gap: 2px; }
 .tab .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
@@ -362,7 +363,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 67</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 68</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2476,19 +2477,23 @@ textarea.autogrow { resize: none; overflow: hidden; }
     viewDate = new Date(parseKey(todayKey).getFullYear(), parseKey(todayKey).getMonth(), 1);
     renderAll();
   });
-  /* Tabs per Gedrückthalten verschieben */
+  /* Tabs verschieben: Maus sofort ziehen, Finger per Gedrückthalten */
   var tdrag = null, suppressTabClick = false;
   function tabButtons() { return [].slice.call(elTabs.querySelectorAll('.tab[data-tab]')); }
+  function liftTab(st) {
+    st.active = true;
+    elTabs.classList.add('reordering'); st.btn.classList.add('lifted'); document.body.classList.add('tabdrag');
+    try { st.btn.setPointerCapture(st.id); } catch (err) {}
+    try { getSelection().removeAllRanges(); } catch (err) {}
+  }
   elTabs.addEventListener('contextmenu', function (e) { if (e.target.closest('.tab')) e.preventDefault(); });
   elTabs.addEventListener('pointerdown', function (e) {
     var b = e.target.closest('.tab[data-tab]');
     if (!b || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    var st = { btn: b, x0: e.clientX, y0: e.clientY, id: e.pointerId, active: false };
-    st.timer = setTimeout(function () {
+    var st = { btn: b, x0: e.clientX, y0: e.clientY, id: e.pointerId, active: false, mouse: e.pointerType === 'mouse' };
+    if (!st.mouse) st.timer = setTimeout(function () {
       if (tdrag !== st) return;
-      st.active = true;
-      elTabs.classList.add('reordering'); b.classList.add('lifted');
-      try { b.setPointerCapture(st.id); } catch (err) {}
+      liftTab(st);
       if (navigator.vibrate) { try { navigator.vibrate(15); } catch (err) {} }
     }, 380);
     tdrag = st;
@@ -2497,8 +2502,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var st = tdrag;
     if (!st || e.pointerId !== st.id) return;
     if (!st.active) {
-      if (Math.abs(e.clientX - st.x0) > 8 || Math.abs(e.clientY - st.y0) > 8) { clearTimeout(st.timer); tdrag = null; }
-      return;
+      var moved = Math.abs(e.clientX - st.x0) > 6 || Math.abs(e.clientY - st.y0) > 6;
+      if (st.mouse) { if (moved) liftTab(st); else return; }
+      else { if (moved) { clearTimeout(st.timer); tdrag = null; } return; }
     }
     e.preventDefault();
     var others = tabButtons().filter(function (x) { return x !== st.btn; });
@@ -2519,7 +2525,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (!st) return;
     clearTimeout(st.timer);
     if (!st.active) return;
-    elTabs.classList.remove('reordering'); st.btn.classList.remove('lifted');
+    elTabs.classList.remove('reordering'); st.btn.classList.remove('lifted'); document.body.classList.remove('tabdrag');
     suppressTabClick = true; setTimeout(function () { suppressTabClick = false; }, 100);
     if (save) { tabOrder = tabButtons().map(function (x) { return x.dataset.tab; }); saveTabOrder(); }
     renderTabs();
