@@ -174,7 +174,28 @@ input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 .allgrp { margin-top: 16px; }
 .allgrp-h { display: flex; align-items: center; gap: 10px; }
 .allgrp-h .label { flex: none; }
-.allgrp-n { flex: 1; min-width: 0; font-size: 0.82rem; color: var(--muted); }
+.allgrp-n { flex: none; min-width: 0; font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+.allgrp-n.full { color: var(--accent); font-weight: 600; }
+/* Fortschritt: Name – Balken – „x von y erledigt“ */
+.phead { display: flex; align-items: center; gap: 10px; min-height: 32px; }
+.phead .label { flex: none; }
+.pbar { flex: 1 1 60px; min-width: 40px; max-width: 220px; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .5s cubic-bezier(.3,1.4,.5,1); }
+.phead .del { margin-left: auto; }
+/* Feier beim Abhaken */
+.list li { transition: background .4s; }
+.list li.glow { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.list input[type="checkbox"].pop { animation: cpop .45s cubic-bezier(.3,1.8,.5,1); }
+@keyframes cpop { 0% { transform: scale(1); } 40% { transform: scale(1.6); } 100% { transform: scale(1); } }
+#celeFx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 60; }
+.cele-toast { position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); background: var(--surface-2); border: 1px solid var(--accent); color: var(--fg); padding: 12px 18px; border-radius: 12px; font-weight: 600; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; max-width: calc(100% - 32px); text-align: center; z-index: 58; }
+.cele-toast.on { opacity: 1; transform: translate(-50%, 0); }
+.cele-big { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(12,17,16,.75); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 59; }
+.cele-big.on { opacity: 1; pointer-events: auto; }
+.cele-big div { text-align: center; transform: scale(.7); transition: transform .4s cubic-bezier(.3,1.6,.5,1); }
+.cele-big.on div { transform: scale(1); }
+.cele-big b { display: block; font: 700 34px/1.1 var(--font-display); color: var(--accent); }
+.cele-big span { color: var(--muted); }
 form[data-form="rem"] { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 4px; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
 .row > .field { flex: 1 1 140px; }
@@ -363,7 +384,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 71</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 72</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1702,6 +1723,94 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (openNote !== noteKeyOf(kind, id, k, tid)) return '';
     return '<li class="tnote"><textarea class="autogrow" id="tnoteIn" data-kind="' + kind + '" data-id="' + esc(id) + '" data-k="' + esc(k || '') + '" data-tid="' + esc(tid || '') + '" aria-label="Notizen zur Aufgabe" placeholder="Notizen, z. B. was du besprechen oder machen willst"' + dis() + '>' + esc(note || '') + '</textarea></li>';
   }
+  // Kopfzeile mit Fortschritt: Name – Balken – „x von y erledigt“ (name = Tab für die große Feier)
+  function progHead(label, done, total, name, grp, extra) {
+    var full = total > 0 && done === total;
+    return '<div class="phead allgrp-h" data-full="' + (full ? 1 : 0) + '" data-name="' + esc(name || label) + '"' + (grp ? ' data-grp="' + esc(grp) + '"' : '') + '>' +
+      '<span class="label">' + esc(label) + '</span>' +
+      '<span class="pbar" aria-hidden="true"><i style="width:' + (total ? Math.round(done / total * 100) : 0) + '%"></i></span>' +
+      '<span class="allgrp-n' + (full ? ' full' : '') + '">' + done + ' von ' + total + ' erledigt</span>' + (extra || '') + '</div>';
+  }
+  /* ---------- Feier beim Abhaken: Häkchen-Pop, Konfetti, Spruch, „… erledigt!“ ---------- */
+  var CELE_ACTS = { 'all-toggle': 1, 'uni-ttoggle': 1, 'ctoggle': 1, 'toggle': 1 }; // Ideen bewusst nicht
+  var SAYINGS = ['Erledigt, weiter so!', 'Stark!', 'Ein Punkt weniger auf der Liste.', 'Läuft bei dir.', 'Sauber gemacht!', 'Gut gemacht!'];
+  var celeEls = null, celeToastT = null, celeBigT = null, fxParts = [], fxRun = false;
+  function celeInit() {
+    if (celeEls) return celeEls;
+    var cv = document.createElement('canvas'); cv.id = 'celeFx'; cv.setAttribute('aria-hidden', 'true');
+    var ts = document.createElement('div'); ts.className = 'cele-toast'; ts.setAttribute('role', 'status');
+    var bg = document.createElement('div'); bg.className = 'cele-big'; bg.innerHTML = '<div><b></b><span>Alles für heute geschafft. Stark!</span></div>';
+    bg.addEventListener('click', function () { bg.classList.remove('on'); });
+    document.body.appendChild(cv); document.body.appendChild(ts); document.body.appendChild(bg);
+    celeEls = { cv: cv, cx: cv.getContext('2d'), toast: ts, big: bg };
+    return celeEls;
+  }
+  function fxBurst(x, y, n) {
+    var E = celeInit(), d = window.devicePixelRatio || 1, cols = ['#6AD8B8', '#E39A4A', '#A2B8F7', '#D49DEC', '#F3F8F5', '#F0D264'];
+    if (E.cv.width !== innerWidth * d || E.cv.height !== innerHeight * d) { E.cv.width = innerWidth * d; E.cv.height = innerHeight * d; E.cx.setTransform(d, 0, 0, d, 0, 0); }
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 6;
+      fxParts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 4, r: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.4, w: 5 + Math.random() * 5, h: 3 + Math.random() * 4, c: cols[i % cols.length], life: 70 + Math.random() * 40 });
+    }
+    if (!fxRun) { fxRun = true; requestAnimationFrame(fxTick); }
+  }
+  function fxTick() {
+    var cx = celeEls.cx; cx.clearRect(0, 0, innerWidth, innerHeight);
+    fxParts = fxParts.filter(function (p) { return p.life > 0 && p.y < innerHeight + 20; });
+    fxParts.forEach(function (p) {
+      p.vy += 0.22; p.vx *= 0.985; p.x += p.vx; p.y += p.vy; p.r += p.vr; p.life--;
+      cx.save(); cx.globalAlpha = Math.min(1, p.life / 30); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore();
+    });
+    if (fxParts.length) requestAnimationFrame(fxTick); else { fxRun = false; cx.clearRect(0, 0, innerWidth, innerHeight); }
+  }
+  function celebrate(x, y, doneName) {
+    var E = celeInit(), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!calm) fxBurst(x, y, doneName ? 70 : 40);
+    if (doneName) {
+      E.big.querySelector('b').textContent = doneName + ' erledigt!';
+      E.big.classList.add('on');
+      if (!calm) { fxBurst(innerWidth * 0.25, innerHeight * 0.4, 120); fxBurst(innerWidth * 0.75, innerHeight * 0.4, 120); }
+      clearTimeout(celeBigT); celeBigT = setTimeout(function () { E.big.classList.remove('on'); }, 2600);
+      return;
+    }
+    E.toast.textContent = SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
+    E.toast.classList.add('on');
+    clearTimeout(celeToastT); celeToastT = setTimeout(function () { E.toast.classList.remove('on'); }, 1600);
+  }
+  // Die Fortschritts-Kopfzeile, zu der ein Häkchen gehört: in „Alle“ die Gruppe, sonst die letzte Kopfzeile davor
+  function celeHead(el) {
+    var g = el.closest('.allgrp');
+    if (g) return g.querySelector('.phead');
+    var hs = elPanel.querySelectorAll('.phead'), best = null;
+    for (var i = 0; i < hs.length; i++) if (hs[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) best = hs[i];
+    return best;
+  }
+  function celeKey(h) {
+    if (!h) return null;
+    return h.dataset.grp ? { grp: h.dataset.grp } : { idx: Array.prototype.indexOf.call(elPanel.querySelectorAll('.phead'), h) };
+  }
+  function celeFind(k) {
+    if (!k) return null;
+    if (k.grp) return elPanel.querySelector('.phead[data-grp="' + CSS.escape(k.grp) + '"]');
+    return elPanel.querySelectorAll('.phead')[k.idx] || null;
+  }
+  // Vor dem Neuzeichnen den Stand merken, danach feiern (Capture-Phase läuft vor den normalen Abhak-Handlern)
+  elPanel.addEventListener('change', function (e) {
+    var el = e.target, ds = el.dataset;
+    if (!ready || !ds || !CELE_ACTS[ds.act] || !el.checked) return;
+    var h0 = celeHead(el), key = celeKey(h0), wasFull = !!(h0 && h0.dataset.full === '1');
+    var r = el.getBoundingClientRect(), sel = 'input[data-act="' + ds.act + '"]';
+    ['id', 'tid', 'iid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
+    setTimeout(function () {
+      var h1 = celeFind(key), full = !wasFull && !!(h1 && h1.dataset.full === '1');
+      var cb = elPanel.querySelector(sel);
+      if (cb && cb.checked) {
+        cb.classList.add('pop');
+        var li = cb.closest('li'); if (li) { li.classList.add('glow'); setTimeout(function () { li.classList.remove('glow'); }, 700); }
+      }
+      celebrate(r.left + r.width / 2, r.top + r.height / 2, full ? h1.dataset.name : null);
+    }, 0);
+  }, true);
   function todoRow(t) {
     if (uniEditTodo === t.id) {
       return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
@@ -1781,7 +1890,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
       // Eingebauter Aufgaben-Tab heißt „Uni“: Fristen oben, darunter die normalen Tagesaufgaben mit optionaler Frist
       var fr = ts.filter(function (t) { return t.due; });
       var fh = fr.length ? '<div class="field"><span class="label">Mit Frist</span><ul class="list">' + fr.map(todoRow).join('') + '</ul></div>' : '';
-      renderTasks();
+      renderTasks(true);
+      var dt0 = (days[selected] || blank()).tasks, utot = fr.length + dt0.length;
+      var udone = fr.filter(function (t) { return t.done; }).length + dt0.filter(function (t) { return t.done; }).length;
+      if (utot) fh = progHead('Aufgaben', udone, utot, tabLabelOf('tasks')) + fh.replace('<span class="label">Mit Frist</span>', '<span class="label" style="margin-top:6px">Mit Frist</span>');
       var tf = elPanel.querySelector('form[data-form="task"]');
       if (tf) {
         var btn = tf.querySelector('button[type="submit"]');
@@ -1794,7 +1906,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return;
     }
     if (ts.length) {
-      h += '<ul class="list">' + ts.map(todoRow).join('') + '</ul>';
+      h += progHead('Aufgaben', ts.filter(function (t) { return t.done; }).length, ts.length, c.name) + '<ul class="list">' + ts.map(todoRow).join('') + '</ul>';
     } else h += '<p class="hint">Keine Aufgaben für diesen Tag.</p>';
     h += '<form data-form="unitodo" class="row" novalidate>' +
       '<div class="field"><label for="utX">Neue Aufgabe</label><input id="utX" type="text" maxlength="140" autocomplete="off" placeholder="z. B. Übungsblatt 3 TM"' + dis() + '></div>' +
@@ -1817,7 +1929,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var id = c0 ? c0.id : tab.slice(2), c = c0;
     var d = days[selected] || blank();
     var due = dueItems(id, selected), nDone = due.filter(function (it) { return isChecked(selected, id, it.id); }).length;
-    var h = '<div class="field"><span class="label">Übungen</span>';
+    var h = '<div class="field">' + (due.length ? progHead('Übungen', nDone, due.length, c ? c.name : '') : '<span class="label">Übungen</span>');
     if (due.length) {
       h += '<ul class="list">' + due.map(function (it) {
         if (editItem === it.id) {
@@ -1841,7 +1953,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
           '<button type="button" class="del pen" data-act="item-edit" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' bearbeiten">✎</button>' +
           '<button type="button" class="del" data-act="citem-del" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' ab diesem Tag entfernen">×</button></li>' +
           (notesOn(c) ? noteArea('citem', it.id, '', id, it.n) : '');
-      }).join('') + '</ul><p class="sum">' + nDone + ' von ' + due.length + ' erledigt</p>';
+      }).join('') + '</ul>';
     } else {
       h += '<p class="hint">Keine Übungen für diesen Tag.</p>';
     }
@@ -2067,13 +2179,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     elPanel.innerHTML = h;
   }
 
-  function renderTasks() {
+  function renderTasks(noHead) {
     var d = days[selected] || blank();
-    var h = '<form data-form="task" class="row" novalidate>' +
+    var h = (d.tasks.length && !noHead ? progHead('Aufgaben', d.tasks.filter(function (t) { return t.done; }).length, d.tasks.length, tabLabelOf('tasks')) : '') +
+      '<form data-form="task" class="row" novalidate>' +
       '<div class="field"><label for="taskIn">Neue Aufgabe</label><input id="taskIn" type="text" autocomplete="off" placeholder="z. B. Praktikumsbericht abgeben"' + dis() + '></div>' +
       '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>';
     if (d.tasks.length) {
-      var done = d.tasks.filter(function (t) { return t.done; }).length;
       h += '<ul class="list">' + d.tasks.map(function (t) {
         if (editTask === t.id) {
           return '<li class="editing"><input type="text" id="taskEditIn" data-id="' + esc(t.id) + '" maxlength="200" autocomplete="off" value="' + esc(t.text) + '"' + dis() + '>' +
@@ -2085,7 +2197,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
           '<button type="button" class="del pen" data-act="edit-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe bearbeiten">✎</button>' +
           '<button type="button" class="del" data-act="del-task" data-id="' + esc(t.id) + '" aria-label="Aufgabe entfernen">×</button></li>' +
           noteArea('task', t.id, selected, '', t.n);
-      }).join('') + '</ul><p class="sum">' + done + ' von ' + d.tasks.length + ' erledigt</p>';
+      }).join('') + '</ul>';
     } else {
       h += '<p class="hint">Keine Aufgaben für diesen Tag.</p>';
     }
@@ -2298,8 +2410,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
         var grp = tds.filter(function (t) { return t.go === tb[0]; });
         if (!grp.length) return;
         var nd = grp.filter(function (x) { return x.done; }).length;
-        h += '<div class="field allgrp"><div class="allgrp-h"><span class="label">' + esc(tb[1]) + '</span><span class="allgrp-n">' + nd + ' von ' + grp.length + ' erledigt</span>' +
-          '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button></div><ul class="list">' + grp.map(function (t) {
+        h += '<div class="field allgrp">' + progHead(tb[1], nd, grp.length, tb[1], tb[0],
+          '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button>') + '<ul class="list">' + grp.map(function (t) {
           var cid = 'al_' + (n++);
           return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
             (function () {

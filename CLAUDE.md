@@ -58,3 +58,4 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit grünem Rand, heute mit grünem Datum.
 - Dunkles Design mit genug Kontrast.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.
+- Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar.
