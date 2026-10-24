@@ -55,6 +55,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Keine Notiz-Vorschau, nur ein Notiz-Symbol.
 - Nie automatisch fokussieren (Tastatur). Einzige Ausnahme ist „+ Übung“.
 - So wenig Scrollen wie möglich. Die Seite hat keine Scrollleiste.
+- Kein Zoomen am Handy/iPad (weder Doppeltipp noch zwei Finger): Viewport `maximum-scale=1,user-scalable=no`, `touch-action: pan-x pan-y`, `gesturestart` wird blockiert.
 - Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit grünem Rand, heute mit grünem Datum.
 - Dunkles Design mit genug Kontrast.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.

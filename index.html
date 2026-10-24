@@ -1,4 +1,4 @@
-<!doctype html><html lang="de"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEF2F0"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0C1110"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"></head><body>
+<!doctype html><html lang="de"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEF2F0"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0C1110"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"></head><body>
 <title>Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,7 +121,7 @@ button.cell:hover { background: var(--surface-2); }
 .day-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
 .day-sub { margin: 0; color: var(--muted); font-size: 0.9rem; }
 /* Keine Scrollleiste für die Seite: sonst springt das Layout beim Tabwechsel, wenn die Leiste kommt oder geht */
-html { scrollbar-width: none; }
+html { scrollbar-width: none; touch-action: pan-x pan-y; } /* kein Zoomen per Doppeltipp oder zwei Fingern */
 html::-webkit-scrollbar { display: none; }
 .tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: 10px; }
 .tabs::-webkit-scrollbar { display: none; }
@@ -384,7 +384,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 73</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 74</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2477,6 +2477,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     renderCal(); renderHead(); renderTabs();
     if (rerenderPanel) renderPanel();
   }
+
+  // iPad/iPhone: Zoomen mit zwei Fingern unterbinden (Safari ignoriert user-scalable=no)
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
   /* ---------- Events ---------- */
   elDays.addEventListener('click', function (e) {
