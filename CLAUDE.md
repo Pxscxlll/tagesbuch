@@ -59,3 +59,4 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Dunkles Design mit genug Kontrast.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.
 - Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar.
+- Aufgaben bearbeiten (✎): Tagesaufgaben lassen sich auf einen anderen Tag verschieben und im Uni-Tab mit Frist zur Fristaufgabe machen. Fristaufgaben haben „Frist entfernen“; im eingebauten Uni-Tab werden sie dann zur normalen Tagesaufgabe (`uniDropDue`).

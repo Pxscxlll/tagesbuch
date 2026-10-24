@@ -179,7 +179,7 @@ input::-webkit-date-and-time-value { text-align: left; min-height: 1.2em; }
 /* Fortschritt: Name – Balken – „x von y erledigt“ */
 .phead { display: flex; align-items: center; gap: 10px; min-height: 32px; }
 .phead .label { flex: none; }
-.pbar { flex: 1 1 60px; min-width: 40px; max-width: 220px; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
+.pbar { flex: 1 1 60px; min-width: 40px; max-width: 220px; height: 8px; background: color-mix(in srgb, var(--muted) 35%, var(--surface)); border-radius: 99px; overflow: hidden; }
 .pbar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .5s cubic-bezier(.3,1.4,.5,1); }
 .phead .del { margin-left: auto; }
 /* Feier beim Abhaken */
@@ -384,7 +384,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 72</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 73</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1811,12 +1811,26 @@ textarea.autogrow { resize: none; overflow: hidden; }
       celebrate(r.left + r.width / 2, r.top + r.height / 2, full ? h1.dataset.name : null);
     }, 0);
   }, true);
+  // Frist entfernen: im eingebauten Uni-Tab wird daraus eine normale Tagesaufgabe (sonst wäre sie dort unsichtbar),
+  // in einem eigenen Uni-Tab eine Uni-Aufgabe für den gewählten Tag
+  function uniDropDue(et, day) {
+    var k = KRE.test(day || '') ? day : selected;
+    if (uniTasksMode() && tab === 'tasks') {
+      UNI.todos = UNI.todos.filter(function (x) { return x.id !== et.id; });
+      var nt = { id: et.id, text: et.x.slice(0, 200), done: !!et.done };
+      if (et.n) nt.n = et.n;
+      ensure(k).tasks.push(nt); commit(k);
+    } else { delete et.due; et.day = k; }
+    uniEditTodo = null; saveUni(); refreshAfterEdit(true);
+  }
   function todoRow(t) {
     if (uniEditTodo === t.id) {
       return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
         '<div class="field"><label for="utEx">Aufgabe</label><input id="utEx" type="text" maxlength="140" autocomplete="off" value="' + esc(t.x) + '"' + dis() + '></div>' +
-        '<div class="field" style="max-width:220px"><label for="utEd">Frist (leer = nur dieser Tag)</label><input id="utEd" type="date" value="' + esc(t.due || '') + '"' + dis() + '></div>' +
+        '<div class="row"><div class="field" style="flex:0 1 180px"><label for="utEd">Frist (leer = nur dieser Tag)</label><input id="utEd" type="date" value="' + esc(t.due || '') + '"' + dis() + '></div>' +
+        (uniTasksMode() && tab === 'tasks' ? '' : '<div class="field" style="flex:0 1 160px"><label for="utEday">Tag (ohne Frist)</label><input id="utEday" type="date" value="' + esc(t.day || selected) + '"' + dis() + '></div>') + '</div>' +
         '<div class="row"><button type="button" class="btn" data-act="uni-tsave" data-tid="' + esc(t.id) + '"' + dis() + '>Speichern</button>' +
+        (t.due ? '<button type="button" class="btn ghost" data-act="uni-tnodue" data-tid="' + esc(t.id) + '"' + dis() + '>Frist entfernen</button>' : '') +
         '<button type="button" class="btn ghost" data-act="uni-tcancel">Abbrechen</button></div></div></li>';
     }
     var on = !!t.done, cid = 'ut_' + t.id, late = !on && t.due && t.due < selected;
@@ -2188,9 +2202,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (d.tasks.length) {
       h += '<ul class="list">' + d.tasks.map(function (t) {
         if (editTask === t.id) {
-          return '<li class="editing"><input type="text" id="taskEditIn" data-id="' + esc(t.id) + '" maxlength="200" autocomplete="off" value="' + esc(t.text) + '"' + dis() + '>' +
-            '<button type="button" class="btn" data-act="task-save" data-id="' + esc(t.id) + '"' + dis() + '>Speichern</button>' +
-            '<button type="button" class="btn ghost" data-act="task-cancel">Abbrechen</button></li>';
+          return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
+            '<div class="field"><label for="taskEditIn">Aufgabe</label><input type="text" id="taskEditIn" data-id="' + esc(t.id) + '" maxlength="200" autocomplete="off" value="' + esc(t.text) + '"' + dis() + '></div>' +
+            '<div class="row"><div class="field" style="flex:0 1 160px"><label for="taskEditDay">Tag</label><input id="taskEditDay" type="date" value="' + selected + '"' + dis() + '></div>' +
+            (uniTasksMode() && tab === 'tasks' ? '<div class="field" style="flex:0 1 160px"><label for="taskEditDue">Frist (optional)</label><input id="taskEditDue" type="date" min="' + selected + '"' + dis() + '></div>' : '') + '</div>' +
+            '<div class="row"><button type="button" class="btn" data-act="task-save" data-id="' + esc(t.id) + '"' + dis() + '>Speichern</button>' +
+            '<button type="button" class="btn ghost" data-act="task-cancel">Abbrechen</button></div></div></li>';
         }
         return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" data-act="toggle" data-id="' + esc(t.id) + '" id="t_' + esc(t.id) + '"' + (t.done ? ' checked' : '') + dis() + '>' +
           noteBtn('task', t.id, selected, '', esc(t.text), t.n) +
@@ -2904,8 +2921,15 @@ textarea.autogrow { resize: none; overflow: hidden; }
       var ex = $('#utEx').value.trim().slice(0, 140), ed = $('#utEd').value;
       if (!ex) { $('#utEx').placeholder = 'Bitte eintragen'; return; }
       et.x = ex;
-      if (KRE.test(ed)) { et.due = ed; delete et.day; } else { delete et.due; et.day = selected; }
+      if (KRE.test(ed)) { et.due = ed; delete et.day; }
+      else { uniDropDue(et, ($('#utEday') || {}).value); return; }
       uniEditTodo = null; saveUni(); renderPanel(); renderCal();
+      return;
+    }
+    if (act === 'uni-tnodue') {
+      var nt = (UNI.todos || []).filter(function (x) { return x.id === b.dataset.tid; })[0]; if (!nt) return;
+      var nx = $('#utEx') && $('#utEx').value.trim().slice(0, 140); if (nx) nt.x = nx;
+      uniDropDue(nt, ($('#utEday') || {}).value);
       return;
     }
     if (act === 'uni-ledit') { uniEditLesson = b.dataset.lid; uniEditPlan = true; renderPanel(); return; }
@@ -3140,9 +3164,24 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function saveTaskEdit() {
     var inp = $('#taskEditIn'); if (!inp) return;
     var v = inp.value.trim().slice(0, 200);
-    var t = ((days[selected] || {}).tasks || []).filter(function (x) { return x.id === inp.dataset.id; })[0];
-    if (t && v && v !== t.text) { t.text = v; commit(selected); }
-    editTask = null; refreshAfterEdit(true);
+    var src = days[selected], t = ((src || {}).tasks || []).filter(function (x) { return x.id === inp.dataset.id; })[0];
+    editTask = null;
+    if (!t) { refreshAfterEdit(true); return; }
+    if (v) t.text = v;
+    var nd = ($('#taskEditDay') || {}).value || '', due = ($('#taskEditDue') || {}).value || '';
+    if (KRE.test(due)) {
+      // Mit Frist wird die Tagesaufgabe zur Fristaufgabe im Uni-Tab
+      src.tasks = src.tasks.filter(function (x) { return x.id !== t.id; });
+      var o = { id: t.id, x: t.text.slice(0, 140), from: KRE.test(nd) ? nd : selected, due: due };
+      if (t.done) o.done = selected;
+      if (t.n) o.n = t.n;
+      UNI.todos.push(o); saveUni(); commit(selected);
+    } else if (KRE.test(nd) && nd !== selected) {
+      // Auf einen anderen Tag verschieben
+      src.tasks = src.tasks.filter(function (x) { return x.id !== t.id; });
+      ensure(nd).tasks.push(t); commit(selected); commit(nd);
+    } else commit(selected);
+    refreshAfterEdit(true);
   }
   elPanel.addEventListener('keydown', function (e) {
   });
