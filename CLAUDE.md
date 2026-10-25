@@ -56,8 +56,11 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Nie automatisch fokussieren (Tastatur). Einzige Ausnahme ist „+ Übung“.
 - So wenig Scrollen wie möglich. Die Seite hat keine Scrollleiste.
 - Kein Zoomen am Handy/iPad (weder Doppeltipp noch zwei Finger): Viewport `maximum-scale=1,user-scalable=no`, `touch-action: pan-x pan-y`, `gesturestart` wird blockiert.
-- Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit grünem Rand, heute mit grünem Datum.
+- Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit Rand in der Akzentfarbe, heute mit Datum in der Akzentfarbe.
 - Dunkles Design mit genug Kontrast.
+- **Farben pro Tab** (`--k-events/weight/sport/tasks/uni/physio/note/ideas`, hell und dunkel): Im Tab ersetzt seine Farbe die Akzentfarbe (`applyTabColor` setzt `--accent` auf `#panel`), in „Alle“ pro Gruppe (`kStyle`). Tabs zeigen Symbol, Name (am Handy nur Symbol) und Farbpunkt (`tabKind`, `TAB_ICONS`).
+- **Akzentfarbe** Silber/Rosa/Limette unter Einstellungen, pro Gerät (`tagesbuch:accent`, `data-accent` am html). Gilt für alles ohne eigenen Tab.
+- Leere Zustände mit `emptyHtml`, Ladeanimation (`.skel`) solange `ready` falsch ist.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.
 - Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar. Dazu ein Ton (bei „… erledigt!“ die längere Variante).
 - Zahnrad oben rechts (`setBtn`) öffnet das Fenster „Einstellungen“ (`setCard`, über der App). Schließen mit ×, Tipp daneben oder Escape. Darin aufklappbare Bereiche (`details.set-sec`), zugeklappt mit Kurzinfo rechts:

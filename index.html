@@ -15,11 +15,11 @@
   --muted: #5A6760;
   --accent: #1B6B58;
   --accent-ink: #FFFFFF;
-  --c-weight: #1B6B58;
-  --c-sport: #B3600C;
-  --c-task: #3558C4;
-  --c-event: #8B3FA0;
   --danger: #B3342B;
+  /* Eine Farbe pro Tab (hell) */
+  --k-events: #8B3FA0; --k-weight: #1B6B58; --k-sport: #C2410C; --k-tasks: #0E7490;
+  --k-uni: #4054C8; --k-physio: #B45309; --k-note: #8A6A3B; --k-ideas: #8A6D00; --k-ink: #FFFFFF;
+  --acc-silber: #4A5852; --acc-rosa: #C2185B; --acc-limette: #4D7C0F;
   --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -34,11 +34,11 @@
     --muted: #B6C4BD;
     --accent: #6AD8B8;
     --accent-ink: #0B1511;
-    --c-weight: #6AD8B8;
-    --c-sport: #E39A4A;
-    --c-task: #A2B8F7;
-    --c-event: #D49DEC;
     --danger: #F0847B;
+    /* Eine Farbe pro Tab (dunkel) */
+    --k-events: #D49DEC; --k-weight: #6AD8B8; --k-sport: #FF7A59; --k-tasks: #7FD4F5;
+    --k-uni: #8C9EFF; --k-physio: #F2A54A; --k-note: #D9C3A0; --k-ideas: #F5D94E; --k-ink: #0B1511;
+    --acc-silber: #E3E9E6; --acc-rosa: #FF8FB8; --acc-limette: #B8E65A;
     color-scheme: dark;
   }
 }
@@ -52,13 +52,19 @@
   --muted: #B6C4BD;
   --accent: #6AD8B8;
   --accent-ink: #0B1511;
-  --c-weight: #6AD8B8;
-  --c-sport: #E39A4A;
-  --c-task: #A2B8F7;
-  --c-event: #D49DEC;
   --danger: #F0847B;
+  /* Eine Farbe pro Tab (dunkel) */
+  --k-events: #D49DEC; --k-weight: #6AD8B8; --k-sport: #FF7A59; --k-tasks: #7FD4F5;
+  --k-uni: #8C9EFF; --k-physio: #F2A54A; --k-note: #D9C3A0; --k-ideas: #F5D94E; --k-ink: #0B1511;
+  --acc-silber: #E3E9E6; --acc-rosa: #FF8FB8; --acc-limette: #B8E65A;
   color-scheme: dark;
 }
+/* Akzentfarbe (Einstellungen, pro Gerät): gilt für alles, was zu keinem Tab gehört */
+:root[data-accent="silber"] { --accent: var(--acc-silber); --accent-ink: var(--k-ink); }
+:root[data-accent="rosa"] { --accent: var(--acc-rosa); --accent-ink: var(--k-ink); }
+:root[data-accent="limette"] { --accent: var(--acc-limette); --accent-ink: var(--k-ink); }
+/* Kalenderpunkte in denselben Farben wie die Tabs */
+:root { --c-weight: var(--k-weight); --c-sport: var(--k-sport); --c-task: var(--k-uni); --c-event: var(--k-events); }
 
 * { box-sizing: border-box; }
 body {
@@ -163,6 +169,28 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .wk-tabs { margin: 0 0 10px; }
 .wk-ev { display: flex; flex-direction: column; gap: 2px; }
 .tab .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+/* Tabs: Symbol, Name und Farbpunkt; der gewählte Tab leuchtet in seiner Farbe (--kc) */
+.tab { position: relative; }
+.tab .ic { font-size: 1rem; line-height: 1; }
+.tab .kdot { width: 6px; height: 6px; border-radius: 50%; background: var(--kc); position: absolute; top: 4px; right: 4px; }
+.tab[aria-selected="true"][style*="--kc"] { color: var(--kc); box-shadow: 0 0 0 1px color-mix(in srgb, var(--kc) 55%, var(--line)); }
+@media (max-width: 600px) { .tab .nm { display: none; } .tab .ic { font-size: 1.15rem; } .tab { padding: 9px 4px; } }
+#dayCard { border-top: 3px solid var(--tabc, var(--accent)); transition: border-color .3s; }
+/* Freundliche leere Zustände */
+.empty { text-align: center; padding: 14px 10px 6px; color: var(--muted); font-size: 0.9rem; }
+.empty .em { font-size: 2rem; line-height: 1; display: block; margin-bottom: 6px; animation: efloat 3s ease-in-out infinite; }
+.empty b { display: block; color: var(--accent); font: 700 1.02rem var(--font-display); margin-bottom: 2px; }
+@keyframes efloat { 50% { transform: translateY(-5px); } }
+/* Ladeanimation, bis die Daten da sind */
+.skel { display: flex; flex-direction: column; gap: 12px; padding: 4px 0; }
+.skel i { display: block; height: 14px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 0%, var(--hover) 50%, var(--surface-2) 100%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+.skel i.h { height: 40px; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+/* Akzentfarbe wählen */
+.acc-list { display: flex; gap: 10px; flex-wrap: wrap; }
+.acc-sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
+.acc-sw:hover { transform: scale(1.08); }
+.acc-sw[aria-pressed="true"] { border-color: var(--fg); box-shadow: 0 0 0 2px var(--surface) inset; }
 
 .panel { display: flex; flex-direction: column; gap: 16px; }
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -412,7 +440,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 75</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 76</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -444,6 +472,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
   <div class="set-modal" id="setCard" hidden>
   <section class="card set-dlg" role="dialog" aria-modal="true" aria-labelledby="setTitle">
     <div class="set-head"><h2 id="setTitle">Einstellungen</h2><button type="button" class="icon-btn" id="setClose" aria-label="Einstellungen schließen" title="Schließen">×</button></div>
+    <details class="set-sec" id="setAcc">
+      <summary><span>Akzentfarbe</span><span class="set-sum" id="accSum"></span></summary>
+      <div class="panel set-body">
+        <p class="hint">Gilt nur für dieses Gerät. Sie färbt alles, was zu keinem Tab gehört, z. B. „Alle“, den heutigen Tag und die Auswahl. Jeder Tab behält seine eigene Farbe.</p>
+        <div class="acc-list" id="accList"></div>
+      </div>
+    </details>
     <details class="set-sec" id="setSnd">
       <summary><span>Ton</span><span class="set-sum" id="sndSum"></span></summary>
       <div class="panel set-body">
@@ -1566,10 +1601,39 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function renderTabs() {
     if (!tabExists(tab)) tab = 'all';
     elTabs.innerHTML = allTabs().map(function (t) {
-      return '<button type="button" role="tab" class="tab" data-tab="' + esc(t[0]) + '" aria-selected="' + (!addingTab && tab === t[0]) + '">' +
-        esc(t[1]) + '</button>';
+      var k = tabKind(t[0]);
+      return '<button type="button" role="tab" class="tab" data-tab="' + esc(t[0]) + '" aria-label="' + esc(t[1]) + '" aria-selected="' + (!addingTab && tab === t[0]) + '"' + (k ? ' style="--kc:var(--k-' + k + ')"' : '') + '>' +
+        '<span class="ic" aria-hidden="true">' + (t[0] === 'all' ? '✨' : TAB_ICONS[k] || '📌') + '</span><span class="nm">' + esc(t[1]) + '</span>' + (k ? '<span class="kdot" aria-hidden="true"></span>' : '') + '</button>';
     }).join('') + '<button type="button" class="tab add" data-act="add-tab" aria-label="Tab aus dem Katalog hinzufügen" aria-selected="' + addingTab + '">+</button>';
+    applyTabColor();
   }
+  /* ---------- Farben pro Tab ---------- */
+  var TAB_ICONS = { events: '📅', weight: '⚖️', sport: '🏃', tasks: '✅', uni: '🎓', physio: '💪', note: '📝', ideas: '💡' };
+  // Art des Tabs für Farbe und Symbol; null = keine eigene Farbe (Alle, sonstige eigene Tabs)
+  function tabKind(t) {
+    if (t === 'tasks') return uniTasksMode() ? 'uni' : 'tasks';
+    if (/^c_/.test(t)) { var c = tabById(t.slice(2)); return isUni(c) ? 'uni' : isPhysio(c) ? 'physio' : null; }
+    return { events: 1, weight: 1, sport: 1, note: 1, ideas: 1 }[t] ? t : null;
+  }
+  // Im Panel ersetzt die Farbe des Tabs die Akzentfarbe: Häkchen, Balken, Buttons, Felder, Feier
+  function kStyle(t) { var k = tabKind(t); return k ? '--accent:var(--k-' + k + ');--accent-ink:var(--k-ink)' : ''; }
+  function applyTabColor() {
+    var k = addingTab ? null : tabKind(tab), card = document.getElementById('dayCard');
+    if (k) {
+      elPanel.style.setProperty('--accent', 'var(--k-' + k + ')'); elPanel.style.setProperty('--accent-ink', 'var(--k-ink)');
+      if (card) card.style.setProperty('--tabc', 'var(--k-' + k + ')');
+    } else {
+      elPanel.style.removeProperty('--accent'); elPanel.style.removeProperty('--accent-ink');
+      if (card) card.style.removeProperty('--tabc');
+    }
+  }
+  /* ---------- Akzentfarbe (Einstellungen, pro Gerät) ---------- */
+  var ACCENTS = [['silber', 'Silber'], ['rosa', 'Rosa'], ['limette', 'Limette']], accentId = 'silber';
+  try { var acr = localStorage.getItem('tagesbuch:accent'); if (ACCENTS.some(function (a) { return a[0] === acr; })) accentId = acr; } catch (e) {}
+  function applyAccent() { document.documentElement.setAttribute('data-accent', accentId); }
+  applyAccent();
+  // Leerer Zustand: Symbol, Überschrift, kurzer Satz
+  function emptyHtml(icon, title, text) { return '<div class="empty"><span class="em" aria-hidden="true">' + icon + '</span><b>' + esc(title) + '</b>' + esc(text) + '</div>'; }
 
   function savePrefs() {
     touchTabs();
@@ -1798,8 +1862,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     celeEls = { cv: cv, cx: cv.getContext('2d'), toast: ts, big: bg };
     return celeEls;
   }
-  function fxBurst(x, y, n) {
-    var E = celeInit(), d = window.devicePixelRatio || 1, cols = ['#6AD8B8', '#E39A4A', '#A2B8F7', '#D49DEC', '#F3F8F5', '#F0D264'];
+  function fxBurst(x, y, n, col) {
+    var E = celeInit(), d = window.devicePixelRatio || 1, cols = col ? [col, col, col, '#F3F8F5'] : ['#6AD8B8', '#E39A4A', '#A2B8F7', '#D49DEC', '#F3F8F5', '#F0D264'];
     if (E.cv.width !== innerWidth * d || E.cv.height !== innerHeight * d) { E.cv.width = innerWidth * d; E.cv.height = innerHeight * d; E.cx.setTransform(d, 0, 0, d, 0, 0); }
     for (var i = 0; i < n; i++) {
       var a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 6;
@@ -1868,7 +1932,21 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   var elSetCard = document.getElementById('setCard'), elSndList = document.getElementById('sndList');
   function sndSumDraw() { document.getElementById('sndSum').textContent = SND.on ? sndById(SND.id).name + ' · ' + SND.vol + ' %' : 'Aus'; }
+  function renderAccent() {
+    var cur = ACCENTS.filter(function (a) { return a[0] === accentId; })[0];
+    document.getElementById('accSum').textContent = cur ? cur[1] : '';
+    document.getElementById('accList').innerHTML = ACCENTS.map(function (a) {
+      return '<button type="button" class="acc-sw" data-acc="' + a[0] + '" style="background:var(--acc-' + a[0] + ')" aria-label="Akzentfarbe ' + a[1] + '" title="' + a[1] + '" aria-pressed="' + (a[0] === accentId) + '"></button>';
+    }).join('');
+  }
+  document.getElementById('accList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-acc]'); if (!b) return;
+    accentId = b.dataset.acc;
+    try { localStorage.setItem('tagesbuch:accent', accentId); } catch (er) {}
+    applyAccent(); renderAccent();
+  });
   function renderSettings() {
+    renderAccent();
     sndSumDraw();
     document.getElementById('sndOn').checked = SND.on;
     document.getElementById('sndOpts').classList.toggle('off', !SND.on);
@@ -1914,19 +1992,19 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (b) sndPlay(b.dataset.snd, b.dataset.big === '1');
   });
 
-  function celebrate(x, y, doneName) {
+  function celebrate(x, y, doneName, col) {
     var E = celeInit(), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     celePling(!!doneName);
-    if (!calm) fxBurst(x, y, doneName ? 70 : 40);
+    if (!calm) fxBurst(x, y, doneName ? 70 : 40, col);
     if (doneName) {
-      E.big.querySelector('b').textContent = doneName + ' erledigt!';
+      E.big.querySelector('b').textContent = doneName + ' erledigt!'; E.big.querySelector('b').style.color = col || '';
       E.big.classList.add('on');
-      if (!calm) { fxBurst(innerWidth * 0.25, innerHeight * 0.4, 120); fxBurst(innerWidth * 0.75, innerHeight * 0.4, 120); }
+      if (!calm) { fxBurst(innerWidth * 0.25, innerHeight * 0.4, 120, col); fxBurst(innerWidth * 0.75, innerHeight * 0.4, 120, col); }
       clearTimeout(celeBigT); celeBigT = setTimeout(function () { E.big.classList.remove('on'); }, 2600);
       return;
     }
     E.toast.textContent = SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
-    E.toast.classList.add('on');
+    E.toast.style.borderColor = col || ''; E.toast.classList.add('on');
     clearTimeout(celeToastT); celeToastT = setTimeout(function () { E.toast.classList.remove('on'); }, 1600);
   }
   // Die Fortschritts-Kopfzeile, zu der ein Häkchen gehört: in „Alle“ die Gruppe, sonst die letzte Kopfzeile davor
@@ -1952,7 +2030,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (!ready || !ds || !CELE_ACTS[ds.act] || !el.checked) return;
     if (SND.on) celeAudio();
     var h0 = celeHead(el), key = celeKey(h0), wasFull = !!(h0 && h0.dataset.full === '1');
-    var r = el.getBoundingClientRect(), sel = 'input[data-act="' + ds.act + '"]';
+    var r = el.getBoundingClientRect(), col = getComputedStyle(el).getPropertyValue('--accent').trim(), sel = 'input[data-act="' + ds.act + '"]';
     ['id', 'tid', 'iid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
     setTimeout(function () {
       var h1 = celeFind(key), full = !wasFull && !!(h1 && h1.dataset.full === '1');
@@ -1961,7 +2039,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         cb.classList.add('pop');
         var li = cb.closest('li'); if (li) { li.classList.add('glow'); setTimeout(function () { li.classList.remove('glow'); }, 700); }
       }
-      celebrate(r.left + r.width / 2, r.top + r.height / 2, full ? h1.dataset.name : null);
+      celebrate(r.left + r.width / 2, r.top + r.height / 2, full ? h1.dataset.name : null, col);
     }, 0);
   }, true);
   // Frist entfernen: im eingebauten Uni-Tab wird daraus eine normale Tagesaufgabe (sonst wäre sie dort unsichtbar),
@@ -2019,7 +2097,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="todo" aria-selected="' + (uniView === 'todo') + '">Aufgaben</button></div>';
     if (uniView === 'plan') {
       var ls = lessonsOn(c, selected);
-      h += ls.length ? '<div class="events uniplan">' + ls.map(lessonHtml).join('') + '</div>' : '<p class="hint">Keine Veranstaltungen an diesem Tag.</p>';
+      h += ls.length ? '<div class="events uniplan">' + ls.map(lessonHtml).join('') + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
       if (uniMsg && !uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
       var all = (UNI.lessons || []).slice().sort(function (a, b) { var x = (a.k || String(a.d)) + a.f, y = (b.k || String(b.d)) + b.f; return x < y ? -1 : x > y ? 1 : 0; });
       h += '<details class="abo"' + (uniEditPlan ? ' open' : '') + ' data-uni-det="1"><summary>Stundenplan bearbeiten (' + all.length + ')</summary><div class="panel" style="margin-top:10px">';
@@ -2074,7 +2152,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (ts.length) {
       h += progHead('Aufgaben', ts.filter(function (t) { return t.done; }).length, ts.length, c.name) + '<ul class="list">' + ts.map(todoRow).join('') + '</ul>';
-    } else h += '<p class="hint">Keine Aufgaben für diesen Tag.</p>';
+    } else h += emptyHtml('✅', 'Keine Aufgaben', 'Genieß den freien Tag.');
     h += '<form data-form="unitodo" class="row" novalidate>' +
       '<div class="field"><label for="utX">Neue Aufgabe</label><input id="utX" type="text" maxlength="140" autocomplete="off" placeholder="z. B. Übungsblatt 3 TM"' + dis() + '></div>' +
       '<div class="field" style="flex-basis:150px"><label for="utDue">Frist (optional)</label><input id="utDue" type="date" min="' + selected + '"' + dis() + '></div>' +
@@ -2122,7 +2200,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
           (notesOn(c) ? noteArea('citem', it.id, '', id, it.n) : '');
       }).join('') + '</ul>';
     } else {
-      h += '<p class="hint">Keine Übungen für diesen Tag.</p>';
+      h += emptyHtml('💪', 'Heute keine Übungen', 'Pause gehört auch dazu.');
     }
     h += '</div><form data-form="citem" class="row" novalidate>' +
       '<div class="field"><label for="ciText">Neue Übung</label><input id="ciText" type="text" maxlength="120" autocomplete="off" placeholder="z. B. Handgelenk dehnen 3×10"' + dis() + '></div>' +
@@ -2369,7 +2447,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
           noteArea('task', t.id, selected, '', t.n);
       }).join('') + '</ul>';
     } else {
-      h += '<p class="hint">Keine Aufgaben für diesen Tag.</p>';
+      h += emptyHtml('✅', 'Keine Aufgaben', 'Genieß den freien Tag.');
     }
     if (selected === todayKey) {
       var carry = [];
@@ -2478,7 +2556,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function renderEvPanel() {
     var keep = {};
     ['remTitle', 'remTime', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
-    var h = (evIdx[selected] || []).length ? '' : '<p class="hint">Keine Termine an diesem Tag.</p>';
+    var h = (evIdx[selected] || []).length ? '' : emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
     if (GCLIENT) {
       if (!remOpen) h += '<div class="row"><button type="button" class="btn ghost" data-act="rem-open">+ Erinnerung</button></div>';
       else {
@@ -2580,7 +2658,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         var grp = tds.filter(function (t) { return t.go === tb[0]; });
         if (!grp.length) return;
         var nd = grp.filter(function (x) { return x.done; }).length;
-        h += '<div class="field allgrp">' + progHead(tb[1], nd, grp.length, tb[1], tb[0],
+        h += '<div class="field allgrp"' + (kStyle(tb[0]) ? ' style="' + kStyle(tb[0]) + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0],
           '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button>') + '<ul class="list">' + grp.map(function (t) {
           var cid = 'al_' + (n++);
           return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
@@ -2592,7 +2670,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
             (t.kind !== 'citem' || notesOn(tabById(t.tid)) ? noteArea(t.kind, t.id, t.k, t.tid, (noteRef(t.kind, t.id, t.k, t.tid) || {}).n) : '');
         }).join('') + '</ul></div>';
       });
-    } else h += '<div class="field" style="margin-top:14px"><span class="label">Aufgaben</span><p class="hint">Nichts offen.</p></div>';
+    } else h += '<div class="field" style="margin-top:14px"><span class="label">Aufgaben</span>' + emptyHtml('☀️', 'Nichts offen', 'Genieß den Tag.') + '</div>';
     elPanel.innerHTML = h;
   }
   function renderIdeas() {
@@ -2608,13 +2686,15 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var openL = IDEAS.filter(function (x) { return !x.done; }), doneL = IDEAS.filter(function (x) { return x.done; });
     var h = '<form data-form="idea" class="row" novalidate><div class="field"><label for="ideaIn">Neue Idee oder langfristige Aufgabe</label><input id="ideaIn" type="text" maxlength="140" autocomplete="off" placeholder="z. B. 3D-Drucker-Projekt, Bewerbung Praxissemester"' + dis() + '></div>' +
       '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>';
-    h += openL.length ? '<ul class="list ideas">' + openL.map(row).join('') + '</ul>' : '<p class="hint">Noch nichts auf der Liste.</p>';
+    h += openL.length ? '<ul class="list ideas">' + openL.map(row).join('') + '</ul>' : emptyHtml('💡', 'Noch keine Ideen', 'Hier ist Platz für alles, was du irgendwann mal machen willst.');
     if (doneL.length) h += '<details class="abo"' + (doneL.some(function (x) { return x.id === openIdea; }) ? ' open' : '') + '><summary>Erledigt (' + doneL.length + ')</summary><ul class="list ideas">' + doneL.map(row).join('') + '</ul></details>';
     h += '<p class="hint">Tipp auf einen Eintrag öffnet Titel und Notizen. Die Liste gilt unabhängig vom Datum.</p>';
     elPanel.innerHTML = h;
   }
   function renderPanel() {
     $('#grid').dataset.notime = tab === 'ideas' && !addingTab ? '1' : '';
+    // Bis die Daten geladen sind: pulsierende Platzhalter statt leerer Felder
+    if (!ready && !addingTab) { elPanel.innerHTML = '<div class="skel" aria-label="Lädt …"><i style="width:30%"></i><i class="h"></i><i class="h"></i><i style="width:45%"></i><i></i><i style="width:80%"></i></div>'; return; }
     if (addingTab) renderAddTab();
     else if (tab === 'ideas') renderIdeas();
     else if (tab === 'all') renderAllTab();
