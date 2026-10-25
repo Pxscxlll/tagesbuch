@@ -186,6 +186,27 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .skel i { display: block; height: 14px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 0%, var(--hover) 50%, var(--surface-2) 100%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
 .skel i.h { height: 40px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+/* Tagesring neben dem Datum */
+.dring { position: relative; display: inline-block; width: 40px; height: 40px; vertical-align: middle; margin-left: 8px; }
+.dring[hidden] { display: none; }
+.dring svg { display: block; width: 40px; height: 40px; transform: rotate(-90deg); }
+.dring circle { fill: none; stroke-width: 5; }
+.dring .bgc { stroke: color-mix(in srgb, var(--muted) 30%, var(--surface)); }
+.dring .fgc { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .6s cubic-bezier(.3,1.3,.5,1); }
+.dring span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 .64rem var(--font-display); letter-spacing: -.02em; }
+.dring span.full { font-size: 1.1rem; color: var(--accent); }
+@media (max-width: 480px) { .dring, .dring svg { width: 32px; height: 32px; } .dring span { font-size: .56rem; } .dring span.full { font-size: .95rem; } }
+/* „läuft gerade“ und Countdown bei Terminen und Stundenplan */
+.ev.now, .lesson.now { box-shadow: inset 3px 0 0 var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); position: relative; overflow: hidden; }
+.ev.past { opacity: .55; }
+.nowbar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
+.tbadge { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 600; border-radius: 99px; padding: 1px 8px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; font-family: var(--font-body); letter-spacing: 0; text-transform: none; }
+.tbadge.live { background: var(--accent); color: var(--accent-ink); }
+.tbadge.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-ink); animation: tblink 1.4s infinite; }
+@keyframes tblink { 50% { opacity: .2; } }
+.tbadge.soon { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+/* Serie bei Physio */
+.streak { flex: none; font-size: .78rem; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
 /* Akzentfarbe wählen */
 .acc-list { display: flex; gap: 10px; flex-wrap: wrap; }
 .acc-sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
@@ -440,7 +461,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 76</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 77</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -458,7 +479,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <button type="button" class="mode" role="tab" data-vm="year" aria-selected="false">Jahr</button>
     </div>
     <div class="nav">
-      <h2 id="rangeLabel"></h2>
+      <h2 id="rangeLabel"><span id="rangeTxt"></span><span class="dring" id="dayRing" hidden title="Heute erledigt"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="bgc" cx="22" cy="22" r="18"/><circle class="fgc" id="dayRingC" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1"/></svg><span id="dayRingP"></span></span></h2>
       <button type="button" class="text-btn" id="todayBtn">Heute</button>
       <button type="button" class="icon-btn" id="prevBtn" aria-label="Zurück">‹</button>
       <button type="button" class="icon-btn" id="nextBtn" aria-label="Weiter">›</button>
@@ -632,7 +653,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var gState = 'idle', gErrText = '';
   var gChoosing = false, gList = null;
 
-  var elDays = $('#days'), elMonth = $('#rangeLabel'), elTabs = $('#tabs'), elPanel = $('#panel');
+  var elDays = $('#days'), elMonth = $('#rangeTxt'), elTabs = $('#tabs'), elPanel = $('#panel');
   var elDayLabel = $('#dayLabel'), elDaySub = $('#daySub'), elStatus = $('#status'), elAbo = $('#aboBody');
 
   /* ---------- Daten ---------- */
@@ -1093,6 +1114,18 @@ textarea.autogrow { resize: none; overflow: hidden; }
       t = String(y);
     }
     elMonth.textContent = t;
+    renderRing();
+  }
+  // Tagesring neben dem Datum: wie viel vom gewählten Tag erledigt ist (alle Aufgaben aus „Alle“ zusammen)
+  function renderRing() {
+    var el = document.getElementById('dayRing'); if (!el) return;
+    var td = vmode === 'day' && ready ? allTodos(selected, false) : [], n = td.filter(function (x) { return x.done; }).length, p = td.length ? n / td.length : 0;
+    el.hidden = !td.length;
+    if (!td.length) return;
+    document.getElementById('dayRingC').style.strokeDashoffset = (113.1 * (1 - p)).toFixed(1);
+    var tp = document.getElementById('dayRingP'); tp.textContent = p >= 1 ? '✓' : Math.round(p * 100) + '%'; tp.classList.toggle('full', p >= 1);
+    el.title = n + ' von ' + td.length + ' erledigt';
+    el.setAttribute('aria-label', el.title);
   }
 
   function renderCal() {
@@ -1326,10 +1359,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var notes = (days[selected] && days[selected].evnotes) || {};
     var keys = list.map(function (x) { return x.aid + '|' + x.e.id; });
     if (openEv && keys.indexOf(openEv) < 0) openEv = null;
+    var lst = liveStates(selected, list.map(function (x) { return { f: x.e.time, t: x.e.end }; }));
     el.innerHTML = list.map(function (x, i) {
       var e = x.e, t = e.time ? e.time + (e.end ? '–' + e.end : '') : 'ganztägig';
       var key = keys[i], tkn = 't:' + titleKey(e.title), note = notes[key] != null ? notes[key] : (notes[tkn] || ''), open = openEv === key;
-      return '<div class="ev' + (open ? ' open' : '') + '" data-evkey="' + esc(key) + '" role="button" tabindex="0" aria-expanded="' + open + '"><span class="t">' + esc(t) + '</span><span class="x">' + nbTitle(e.title) +
+      var s = lst[i];
+      return '<div class="ev' + (open ? ' open' : '') + (s && s.cls || '') + '" data-evkey="' + esc(key) + '" role="button" tabindex="0" aria-expanded="' + open + '">' + (s && s.bar || '') + '<span class="t">' + esc(t) + '</span><span class="x">' + nbTitle(e.title) + (s && s.badge || '') +
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
         (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
         '</span>' + (!open && ((note && String(note).trim()) || genNote(notes, key, e.title).trim()) ? NOTE_IC : '') +
@@ -1840,6 +1875,28 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (openNote !== noteKeyOf(kind, id, k, tid)) return '';
     return '<li class="tnote"><textarea class="autogrow" id="tnoteIn" data-kind="' + kind + '" data-id="' + esc(id) + '" data-k="' + esc(k || '') + '" data-tid="' + esc(tid || '') + '" aria-label="Notizen zur Aufgabe" placeholder="Notizen, z. B. was du besprechen oder machen willst"' + dis() + '>' + esc(note || '') + '</textarea></li>';
   }
+  // Serie bei Physio: Tage in Folge, an denen alle fälligen Übungen abgehakt waren.
+  // Tage ohne Übungen zählen nicht und unterbrechen nicht; ist heute noch offen, zählt die Serie bis gestern.
+  function physioStreak(c) {
+    if (!c || !isPhysio(c) || !(c.items || []).length) return 0;
+    var first = c.items.reduce(function (m, it) { return it.start < m ? it.start : m; }, todayKey);
+    var d = parseKey(todayKey), n = 0;
+    for (var i = 0; i < 400; i++) {
+      var k = keyOf(d);
+      if (k < first) break;
+      var due = dueItems(c.id, k);
+      if (due.length) {
+        if (due.every(function (it) { return isChecked(k, c.id, it.id); })) n++;
+        else if (k !== todayKey) break;
+      }
+      d.setDate(d.getDate() - 1);
+    }
+    return n;
+  }
+  function streakHtml(c) {
+    var n = physioStreak(c);
+    return n ? '<span class="streak" title="' + n + (n === 1 ? ' Tag' : ' Tage') + ' in Folge alle Übungen gemacht">🔥 ' + n + (n === 1 ? ' Tag' : ' Tage') + '</span>' : '';
+  }
   // Kopfzeile mit Fortschritt: Name – Balken – „x von y erledigt“ (name = Tab für die große Feier)
   function progHead(label, done, total, name, grp, extra) {
     var full = total > 0 && done === total;
@@ -1992,18 +2049,18 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (b) sndPlay(b.dataset.snd, b.dataset.big === '1');
   });
 
-  function celebrate(x, y, doneName, col) {
+  function celebrate(x, y, doneName, col, msg, sub) {
     var E = celeInit(), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     celePling(!!doneName);
     if (!calm) fxBurst(x, y, doneName ? 70 : 40, col);
     if (doneName) {
-      E.big.querySelector('b').textContent = doneName + ' erledigt!'; E.big.querySelector('b').style.color = col || '';
+      E.big.querySelector('b').textContent = doneName + ' erledigt!'; E.big.querySelector('b').style.color = col || ''; E.big.querySelector('span').textContent = sub || 'Alles für heute geschafft. Stark!';
       E.big.classList.add('on');
       if (!calm) { fxBurst(innerWidth * 0.25, innerHeight * 0.4, 120, col); fxBurst(innerWidth * 0.75, innerHeight * 0.4, 120, col); }
       clearTimeout(celeBigT); celeBigT = setTimeout(function () { E.big.classList.remove('on'); }, 2600);
       return;
     }
-    E.toast.textContent = SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
+    E.toast.textContent = msg || SAYINGS[Math.floor(Math.random() * SAYINGS.length)];
     E.toast.style.borderColor = col || ''; E.toast.classList.add('on');
     clearTimeout(celeToastT); celeToastT = setTimeout(function () { E.toast.classList.remove('on'); }, 1600);
   }
@@ -2032,6 +2089,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var h0 = celeHead(el), key = celeKey(h0), wasFull = !!(h0 && h0.dataset.full === '1');
     var r = el.getBoundingClientRect(), col = getComputedStyle(el).getPropertyValue('--accent').trim(), sel = 'input[data-act="' + ds.act + '"]';
     ['id', 'tid', 'iid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
+    // Frist früh geschafft: Fristaufgabe vor dem Fristtag abgehakt
+    var msg = null, utid = ds.act === 'uni-ttoggle' ? ds.tid : (ds.act === 'all-toggle' && ds.kind === 'uni' ? ds.id : null);
+    var ut = utid && (UNI.todos || []).filter(function (x) { return x.id === utid; })[0];
+    if (ut && ut.due && ut.due > todayKey) {
+      var early = Math.round((parseKey(ut.due) - parseKey(todayKey)) / 864e5);
+      msg = '🎉 ' + early + (early === 1 ? ' Tag' : ' Tage') + ' vor der Frist geschafft!';
+    }
     setTimeout(function () {
       var h1 = celeFind(key), full = !wasFull && !!(h1 && h1.dataset.full === '1');
       var cb = elPanel.querySelector(sel);
@@ -2039,7 +2103,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
         cb.classList.add('pop');
         var li = cb.closest('li'); if (li) { li.classList.add('glow'); setTimeout(function () { li.classList.remove('glow'); }, 700); }
       }
-      celebrate(r.left + r.width / 2, r.top + r.height / 2, full ? h1.dataset.name : null, col);
+      // Serie bei Physio in der großen Feier nennen
+      var st = full && h1.querySelector('.streak'), sub = st ? st.textContent + ' in Folge, weiter so!' : null;
+      celebrate(r.left + r.width / 2, r.top + r.height / 2, full ? h1.dataset.name : null, col, msg, sub);
     }, 0);
   }, true);
   // Frist entfernen: im eingebauten Uni-Tab wird daraus eine normale Tagesaufgabe (sonst wäre sie dort unsichtbar),
@@ -2087,9 +2153,30 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<button type="button" class="btn ghost" data-act="uni-lcancel">Abbrechen</button></div></div></li>';
   }
   try { if (localStorage.getItem('tagesbuch:uniview') === 'todo') uniView = 'todo'; } catch (e) {}
-  function lessonHtml(l) {
+  function lessonHtml(l, s) {
     var sub = [l.a, l.r].filter(Boolean).map(esc).join(' · ');
-    return '<div class="ev uni"><span class="t">' + esc(l.f) + '–' + esc(l.t) + '</span><span class="x">' + nbTitle(l.s) + (sub ? '<small>' + sub + '</small>' : '') + '</span></div>';
+    return '<div class="ev uni' + (s && s.cls || '') + '">' + (s && s.bar || '') + '<span class="t">' + esc(l.f) + '–' + esc(l.t) + '</span><span class="x">' + nbTitle(l.s) + (s && s.badge || '') + (sub ? '<small>' + sub + '</small>' : '') + '</span></div>';
+  }
+  /* ---------- „läuft gerade“ und Countdown (nur für heute) ---------- */
+  function hmMin(s) { var p = /^(\d{1,2}):(\d{2})$/.exec(s || ''); return p ? +p[1] * 60 + +p[2] : null; }
+  // items: [{ f: 'HH:MM', t: 'HH:MM' }] → pro Eintrag { cls, badge, bar } oder null
+  function liveStates(k, items) {
+    if (k !== todayKey) return items.map(function () { return null; });
+    var d = new Date(), now = d.getHours() * 60 + d.getMinutes(), next = -1, best = 1e9;
+    items.forEach(function (it, i) { var f = hmMin(it.f); if (f != null && f > now && f < best) { best = f; next = i; } });
+    return items.map(function (it, i) {
+      var f = hmMin(it.f), t = hmMin(it.t);
+      if (f == null) return null;
+      if (t != null && t > f && now >= f && now < t) {
+        return { cls: ' now', badge: '<span class="tbadge live">läuft gerade</span>', bar: '<span class="nowbar" style="width:' + Math.round((now - f) / (t - f) * 100) + '%" aria-hidden="true"></span>' };
+      }
+      if (t != null && t > f && now >= t) return { cls: ' past' };
+      if (i === next) {
+        var m = f - now;
+        return { badge: '<span class="tbadge soon">in ' + (m >= 60 ? Math.floor(m / 60) + ' h' + (m % 60 ? ' ' + m % 60 + ' min' : '') : m + ' min') + '</span>' };
+      }
+      return null;
+    });
   }
   function renderUni(c) {
     var id = c ? c.id : null, h = '<div class="modes subtabs" role="tablist" aria-label="Uni-Bereich">' +
@@ -2097,7 +2184,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="todo" aria-selected="' + (uniView === 'todo') + '">Aufgaben</button></div>';
     if (uniView === 'plan') {
       var ls = lessonsOn(c, selected);
-      h += ls.length ? '<div class="events uniplan">' + ls.map(lessonHtml).join('') + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
+      h += ls.length ? '<div class="events uniplan">' + (function () { var st = liveStates(selected, ls.map(function (l) { return { f: l.f, t: l.t }; })); return ls.map(function (l, i) { return lessonHtml(l, st[i]); }).join(''); })() + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
       if (uniMsg && !uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
       var all = (UNI.lessons || []).slice().sort(function (a, b) { var x = (a.k || String(a.d)) + a.f, y = (b.k || String(b.d)) + b.f; return x < y ? -1 : x > y ? 1 : 0; });
       h += '<details class="abo"' + (uniEditPlan ? ' open' : '') + ' data-uni-det="1"><summary>Stundenplan bearbeiten (' + all.length + ')</summary><div class="panel" style="margin-top:10px">';
@@ -2174,7 +2261,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var id = c0 ? c0.id : tab.slice(2), c = c0;
     var d = days[selected] || blank();
     var due = dueItems(id, selected), nDone = due.filter(function (it) { return isChecked(selected, id, it.id); }).length;
-    var h = '<div class="field">' + (due.length ? progHead('Übungen', nDone, due.length, c ? c.name : '') : '<span class="label">Übungen</span>');
+    var h = '<div class="field">' + (due.length ? progHead('Übungen', nDone, due.length, c ? c.name : '', null, streakHtml(c)) : '<span class="label">Übungen</span>');
     if (due.length) {
       h += '<ul class="list">' + due.map(function (it) {
         if (editItem === it.id) {
@@ -2645,10 +2732,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
     return { ev: allEvents(k).length, open: allTodos(k, false).filter(function (x) { return !x.done; }).length };
   }
   function renderAllTab() {
-    var evs = allEvents(selected), tds = allTodos(selected, selected === todayKey);
+    var evs = allEvents(selected), tds = allTodos(selected, selected === todayKey), evSt = liveStates(selected, evs.map(function (e) { return { f: e.time, t: e.end }; }));
     var h = '<div class="field"><span class="label">Termine</span>';
     h += evs.length ? '<div class="events allev">' + evs.map(function (e) {
-      return '<div class="ev' + (e.uni ? ' uni' : '') + (e.go ? ' tap' : '') + '"' + (e.go ? ' data-act="all-go" data-go="' + esc(e.go) + '" role="button" tabindex="0"' : '') + '><span class="t">' + (e.time ? esc(e.time) + (e.end ? '–' + esc(e.end) : '') : 'ganztägig') + '</span><span class="x">' + nbTitle(e.title) + (e.sub ? '<small>' + esc(e.sub) + '</small>' : '') + '</span></div>';
+      var s = evSt[evs.indexOf(e)];
+      return '<div class="ev' + (e.uni ? ' uni' : '') + (e.go ? ' tap' : '') + (s && s.cls || '') + '" style="--accent:var(--k-' + (e.uni ? 'uni' : 'events') + ');--accent-ink:var(--k-ink)"' + (e.go ? ' data-act="all-go" data-go="' + esc(e.go) + '" role="button" tabindex="0"' : '') + '>' + (s && s.bar || '') + '<span class="t">' + (e.time ? esc(e.time) + (e.end ? '–' + esc(e.end) : '') : 'ganztägig') + '</span><span class="x">' + nbTitle(e.title) + (s && s.badge || '') + (e.sub ? '<small>' + esc(e.sub) + '</small>' : '') + '</span></div>';
     }).join('') + '</div>' : '<p class="hint">Keine Termine.</p>';
     h += '</div>';
     if (tds.length) {
@@ -2658,7 +2746,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         var grp = tds.filter(function (t) { return t.go === tb[0]; });
         if (!grp.length) return;
         var nd = grp.filter(function (x) { return x.done; }).length;
-        h += '<div class="field allgrp"' + (kStyle(tb[0]) ? ' style="' + kStyle(tb[0]) + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0],
+        h += '<div class="field allgrp"' + (kStyle(tb[0]) ? ' style="' + kStyle(tb[0]) + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0], (/^c_/.test(tb[0]) ? streakHtml(tabById(tb[0].slice(2))) : '') +
           '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button>') + '<ul class="list">' + grp.map(function (t) {
           var cid = 'al_' + (n++);
           return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
@@ -2710,6 +2798,15 @@ textarea.autogrow { resize: none; overflow: hidden; }
     renderCal(); renderHead(); renderTabs();
     if (rerenderPanel) renderPanel();
   }
+
+  // „läuft gerade“ und Countdown jede Minute auffrischen, aber nie während man tippt
+  setInterval(function () {
+    if (!ready || selected !== todayKey || vmode !== 'day' || addingTab || document.hidden) return;
+    var ae = document.activeElement;
+    if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && elPanel.contains(ae)) return;
+    if (tab === 'events') renderEvents();
+    else if (tab === 'all' || (uniActive() && uniView === 'plan' && !uniEditPlan)) renderPanel();
+  }, 60000);
 
   // iPad/iPhone: Zoomen mit zwei Fingern unterbinden (Safari ignoriert user-scalable=no)
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); });

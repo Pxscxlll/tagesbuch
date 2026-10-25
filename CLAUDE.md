@@ -61,6 +61,10 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - **Farben pro Tab** (`--k-events/weight/sport/tasks/uni/physio/note/ideas`, hell und dunkel): Im Tab ersetzt seine Farbe die Akzentfarbe (`applyTabColor` setzt `--accent` auf `#panel`), in „Alle“ pro Gruppe (`kStyle`). Tabs zeigen Symbol, Name (am Handy nur Symbol) und Farbpunkt (`tabKind`, `TAB_ICONS`).
 - **Akzentfarbe** Silber/Rosa/Limette unter Einstellungen, pro Gerät (`tagesbuch:accent`, `data-accent` am html). Gilt für alles ohne eigenen Tab.
 - Leere Zustände mit `emptyHtml`, Ladeanimation (`.skel`) solange `ready` falsch ist.
+- **Tagesring** hinter dem Datum (nur Tagesansicht, `renderRing`): Anteil erledigter Aufgaben aus „Alle“, bei 100 % ein ✓.
+- **Physio-Serie** 🔥 (`physioStreak`): Tage in Folge mit allen fälligen Übungen; Tage ohne Übungen zählen nicht, ein offener heutiger Tag unterbricht nicht.
+- **Frist früh geschafft:** Beim Abhaken einer Fristaufgabe vor dem Fristtag kommt „🎉 N Tage vor der Frist geschafft!“.
+- **„läuft gerade“ und Countdown** (`liveStates`, nur für heute) bei Terminen, in „Alle“ und im Stundenplan; wird jede Minute aufgefrischt, außer während man tippt.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.
 - Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar. Dazu ein Ton (bei „… erledigt!“ die längere Variante).
 - Zahnrad oben rechts (`setBtn`) öffnet das Fenster „Einstellungen“ (`setCard`, über der App). Schließen mit ×, Tipp daneben oder Escape. Darin aufklappbare Bereiche (`details.set-sec`), zugeklappt mit Kurzinfo rechts:
