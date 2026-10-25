@@ -59,5 +59,8 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit grünem Rand, heute mit grünem Datum.
 - Dunkles Design mit genug Kontrast.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.
-- Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar.
+- Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar. Dazu ein Ton (bei „… erledigt!“ die längere Variante).
+- Zahnrad oben rechts (`setBtn`) öffnet das Fenster „Einstellungen“ (`setCard`, über der App). Schließen mit ×, Tipp daneben oder Escape. Darin aufklappbare Bereiche (`details.set-sec`), zugeklappt mit Kurzinfo rechts:
+  - **Ton** (`setSnd`): an/aus, Lautstärke, Tonart (7 Töne in `SOUNDS`, Standard „Weiches Pling“, mit ▶/★ zum Probehören). Gespeichert nur pro Gerät in `localStorage` (`tagesbuch:snd`), nicht über Drive.
+  - **Kalender** (`setCal`): die Kalender-Abos (früher eigener Knopf „Kalender“). `aboOpen` ist wahr, wenn die Karte offen und dieser Bereich aufgeklappt ist.
 - Aufgaben bearbeiten (✎): Tagesaufgaben lassen sich auf einen anderen Tag verschieben und im Uni-Tab mit Frist zur Fristaufgabe machen. Fristaufgaben haben „Frist entfernen“; im eingebauten Uni-Tab werden sie dann zur normalen Tagesaufgabe (`uniDropDue`).

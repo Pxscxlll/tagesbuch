@@ -96,6 +96,34 @@ h2 { font-size: 1.25rem; }
 .cal-head h2 { flex: 1; min-width: 0; }
 .icon-btn { width: 36px; height: 36px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; font-size: 1.1rem; line-height: 1; }
 .icon-btn:hover { background: var(--surface-2); }
+#setBtn { display: inline-grid; place-items: center; color: var(--fg); }
+#setBtn svg { width: 18px; height: 18px; }
+#setBtn[aria-expanded="true"] { border-color: var(--accent); }
+.set-modal { position: fixed; inset: 0; z-index: 18; display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px)); background: rgba(0,0,0,.55); }
+.set-modal[hidden] { display: none; }
+.set-dlg { width: 100%; max-width: 560px; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.set-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.set-sec { border-top: 1px solid var(--line); margin-top: 12px; }
+.set-sec + .set-sec { margin-top: 0; }
+.set-sec > summary { display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; list-style: none; font-weight: 600; font-size: 1.05rem; }
+.set-sec > summary::-webkit-details-marker { display: none; }
+.set-sec > summary::before { content: "▸"; color: var(--muted); width: 14px; transition: transform .15s; }
+.set-sec[open] > summary::before { transform: rotate(90deg); }
+.set-sec > summary:hover { color: var(--accent); }
+.set-sum { margin-left: auto; color: var(--muted); font-weight: 400; font-size: 0.9rem; }
+.set-sec[open] .set-sum { display: none; }
+.set-body { padding: 0 0 16px; }
+.snd-opts { display: flex; flex-direction: column; gap: 14px; }
+.snd-opts.off { opacity: .45; pointer-events: none; }
+.snd-vol { display: flex; align-items: center; gap: 12px; }
+.snd-vol input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.snd-vol span:last-child { width: 42px; text-align: right; color: var(--muted); font-size: 0.9rem; }
+.snd-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.snd-list li { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); }
+.snd-list li:first-child { border-top: 0; }
+.snd-list .pick { flex: 1; min-width: 0; padding: 8px 0; cursor: pointer; }
+.snd-list .pick small { display: block; color: var(--muted); font-size: 0.82rem; }
+.snd-list .icon-btn { font-size: 0.8rem; }
 .text-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0 12px; height: 36px; font-weight: 500; }
 .text-btn:hover { background: var(--surface-2); }
 .wd, .days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
@@ -384,12 +412,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 74</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 75</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
       <button type="button" class="text-btn" id="syncBtn" hidden>Aktualisieren</button>
-      <button type="button" class="text-btn" id="aboBtn" aria-expanded="false" aria-controls="aboCard">Kalender</button>
+      <button type="button" class="icon-btn" id="setBtn" aria-expanded="false" aria-controls="setCard" aria-label="Einstellungen" title="Einstellungen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
     </div>
   </header>
 
@@ -413,10 +441,29 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   <p class="hint gnote" id="gNote" role="status" hidden></p>
 
-  <section class="card" id="aboCard" hidden aria-label="Kalender-Abos">
-    <div id="aboBody" class="panel abo"></div>
-    <input type="file" id="aboUpdFile" class="sr" accept=".ics,text/calendar" tabindex="-1" aria-hidden="true">
+  <div class="set-modal" id="setCard" hidden>
+  <section class="card set-dlg" role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="set-head"><h2 id="setTitle">Einstellungen</h2><button type="button" class="icon-btn" id="setClose" aria-label="Einstellungen schließen" title="Schließen">×</button></div>
+    <details class="set-sec" id="setSnd">
+      <summary><span>Ton</span><span class="set-sum" id="sndSum"></span></summary>
+      <div class="panel set-body">
+        <p class="hint">Gilt nur für dieses Gerät.</p>
+        <label class="pick"><input type="checkbox" id="sndOn"> Ton beim Abhaken</label>
+        <div class="snd-opts" id="sndOpts">
+          <div class="snd-vol"><span class="label">Lautstärke</span><input type="range" id="sndVol" min="5" max="100" step="5" aria-label="Lautstärke"><span id="sndVolTxt"></span></div>
+          <div><span class="label">Tonart</span><ul class="snd-list" id="sndList"></ul></div>
+        </div>
+      </div>
+    </details>
+    <details class="set-sec" id="setCal">
+      <summary><span>Kalender</span><span class="set-sum" id="calSum"></span></summary>
+      <div class="set-body" id="aboCard">
+        <div id="aboBody" class="panel abo"></div>
+        <input type="file" id="aboUpdFile" class="sr" accept=".ics,text/calendar" tabindex="-1" aria-hidden="true">
+      </div>
+    </details>
   </section>
+  </div>
 
   <div class="grid" id="grid" data-mode="month">
     <section class="card" id="viewCard" aria-label="Übersicht">
@@ -1268,10 +1315,16 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }).join('');
   }
 
+  // Kurzinfo neben „Kalender“ in den Einstellungen
+  function calSumDraw() {
+    var n = (gsel ? gsel.length : 0) + Object.keys(abos).length;
+    $('#calSum').textContent = n ? n + ' Kalender' : 'Keine';
+  }
   function renderAbos() {
     var dsb = ready ? '' : ' disabled';
     var ids = Object.keys(abos).sort(function (a, b) { return abos[a].name.localeCompare(abos[b].name, 'de'); });
-    var h = '<div><h2>Kalender-Abos</h2></div>' + gBlock() +
+    calSumDraw();
+    var h = gBlock() +
       '<div><h3>Weitere Kalender als .ics-Datei</h3><p class="hint" style="margin-top:6px">Die App kann Kalender-Links nicht selbst abrufen: Lade die .ics-Datei herunter und wähle sie hier aus. ' +
       'Zum Aktualisieren wählst du die neue Datei erneut aus. Terminserien werden nur einmal übernommen.</p></div>';
     if (ids.length) {
@@ -1763,8 +1816,107 @@ textarea.autogrow { resize: none; overflow: hidden; }
     });
     if (fxParts.length) requestAnimationFrame(fxTick); else { fxRun = false; cx.clearRect(0, 0, innerWidth, innerHeight); }
   }
+  /* ---------- Ton beim Abhaken (Einstellungen am Zahnrad, pro Gerät gespeichert) ---------- */
+  var SND = { on: true, vol: 60, id: 'weich' }, celeAc = null, celeMaster = null;
+  try { var sndr = JSON.parse(localStorage.getItem('tagesbuch:snd') || 'null'); if (sndr && typeof sndr === 'object') SND = Object.assign(SND, sndr); } catch (e) {}
+  function sndSave() { try { localStorage.setItem('tagesbuch:snd', JSON.stringify(SND)); } catch (e) {} }
+  // Ein Ton: Frequenz f, Start nach „at“ Sekunden, Dauer, Wellenform, Lautstärke
+  function sndTone(f, at, dur, type, vol) {
+    var t0 = celeAc.currentTime + at, o = celeAc.createOscillator(), g = celeAc.createGain();
+    o.type = type; o.frequency.value = f; o.connect(g); g.connect(celeMaster);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol, t0 + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.start(t0); o.stop(t0 + dur + 0.05);
+  }
+  // big = längere Variante für „… erledigt!“
+  var SOUNDS = [
+    { id: 'weich', name: 'Weiches Pling', desc: 'Tiefer, runder, unaufdringlich', play: function (big) {
+        (big ? [392, 523, 659, 784] : [523, 659]).forEach(function (f, k) { sndTone(f, k * 0.11, 0.6, 'triangle', 0.22); });
+    } },
+    { id: 'pling', name: 'Pling', desc: 'Kurz und hell', play: function (big) {
+        (big ? [660, 880, 1320] : [880, 1320]).forEach(function (f, k) { sndTone(f, k * 0.09, 0.35, 'sine', 0.18); });
+    } },
+    { id: 'glocke', name: 'Glöckchen', desc: 'Hell, klingt lange nach', play: function (big) {
+        (big ? [1568, 2093, 2637] : [2093]).forEach(function (f, k) { sndTone(f, k * 0.16, 1.4, 'sine', 0.12); sndTone(f * 2.76, k * 0.16, 0.5, 'sine', 0.03); });
+    } },
+    { id: 'dreiklang', name: 'Erfolgs-Dreiklang', desc: 'Kleine aufsteigende Melodie', play: function (big) {
+        var n = big ? [523, 659, 784, 1047, 784, 1047] : [523, 659, 784], d = [0, 0.1, 0.2, 0.3, 0.45, 0.55];
+        n.forEach(function (f, k) { sndTone(f, d[k], k === n.length - 1 ? 0.7 : 0.3, 'triangle', 0.2); });
+    } },
+    { id: 'muenze', name: 'Münze', desc: 'Retro-Spiel, wie ein eingesammelter Coin', play: function (big) {
+        sndTone(988, 0, 0.08, 'square', 0.07); sndTone(1319, 0.08, 0.35, 'square', 0.07);
+        if (big) [1047, 1319, 1568, 2093].forEach(function (f, k) { sndTone(f, 0.45 + k * 0.08, 0.25, 'square', 0.06); });
+    } },
+    { id: 'marimba', name: 'Marimba', desc: 'Warm und holzig', play: function (big) {
+        (big ? [523, 659, 784, 1047] : [784, 1047]).forEach(function (f, k) { sndTone(f, k * 0.1, 0.4, 'sine', 0.25); sndTone(f * 4, k * 0.1, 0.06, 'sine', 0.06); });
+    } },
+    { id: 'glitzer', name: 'Glitzer', desc: 'Schnelle Tonleiter nach oben, funkelnd', play: function (big) {
+        var n = [1047, 1175, 1319, 1568, 1760, 2093]; if (big) n = n.concat([2349, 2637, 3136]);
+        n.forEach(function (f, k) { sndTone(f, k * 0.045, 0.4, 'sine', 0.08); });
+    } }
+  ];
+  function sndById(id) { return SOUNDS.filter(function (s) { return s.id === id; })[0] || SOUNDS[0]; }
+  // Muss direkt im Klick passieren, sonst blockieren Handy-Browser den Ton
+  function celeAudio() {
+    try {
+      if (!celeAc) { celeAc = new (window.AudioContext || window.webkitAudioContext)(); celeMaster = celeAc.createGain(); celeMaster.connect(celeAc.destination); }
+      if (celeAc.state === 'suspended') celeAc.resume();
+      celeMaster.gain.value = SND.vol / 100 * 1.4;
+    } catch (e) { celeAc = null; }
+  }
+  function sndPlay(id, big) { celeAudio(); if (celeAc) sndById(id).play(big); }
+  function celePling(big) { if (SND.on && celeAc) sndById(SND.id).play(big); }
+
+  var elSetCard = document.getElementById('setCard'), elSndList = document.getElementById('sndList');
+  function sndSumDraw() { document.getElementById('sndSum').textContent = SND.on ? sndById(SND.id).name + ' · ' + SND.vol + ' %' : 'Aus'; }
+  function renderSettings() {
+    sndSumDraw();
+    document.getElementById('sndOn').checked = SND.on;
+    document.getElementById('sndOpts').classList.toggle('off', !SND.on);
+    document.getElementById('sndVol').value = SND.vol;
+    document.getElementById('sndVolTxt').textContent = SND.vol + ' %';
+    elSndList.innerHTML = SOUNDS.map(function (s) {
+      return '<li><label class="pick"><input type="radio" name="sndId" value="' + s.id + '"' + (s.id === SND.id ? ' checked' : '') + '>' +
+        '<span>' + s.name + '<small>' + s.desc + '</small></span></label>' +
+        '<button type="button" class="icon-btn" data-snd="' + s.id + '" aria-label="' + s.name + ' anhören" title="Anhören">▶</button>' +
+        '<button type="button" class="icon-btn" data-snd="' + s.id + '" data-big="1" aria-label="' + s.name + ' als „erledigt!“-Ton anhören" title="Variante für „… erledigt!“">★</button></li>';
+    }).join('');
+  }
+  document.getElementById('setBtn').addEventListener('click', function () {
+    var open = elSetCard.hidden;
+    elSetCard.hidden = !open;
+    this.setAttribute('aria-expanded', String(open));
+    aboOpen = open && document.getElementById('setCal').open;
+    if (open) { renderSettings(); calSumDraw(); }
+    if (aboOpen) { aboMsg = null; delAsk = null; renderAbos(); }
+  });
+  // Fenster schließen: ×, Tipp daneben oder Escape
+  function closeSettings() { if (!elSetCard.hidden) document.getElementById('setBtn').click(); }
+  document.getElementById('setClose').addEventListener('click', closeSettings);
+  elSetCard.addEventListener('click', function (e) { if (e.target === elSetCard) closeSettings(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSettings(); });
+  document.getElementById('sndOn').addEventListener('change', function () {
+    SND.on = this.checked; sndSave(); renderSettings();
+    if (SND.on) sndPlay(SND.id, false);
+  });
+  document.getElementById('sndVol').addEventListener('input', function () {
+    SND.vol = +this.value; sndSave();
+    document.getElementById('sndVolTxt').textContent = SND.vol + ' %'; sndSumDraw();
+    if (celeMaster) celeMaster.gain.value = SND.vol / 100 * 1.4;
+  });
+  // Lautstärke beim Loslassen einmal vorspielen
+  document.getElementById('sndVol').addEventListener('change', function () { sndPlay(SND.id, false); });
+  elSndList.addEventListener('change', function (e) {
+    if (e.target.name !== 'sndId') return;
+    SND.id = e.target.value; sndSave(); sndSumDraw(); sndPlay(SND.id, false);
+  });
+  elSndList.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-snd]');
+    if (b) sndPlay(b.dataset.snd, b.dataset.big === '1');
+  });
+
   function celebrate(x, y, doneName) {
     var E = celeInit(), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    celePling(!!doneName);
     if (!calm) fxBurst(x, y, doneName ? 70 : 40);
     if (doneName) {
       E.big.querySelector('b').textContent = doneName + ' erledigt!';
@@ -1798,6 +1950,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   elPanel.addEventListener('change', function (e) {
     var el = e.target, ds = el.dataset;
     if (!ready || !ds || !CELE_ACTS[ds.act] || !el.checked) return;
+    if (SND.on) celeAudio();
     var h0 = celeHead(el), key = celeKey(h0), wasFull = !!(h0 && h0.dataset.full === '1');
     var r = el.getBoundingClientRect(), sel = 'input[data-act="' + ds.act + '"]';
     ['id', 'tid', 'iid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
@@ -2518,10 +2671,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var blk = $('#yearBlock'); if (blk && yPick) blk.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
-  $('#aboBtn').addEventListener('click', function () {
-    aboOpen = !aboOpen;
-    $('#aboCard').hidden = !aboOpen;
-    this.setAttribute('aria-expanded', String(aboOpen));
+  // Kalender-Abos liegen in den Einstellungen (Bereich „Kalender“)
+  $('#setCal').addEventListener('toggle', function () {
+    aboOpen = this.open && !$('#setCard').hidden;
     if (aboOpen) { aboMsg = null; delAsk = null; renderAbos(); }
   });
   $('#aboCard').addEventListener('submit', function (e) {
