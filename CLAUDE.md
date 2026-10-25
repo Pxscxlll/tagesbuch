@@ -40,12 +40,13 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
   - Todos: `{id,x,from, day | due, done?, n?}`
   - Uni-Modus: `TABSET.uni` (der eingebaute Aufgaben-Tab heißt dann fest „Uni“, bei Pascal so). Früher wurde das über den Tab-Namen erkannt; ohne gespeichertes `TABSET` wird es aus `tabNames.tasks` übernommen.
 - **`IDEAS = [{id,x,n?,done?}]`:** Tab „Ideen“, eine Liste ohne Datum.
-- **Eigene Tabs:** `customTabs: [{id,name,items:[{id,text,rep,start,until?,n?}],kind?,inotes?}]` mit `kind` `uni` oder `physio`. Physio hat keine Notizen pro Eintrag, Sonstiges schon.
+- **Eigene Tabs:** `customTabs: [{id,name,items:[{id,text,rep,start,until?,n?}],kind?,inotes?,todos?}]` mit `kind` `uni`, `physio` oder `todo`. Physio hat keine Notizen pro Eintrag.
+- **To-do-Tab** (`kind: "todo"`, Katalog „To-do“): Aufgaben wie bei Uni (Tag oder Frist, Notizen, verschieben, Frist entfernen), aber im eigenen Speicher `c.todos` (gleiche Form wie `UNI.todos`). Zugriff immer über `todoFind`/`todoList`/`todoSave`; `migrateUni` lässt To-do-Tabs in Ruhe.
 - **`TABSET = {on:[ids], uni}`:** sichtbare feste Tabs, synchronisiert als `tabset`. Ohne gespeichertes `TABSET`: Nutzer mit alten Daten sehen alle festen Tabs, neue Nutzer nur `START_TABS` (Alle, Termine, Ideen, Notiz).
 
 ## Tabs
 - **Alle** (Standard beim Öffnen, ganz links): Termine und Stundenplan des Tages sowie offene Aufgaben, nach Herkunft gruppiert. Nur ansehen und abhaken, Notizen aufklappbar.
-- Termine, Gewicht, Sport, Aufgaben (bei Pascal „Uni“: Stundenplan | Aufgaben mit Frist), Notiz, Ideen, eigene Tabs (Physio, Sonstiges)
+- Termine, Gewicht, Sport, Aufgaben (bei Pascal „Uni“: Stundenplan | Aufgaben mit Frist), Notiz, Ideen, eigene Tabs (Physio, To-do)
 
 ## Pascals UX-Regeln
 - Das Format muss auf Handy, iPad und PC/Laptop stimmen: keine Überschneidungen.

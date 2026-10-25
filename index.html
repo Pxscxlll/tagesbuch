@@ -174,7 +174,7 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .tab .ic { font-size: 1rem; line-height: 1; }
 .tab .kdot { width: 6px; height: 6px; border-radius: 50%; background: var(--kc); position: absolute; top: 4px; right: 4px; }
 .tab[aria-selected="true"][style*="--kc"] { color: var(--kc); box-shadow: 0 0 0 1px color-mix(in srgb, var(--kc) 55%, var(--line)); }
-@media (max-width: 600px) { .tab .nm { display: none; } .tab .ic { font-size: 1.15rem; } .tab { padding: 9px 4px; } }
+@media (max-width: 600px) { .tab .nm { display: none; } .tab .ic { font-size: 1.05rem; } .tab { padding: 9px 3px; } .tabs { gap: 2px; } .tab.add { padding: 8px 9px; } }
 #dayCard { border-top: 3px solid var(--tabc, var(--accent)); transition: border-color .3s; }
 /* Freundliche leere Zustände */
 .empty { text-align: center; padding: 14px 10px 6px; color: var(--muted); font-size: 0.9rem; }
@@ -461,7 +461,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 77</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 78</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -625,7 +625,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function restoreTab(t, name) {
     if (customTabs.some(function (c) { return c.id === t.id; })) return;
-    customTabs.push(Object.assign({ id: t.id, name: (name || t.name || 'Wiederhergestellt').slice(0, 24), items: t.items || [] }, t.kind ? { kind: t.kind } : {}, typeof t.inotes === 'boolean' ? { inotes: t.inotes } : {}));
+    customTabs.push(Object.assign({ id: t.id, name: (name || t.name || 'Wiederhergestellt').slice(0, 24), items: t.items || [] }, t.kind ? { kind: t.kind } : {}, t.todos ? { todos: normTodos(t.todos) } : {}, typeof t.inotes === 'boolean' ? { inotes: t.inotes } : {}));
     deletedTabs = deletedTabs.filter(function (c) { return c.id !== t.id; });
     savePrefs(); saveDeleted();
     addingTab = false; tab = 'c_' + t.id; wtab = tab;
@@ -901,7 +901,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     ['weight', 'Gewicht', 'Gewicht eintragen, mit Verlauf'],
     ['sport', 'Sport', 'Sporteinheiten eintragen'],
     ['uni', 'Uni', 'Stundenplan und Aufgaben mit Frist'],
-    ['physio', 'Physio', 'Übungen mit Wiederholung zum Abhaken']
+    ['physio', 'Physio', 'Übungen mit Wiederholung zum Abhaken'],
+    ['todo', 'To-do', 'Aufgaben für einen Tag oder mit Frist, wie bei Uni']
   ];
   // TABSET = { on: sichtbare feste Tabs, uni: „Aufgaben“ läuft als „Uni“ } – nur gesetzt, wenn im Katalog etwas geändert wurde
   var TABSET = null, legacyUser = false, catDelAsk = null;
@@ -938,14 +939,32 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var ts = tabset();
     if (id === 'uni') return (ts.uni && ts.on.indexOf('tasks') >= 0) || customTabs.some(isUni);
     if (id === 'physio') return customTabs.some(isPhysio);
+    if (id === 'todo') return customTabs.some(isTodoTab);
     return ts.on.indexOf(id) >= 0;
   }
   function uniActive() { return (tab === 'tasks' && uniTasksMode()) || (/^c_/.test(tab) && isUni(tabById(tab.slice(2)))); }
+  /* ---------- To-do-Tab: Aufgaben mit Tag oder Frist wie bei Uni, aber eigener Speicher (c.todos) ---------- */
+  function isTodoTab(c) { return !!c && c.kind === 'todo'; }
+  function curTodoTab() { var c = /^c_/.test(tab) ? tabById(tab.slice(2)) : null; return isTodoTab(c) ? c : null; }
+  function todoList(c) { return isTodoTab(c) ? (c.todos || (c.todos = [])) : (UNI.todos || (UNI.todos = [])); }
+  // Aufgabe per ID finden: { t: Aufgabe, c: To-do-Tab oder null für Uni }
+  function todoFind(id) {
+    var t = (UNI.todos || []).filter(function (x) { return x.id === id; })[0];
+    if (t) return { t: t, c: null };
+    for (var i = 0; i < customTabs.length; i++) {
+      if (!isTodoTab(customTabs[i])) continue;
+      t = (customTabs[i].todos || []).filter(function (x) { return x.id === id; })[0];
+      if (t) return { t: t, c: customTabs[i] };
+    }
+    return null;
+  }
+  function todoSave(c) { if (c) savePrefs(); else saveUni(); }
   // Früher im eigenen Tab gespeicherte Uni-Daten in den gemeinsamen Speicher übernehmen
   function migrateUni() {
     loadUniLocal(); loadIdeasLocal();
     var moved = false;
     customTabs.forEach(function (c) {
+      if (isTodoTab(c)) return; // To-do behält seine Aufgaben
       if ((c.lessons && c.lessons.length) || (c.todos && c.todos.length)) {
         UNI.lessons = UNI.lessons.concat(c.lessons || []).slice(0, 120);
         UNI.todos = UNI.todos.concat(c.todos || []).slice(-300);
@@ -984,6 +1003,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function uniHas(k, t) {
     var c = /^c_/.test(t) ? tabById(t.slice(2)) : null;
     if (t === 'tasks' && uniTasksMode()) return lessonsOn(null, k).length > 0 || todosOn(null, k).some(function (x) { return !x.done; }) || !!(days[k] && days[k].tasks.length);
+    if (isTodoTab(c)) return todosOn(c, k).some(function (x) { return !x.done; });
     if (!isUni(c)) return null;
     return lessonsOn(c, k).length > 0 || todosOn(c, k).some(function (x) { return !x.done; }) || !!(days[k] && days[k].custom && days[k].custom[c.id]);
   }
@@ -1647,7 +1667,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   // Art des Tabs für Farbe und Symbol; null = keine eigene Farbe (Alle, sonstige eigene Tabs)
   function tabKind(t) {
     if (t === 'tasks') return uniTasksMode() ? 'uni' : 'tasks';
-    if (/^c_/.test(t)) { var c = tabById(t.slice(2)); return isUni(c) ? 'uni' : isPhysio(c) ? 'physio' : null; }
+    if (/^c_/.test(t)) { var c = tabById(t.slice(2)); return isUni(c) ? 'uni' : isPhysio(c) ? 'physio' : isTodoTab(c) ? 'tasks' : null; }
     return { events: 1, weight: 1, sport: 1, note: 1, ideas: 1 }[t] ? t : null;
   }
   // Im Panel ersetzt die Farbe des Tabs die Akzentfarbe: Häkchen, Balken, Buttons, Felder, Feier
@@ -1687,7 +1707,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
           return o;
         }).slice(0, 50);
         var o2 = { id: c.id.slice(0, 20), name: c.name.slice(0, 24), items: items };
-        if (c.kind === 'uni' || c.kind === 'physio') o2.kind = c.kind;
+        if (c.kind === 'uni' || c.kind === 'physio' || c.kind === 'todo') o2.kind = c.kind;
         if (typeof c.inotes === 'boolean') o2.inotes = c.inotes;
         var lz = normLessons(c.lessons), tz = normTodos(c.todos);
         if (lz.length) o2.lessons = lz;
@@ -1807,7 +1827,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }).sort(function (a, b) { return a.f < b.f ? -1 : a.f > b.f ? 1 : 0; });
   }
   function todosOn(c, k) {
-    return (UNI.todos || []).filter(function (t) {
+    return todoList(c).filter(function (t) {
       if (t.day) return t.day === k;
       if (k < t.from) return false;
       if (t.done) return k <= t.done;
@@ -1861,7 +1881,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function notesOn(c) { return !!c && (c.inotes != null ? !!c.inotes : !/physio/i.test(c.name)); }
   function noteRef(kind, id, k, tid) {
     if (kind === 'task') return ((days[k] || {}).tasks || []).filter(function (x) { return x.id === id; })[0];
-    if (kind === 'uni') return (UNI.todos || []).filter(function (x) { return x.id === id; })[0];
+    if (kind === 'uni') return (todoFind(id) || {}).t;
     if (kind === 'citem') { var c = tabById(tid); return c && (c.items || []).filter(function (x) { return x.id === id; })[0]; }
     return null;
   }
@@ -2091,7 +2111,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     ['id', 'tid', 'iid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
     // Frist früh geschafft: Fristaufgabe vor dem Fristtag abgehakt
     var msg = null, utid = ds.act === 'uni-ttoggle' ? ds.tid : (ds.act === 'all-toggle' && ds.kind === 'uni' ? ds.id : null);
-    var ut = utid && (UNI.todos || []).filter(function (x) { return x.id === utid; })[0];
+    var ut = utid && (todoFind(utid) || {}).t;
     if (ut && ut.due && ut.due > todayKey) {
       var early = Math.round((parseKey(ut.due) - parseKey(todayKey)) / 864e5);
       msg = '🎉 ' + early + (early === 1 ? ' Tag' : ' Tage') + ' vor der Frist geschafft!';
@@ -2118,7 +2138,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (et.n) nt.n = et.n;
       ensure(k).tasks.push(nt); commit(k);
     } else { delete et.due; et.day = k; }
-    uniEditTodo = null; saveUni(); refreshAfterEdit(true);
+    uniEditTodo = null; todoSave((todoFind(et.id) || {}).c); if (uniTasksMode() && tab === 'tasks') saveUni(); refreshAfterEdit(true);
   }
   function todoRow(t) {
     if (uniEditTodo === t.id) {
@@ -2182,7 +2202,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var id = c ? c.id : null, h = '<div class="modes subtabs" role="tablist" aria-label="Uni-Bereich">' +
       '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="plan" aria-selected="' + (uniView === 'plan') + '">Stundenplan</button>' +
       '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="todo" aria-selected="' + (uniView === 'todo') + '">Aufgaben</button></div>';
-    if (uniView === 'plan') {
+    var todoOnly = isTodoTab(c); if (todoOnly) h = '';
+    if (uniView === 'plan' && !todoOnly) {
       var ls = lessonsOn(c, selected);
       h += ls.length ? '<div class="events uniplan">' + (function () { var st = liveStates(selected, ls.map(function (l) { return { f: l.f, t: l.t }; })); return ls.map(function (l, i) { return lessonHtml(l, st[i]); }).join(''); })() + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
       if (uniMsg && !uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
@@ -2241,11 +2262,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
       h += progHead('Aufgaben', ts.filter(function (t) { return t.done; }).length, ts.length, c.name) + '<ul class="list">' + ts.map(todoRow).join('') + '</ul>';
     } else h += emptyHtml('✅', 'Keine Aufgaben', 'Genieß den freien Tag.');
     h += '<form data-form="unitodo" class="row" novalidate>' +
-      '<div class="field"><label for="utX">Neue Aufgabe</label><input id="utX" type="text" maxlength="140" autocomplete="off" placeholder="z. B. Übungsblatt 3 TM"' + dis() + '></div>' +
+      '<div class="field"><label for="utX">Neue Aufgabe</label><input id="utX" type="text" maxlength="140" autocomplete="off" placeholder="' + (todoOnly ? 'z. B. Wäsche waschen' : 'z. B. Übungsblatt 3 TM') + '"' + dis() + '></div>' +
       '<div class="field" style="flex-basis:150px"><label for="utDue">Frist (optional)</label><input id="utDue" type="date" min="' + selected + '"' + dis() + '></div>' +
       '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>' +
       '<p class="hint">Ohne Frist gilt die Aufgabe nur für diesen Tag. Mit Frist erscheint sie jeden Tag bis zur Frist, bis du sie abhakst.</p>';
-    if ((c.items || []).length) { var keepPanel = elPanel; renderCustomBase(c); h += keepPanel.innerHTML; }
+    if (todoOnly) h += (delTabAsk
+        ? '<p class="hint">Tab „' + esc(c.name) + '“ wirklich entfernen? Die Aufgaben bleiben gespeichert, sind aber nicht mehr sichtbar.</p><div class="row"><button type="button" class="btn" data-act="tab-del-yes">Ja, entfernen</button><button type="button" class="btn ghost" data-act="tab-del-no">Behalten</button></div>'
+        : '<div class="row" style="margin-top:12px"><button type="button" class="btn ghost" data-act="tab-del-ask"' + dis() + '>Tab entfernen</button></div>');
+    else if ((c.items || []).length) { var keepPanel = elPanel; renderCustomBase(c); h += keepPanel.innerHTML; }
     else h += '<div class="field"><label for="customIn">Notiz</label><textarea class="autogrow" id="customIn" placeholder="Eintrag für diesen Tag"' + dis() + '>' + esc(((days[selected] || blank()).custom || {})[id] || '') + '</textarea></div>' +
       (delTabAsk
         ? '<p class="hint">Tab „' + esc(c.name) + '“ wirklich entfernen? Die Einträge bleiben gespeichert, sind aber nicht mehr sichtbar.</p><div class="row"><button type="button" class="btn" data-act="tab-del-yes">Ja, entfernen</button><button type="button" class="btn ghost" data-act="tab-del-no">Behalten</button></div>'
@@ -2254,7 +2278,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function renderCustom() {
     var c0 = tabById(tab.slice(2));
-    if (isUni(c0)) { renderUni(c0); return; }
+    if (isUni(c0) || isTodoTab(c0)) { renderUni(c0); return; }
     renderCustomBase(c0);
   }
   function renderCustomBase(c0) {
@@ -2723,6 +2747,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (dk < k) days[dk].tasks.forEach(function (t) { if (!t.done) out.push({ kind: 'task', id: t.id, k: dk, text: t.text, done: false, sub: 'vom ' + shortDate(dk), late: true, go: 'tasks' }); });
     });
     customTabs.forEach(function (c) {
+      if (isTodoTab(c)) {
+        todosOn(c, k).forEach(function (t) { out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: 'c_' + c.id }); });
+        return;
+      }
       if (isUni(c)) return;
       dueItems(c.id, k).forEach(function (it) { out.push({ kind: 'citem', id: it.id, tid: c.id, k: k, text: it.text, done: isChecked(k, c.id, it.id), sub: '', go: 'c_' + c.id }); });
     });
@@ -3119,12 +3147,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return;
     }
     if (f === 'unitodo' || f === 'unilesson' || f === 'uniimport') {
-      if (!uniActive()) return;
+      var tdc = f === 'unitodo' ? curTodoTab() : null;
+      if (!uniActive() && !tdc) return;
       if (f === 'unitodo') {
         var ux = $('#utX').value.trim().slice(0, 140), udue = $('#utDue').value;
         if (!ux) { $('#utX').placeholder = 'Bitte eintragen, was zu tun ist'; return; }
         var nt = { id: uid(), x: ux, from: selected };
         if (udue && udue >= selected) nt.due = udue; else nt.day = selected;
+        if (tdc) { tdc.todos = todoList(tdc).concat([nt]); savePrefs(); renderPanel(); renderCal(); return; }
         UNI.todos = (UNI.todos || []).concat([nt]);
       } else if (f === 'unilesson') {
         var us = $('#ulS').value.trim(), uf = $('#ulF').value, ut = $('#ulT').value, ud = $('#ulD').value;
@@ -3225,6 +3255,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var act = b.dataset.act, d = days[selected];
     if (act === 'cancel-tab') { addingTab = false; catDelAsk = null; renderTabs(); renderPanel(); renderEvents(); return; }
     if (act === 'uni-view') { uniView = b.dataset.v === 'todo' ? 'todo' : 'plan'; uniMsg = null; try { localStorage.setItem('tagesbuch:uniview', uniView); } catch (er) {} renderPanel(); return; }
+    if (act === 'uni-tdel' && curTodoTab()) {
+      var tdt = curTodoTab(), tsnap = todoList(tdt).slice();
+      tdt.todos = tsnap.filter(function (t) { return t.id !== b.dataset.tid; });
+      savePrefs(); renderPanel(); renderCal();
+      undoable('Aufgabe gelöscht', function () { tdt.todos = tsnap; savePrefs(); renderPanel(); renderCal(); });
+      return;
+    }
     if (act === 'uni-ldel' || act === 'uni-tdel' || act === 'uni-lclear') {
       if (!uniActive()) return;
       var snapL = (UNI.lessons || []).slice(), snapT = (UNI.todos || []).slice();
@@ -3249,17 +3286,17 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (act === 'uni-tedit') { uniEditTodo = b.dataset.tid; renderPanel(); return; }
     if (act === 'uni-tcancel') { uniEditTodo = null; renderPanel(); return; }
     if (act === 'uni-tsave') {
-      var et = (UNI.todos || []).filter(function (x) { return x.id === b.dataset.tid; })[0]; if (!et) return;
+      var ef = todoFind(b.dataset.tid), et = ef && ef.t; if (!et) return;
       var ex = $('#utEx').value.trim().slice(0, 140), ed = $('#utEd').value;
       if (!ex) { $('#utEx').placeholder = 'Bitte eintragen'; return; }
       et.x = ex;
       if (KRE.test(ed)) { et.due = ed; delete et.day; }
       else { uniDropDue(et, ($('#utEday') || {}).value); return; }
-      uniEditTodo = null; saveUni(); renderPanel(); renderCal();
+      uniEditTodo = null; todoSave(ef.c); renderPanel(); renderCal();
       return;
     }
     if (act === 'uni-tnodue') {
-      var nt = (UNI.todos || []).filter(function (x) { return x.id === b.dataset.tid; })[0]; if (!nt) return;
+      var nt = (todoFind(b.dataset.tid) || {}).t; if (!nt) return;
       var nx = $('#utEx') && $('#utEx').value.trim().slice(0, 140); if (nx) nt.x = nx;
       uniDropDue(nt, ($('#utEday') || {}).value);
       return;
@@ -3288,7 +3325,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       customTabs = customTabs.filter(function (x) { return x.id !== cid; });
       if (gone) {
         deletedTabs = deletedTabs.filter(function (x) { return x.id !== cid; });
-        deletedTabs.unshift(Object.assign({ id: gone.id, name: gone.name, items: gone.items || [], at: todayKey }, gone.kind ? { kind: gone.kind } : {}, typeof gone.inotes === 'boolean' ? { inotes: gone.inotes } : {}));
+        deletedTabs.unshift(Object.assign({ id: gone.id, name: gone.name, items: gone.items || [], at: todayKey }, gone.kind ? { kind: gone.kind } : {}, gone.todos ? { todos: gone.todos } : {}, typeof gone.inotes === 'boolean' ? { inotes: gone.inotes } : {}));
         deletedTabs = deletedTabs.slice(0, 20); saveDeleted();
         undoable('Tab „' + gone.name + '“ entfernt', function () { restoreTab(gone); });
       }
@@ -3308,12 +3345,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (act === 'cat-add') {
       var cad = b.dataset.id, ts0 = tabset(), on0 = ts0.on.slice(), uni0 = ts0.uni, go0 = cad;
       if (cad === 'uni' && uni0 && on0.indexOf('tasks') < 0) { on0.push('tasks'); go0 = 'tasks'; }
-      else if (cad === 'uni' || cad === 'physio') {
+      else if (cad === 'uni' || cad === 'physio' || cad === 'todo') {
         // Früher entfernten Tab dieser Art samt Einträgen zurückholen, sonst neu anlegen
-        var old0 = deletedTabs.filter(function (x) { return cad === 'uni' ? isUni(x) : isPhysio(x); })[0];
+        var old0 = deletedTabs.filter(function (x) { return cad === 'uni' ? isUni(x) : cad === 'todo' ? isTodoTab(x) : isPhysio(x); })[0];
         if (old0) { setTabset({ on: on0, uni: uni0 }); restoreTab(old0); return; }
         if (customTabs.length >= 12) return;
-        var nt0 = { id: uid(), name: cad === 'uni' ? 'Uni' : 'Physio', items: [], kind: cad };
+        var nt0 = { id: uid(), name: cad === 'uni' ? 'Uni' : cad === 'todo' ? 'To-do' : 'Physio', items: [], kind: cad };
+        if (cad === 'todo') nt0.todos = [];
         if (cad === 'physio') nt0.inotes = false;
         customTabs.push(nt0); savePrefs(); go0 = 'c_' + nt0.id;
       } else {
@@ -3335,7 +3373,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         customTabs = customTabs.filter(function (x) { return x.id !== cdl.slice(2); });
         if (gone1) {
           deletedTabs = deletedTabs.filter(function (x) { return x.id !== gone1.id; });
-          deletedTabs.unshift(Object.assign({ id: gone1.id, name: gone1.name, items: gone1.items || [], at: todayKey }, gone1.kind ? { kind: gone1.kind } : {}, typeof gone1.inotes === 'boolean' ? { inotes: gone1.inotes } : {}));
+          deletedTabs.unshift(Object.assign({ id: gone1.id, name: gone1.name, items: gone1.items || [], at: todayKey }, gone1.kind ? { kind: gone1.kind } : {}, gone1.todos ? { todos: gone1.todos } : {}, typeof gone1.inotes === 'boolean' ? { inotes: gone1.inotes } : {}));
           deletedTabs = deletedTabs.slice(0, 20); saveDeleted();
         }
         savePrefs();
@@ -3567,7 +3605,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var v = e.target.value.slice(0, 5000);
     if (v.trim()) ref.n = v; else delete ref.n;
     if (ds.kind === 'task') commit(ds.k, 700);
-    else { clearTimeout(noteSaveT); noteSaveT = setTimeout(function () { if (ds.kind === 'uni') saveUni(); else savePrefs(); }, 700); }
+    else { clearTimeout(noteSaveT); noteSaveT = setTimeout(function () { if (ds.kind === 'uni') todoSave((todoFind(ds.id) || {}).c); else savePrefs(); }, 700); }
   });
   elPanel.addEventListener('toggle', function (e) { if (e.target.dataset && e.target.dataset.uniDet) uniEditPlan = e.target.open; }, true);
   elPanel.addEventListener('change', function (e) {
@@ -3580,8 +3618,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (el.dataset && el.dataset.act === 'all-toggle' && ready) {
       var kd = el.dataset.kind, ak = el.dataset.k, aid = el.dataset.id;
       if (kd === 'uni') {
-        var ut = (UNI.todos || []).filter(function (x) { return x.id === aid; })[0]; if (!ut) return;
-        if (el.checked) ut.done = ak; else delete ut.done; saveUni();
+        var uf = todoFind(aid), ut = uf && uf.t; if (!ut) return;
+        if (el.checked) ut.done = ak; else delete ut.done; todoSave(uf.c);
       } else if (kd === 'task') {
         var tt2 = ((days[ak] || {}).tasks || []).filter(function (x) { return x.id === aid; })[0]; if (!tt2) return;
         tt2.done = el.checked; commit(ak);
@@ -3603,10 +3641,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return;
     }
     if (el.dataset && el.dataset.act === 'uni-ttoggle' && ready) {
-      var tt = (UNI.todos || []).filter(function (x) { return x.id === el.dataset.tid; })[0];
+      var tf = todoFind(el.dataset.tid), tt = tf && tf.t;
       if (!tt) return;
       if (el.checked) tt.done = selected; else delete tt.done;
-      saveUni(); renderPanel(); renderCal();
+      todoSave(tf.c); renderPanel(); renderCal();
       return;
     }
     if (el.dataset && el.dataset.act === 'ctoggle' && ready) {
