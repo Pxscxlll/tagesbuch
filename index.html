@@ -207,6 +207,11 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .tbadge.soon { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
 /* Serie bei Physio */
 .streak { flex: none; font-size: .78rem; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
+.streak.tot { color: var(--fg); background: color-mix(in srgb, var(--muted) 20%, transparent); }
+.phead:has(.streak.tot) { flex-wrap: wrap; row-gap: 6px; }
+.istreak { color: var(--accent); font-weight: 600; white-space: nowrap; }
+.sgoal { margin-bottom: 10px; }
+.sgoal .label { flex: 1 1 auto; }
 /* Akzentfarbe wählen */
 .acc-list { display: flex; gap: 10px; flex-wrap: wrap; }
 .acc-sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
@@ -461,7 +466,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 78</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 79</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1897,25 +1902,77 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   // Serie bei Physio: Tage in Folge, an denen alle fälligen Übungen abgehakt waren.
   // Tage ohne Übungen zählen nicht und unterbrechen nicht; ist heute noch offen, zählt die Serie bis gestern.
+  // Dazu „total“: an wie vielen Tagen insgesamt alles abgehakt war (reißt nicht ab).
   function physioStreak(c) {
-    if (!c || !isPhysio(c) || !(c.items || []).length) return 0;
+    var r = { run: 0, total: 0 };
+    if (!c || !isPhysio(c) || !(c.items || []).length) return r;
     var first = c.items.reduce(function (m, it) { return it.start < m ? it.start : m; }, todayKey);
-    var d = parseKey(todayKey), n = 0;
-    for (var i = 0; i < 400; i++) {
+    var d = parseKey(todayKey), going = true;
+    for (var i = 0; i < 1500; i++) {
       var k = keyOf(d);
       if (k < first) break;
       var due = dueItems(c.id, k);
       if (due.length) {
-        if (due.every(function (it) { return isChecked(k, c.id, it.id); })) n++;
+        if (due.every(function (it) { return isChecked(k, c.id, it.id); })) { r.total++; if (going) r.run++; }
+        else if (k !== todayKey) going = false;
+      }
+      d.setDate(d.getDate() - 1);
+    }
+    return r;
+  }
+  // Serie einer einzelnen Übung: fällige Tage in Folge, an denen sie abgehakt war (heute offen unterbricht nicht)
+  function itemStreak(tid, it) {
+    var d = parseKey(todayKey), n = 0;
+    for (var i = 0; i < 1500; i++) {
+      var k = keyOf(d);
+      if (k < it.start) break;
+      if (itemDue(it, k)) {
+        if (isChecked(k, tid, it.id)) n++;
         else if (k !== todayKey) break;
       }
       d.setDate(d.getDate() - 1);
     }
     return n;
   }
-  function streakHtml(c) {
-    var n = physioStreak(c);
-    return n ? '<span class="streak" title="' + n + (n === 1 ? ' Tag' : ' Tage') + ' in Folge alle Übungen gemacht">🔥 ' + n + (n === 1 ? ' Tag' : ' Tage') + '</span>' : '';
+  function plTage(n) { return n + (n === 1 ? ' Tag' : ' Tage'); }
+  // withTotal: im Physio-Tab zusätzlich die Gesamtzahl; in „Alle“ nur die Serie (wenig Platz)
+  function streakHtml(c, withTotal) {
+    var s = physioStreak(c), h = '';
+    if (s.run) h += '<span class="streak" data-run="' + s.run + '" title="' + plTage(s.run) + ' in Folge alle Übungen gemacht">🔥 ' + plTage(s.run) + '</span>';
+    if (withTotal && s.total) h += '<span class="streak tot" title="An ' + plTage(s.total).replace(/e$/, 'en') + ' insgesamt alle Übungen gemacht">✓ ' + s.total + '× geschafft</span>';
+    return h;
+  }
+  /* Sport-Serie: Wochen (Mo–So) mit mindestens 2× Krafttraining oder Bouldern */
+  var SPORT_GOAL = 2, SPORT_RE = /kraft|bould/i;
+  function weekStart(k) { var d = parseKey(k); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return keyOf(d); }
+  function goalCount(ws) {
+    var n = 0;
+    for (var i = 0; i < 7; i++) {
+      var dd = days[addDays(ws, i)];
+      if (dd && dd.sports) n += dd.sports.filter(function (s) { return SPORT_RE.test(s.type || ''); }).length;
+    }
+    return n;
+  }
+  // run: Wochen in Folge (laufende Woche unterbricht nicht), year: geschaffte Wochen im aktuellen Jahr, now: Einheiten diese Woche
+  function sportStreak() {
+    var ks = Object.keys(days).filter(function (k) { return days[k] && days[k].sports && days[k].sports.some(function (s) { return SPORT_RE.test(s.type || ''); }); }).sort();
+    var cur = weekStart(todayKey), yr = todayKey.slice(0, 4), r = { run: 0, year: 0, now: goalCount(cur) };
+    if (!ks.length) return r;
+    var first = weekStart(ks[0]), going = true;
+    for (var ws = cur, i = 0; ws >= first && i < 520; ws = addDays(ws, -7), i++) {
+      var ok = goalCount(ws) >= SPORT_GOAL;
+      if (ok && ws.slice(0, 4) === yr) r.year++;
+      if (ok) { if (going) r.run++; } else if (ws !== cur) going = false;
+      if (!going && ws.slice(0, 4) < yr) break;
+    }
+    return r;
+  }
+  function sportStreakHtml() {
+    var s = sportStreak(), wk = function (n) { return n + (n === 1 ? ' Woche' : ' Wochen'); };
+    return '<div class="phead sgoal"><span class="label">Kraft &amp; Bouldern</span>' +
+      '<span class="allgrp-n' + (s.now >= SPORT_GOAL ? ' full' : '') + '">Diese Woche ' + Math.min(s.now, SPORT_GOAL) + ' von ' + SPORT_GOAL + '</span>' +
+      (s.run ? '<span class="streak" title="' + wk(s.run) + ' in Folge mindestens 2× Krafttraining oder Bouldern">🔥 ' + wk(s.run) + '</span>' : '') +
+      (s.year ? '<span class="streak tot" title="' + wk(s.year) + ' in ' + todayKey.slice(0, 4) + ' geschafft">✓ ' + wk(s.year) + ' in ' + todayKey.slice(0, 4) + '</span>' : '') + '</div>';
   }
   // Kopfzeile mit Fortschritt: Name – Balken – „x von y erledigt“ (name = Tab für die große Feier)
   function progHead(label, done, total, name, grp, extra) {
@@ -2124,7 +2181,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         var li = cb.closest('li'); if (li) { li.classList.add('glow'); setTimeout(function () { li.classList.remove('glow'); }, 700); }
       }
       // Serie bei Physio in der großen Feier nennen
-      var st = full && h1.querySelector('.streak'), sub = st ? st.textContent + ' in Folge, weiter so!' : null;
+      var st = full && h1.querySelector('.streak[data-run]'), sub = st ? '🔥 ' + plTage(+st.dataset.run) + ' in Folge, weiter so!' : null;
       celebrate(r.left + r.width / 2, r.top + r.height / 2, full ? h1.dataset.name : null, col, msg, sub);
     }, 0);
   }, true);
@@ -2285,7 +2342,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var id = c0 ? c0.id : tab.slice(2), c = c0;
     var d = days[selected] || blank();
     var due = dueItems(id, selected), nDone = due.filter(function (it) { return isChecked(selected, id, it.id); }).length;
-    var h = '<div class="field">' + (due.length ? progHead('Übungen', nDone, due.length, c ? c.name : '', null, streakHtml(c)) : '<span class="label">Übungen</span>');
+    var h = '<div class="field">' + (due.length ? progHead('Übungen', nDone, due.length, c ? c.name : '', null, streakHtml(c, true)) : '<span class="label">Übungen</span>');
     if (due.length) {
       h += '<ul class="list">' + due.map(function (it) {
         if (editItem === it.id) {
@@ -2303,7 +2360,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
         var on = isChecked(selected, id, it.id), cid = 'ci_' + it.id;
         return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" data-act="ctoggle" data-iid="' + esc(it.id) + '" id="' + esc(cid) + '"' + (on ? ' checked' : '') + dis() + '>' +
           (function () {
-            var inner = esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + (it.rep === 'once' ? '' : ' · ' + (it.until ? shortDate(it.start) + ' – ' + shortDate(it.until) : 'ab ' + shortDate(it.start))) + '</small>';
+            var ist = isPhysio(c) && it.rep !== 'once' ? itemStreak(id, it) : 0;
+            var inner = esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + (it.rep === 'once' ? '' : ' · ' + (it.until ? shortDate(it.start) + ' – ' + shortDate(it.until) : 'ab ' + shortDate(it.start))) +
+              (ist ? ' · <span class="istreak" title="' + plTage(ist) + ' in Folge gemacht">🔥 ' + ist + '</span>' : '') + '</small>';
             return notesOn(c) ? noteBtn('citem', it.id, '', id, inner, it.n) : '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + inner + '</label>';
           })() +
           '<button type="button" class="del pen" data-act="item-edit" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' bearbeiten">✎</button>' +
@@ -2484,7 +2543,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     sportForce = false;
     var d = days[selected] || blank();
     if (openSport && !d.sports.some(function (s) { return s.id === openSport; })) openSport = null;
-    var h = '';
+    var h = sportStreakHtml();
     if (d.sports.length) {
       h += '<div class="events">' + d.sports.map(function (s) {
         var open = openSport === s.id;

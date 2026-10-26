@@ -63,7 +63,8 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - **Akzentfarbe** Silber/Rosa/Limette unter Einstellungen, pro Gerät (`tagesbuch:accent`, `data-accent` am html). Gilt für alles ohne eigenen Tab.
 - Leere Zustände mit `emptyHtml`, Ladeanimation (`.skel`) solange `ready` falsch ist.
 - **Tagesring** hinter dem Datum (nur Tagesansicht, `renderRing`): Anteil erledigter Aufgaben aus „Alle“, bei 100 % ein ✓.
-- **Physio-Serie** 🔥 (`physioStreak`): Tage in Folge mit allen fälligen Übungen; Tage ohne Übungen zählen nicht, ein offener heutiger Tag unterbricht nicht.
+- **Physio-Serie** 🔥 (`physioStreak` → `{run,total}`): Tage in Folge mit allen fälligen Übungen; Tage ohne Übungen zählen nicht, ein offener heutiger Tag unterbricht nicht. Im Physio-Tab zusätzlich „✓ N× geschafft“ (alle Tage insgesamt, reißt nicht ab), in „Alle“ nur die Serie. Jede wiederkehrende Übung zeigt ihre eigene Serie „🔥 N“ (`itemStreak`).
+- **Sport-Serie** (`sportStreak`, oben im Sport-Tab): Wochen Mo–So mit mindestens 2× Krafttraining oder Bouldern (Sportart passt auf `/kraft|bould/i`). Zeigt „Diese Woche x von 2“, „🔥 N Wochen“ in Folge (laufende Woche unterbricht nicht) und „✓ N Wochen in JJJJ“.
 - **Frist früh geschafft:** Beim Abhaken einer Fristaufgabe vor dem Fristtag kommt „🎉 N Tage vor der Frist geschafft!“.
 - **„läuft gerade“ und Countdown** (`liveStates`, nur für heute) bei Terminen, in „Alle“ und im Stundenplan; wird jede Minute aufgefrischt, außer während man tippt.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.

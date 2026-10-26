@@ -1,4 +1,4 @@
-const CACHE = 'planner-v78';
+const CACHE = 'planner-v79';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {
