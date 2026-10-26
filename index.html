@@ -466,7 +466,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 79</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 80</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2362,7 +2362,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
           (function () {
             var ist = isPhysio(c) && it.rep !== 'once' ? itemStreak(id, it) : 0;
             var inner = esc(it.text) + '<small>' + esc(repLabel(it.rep, it.start)) + (it.rep === 'once' ? '' : ' · ' + (it.until ? shortDate(it.start) + ' – ' + shortDate(it.until) : 'ab ' + shortDate(it.start))) +
-              (ist ? ' · <span class="istreak" title="' + plTage(ist) + ' in Folge gemacht">🔥 ' + ist + '</span>' : '') + '</small>';
+              (ist ? ' · <span class="istreak" title="' + plTage(ist) + ' in Folge gemacht">🔥 ' + plTage(ist) + '</span>' : '') + '</small>';
             return notesOn(c) ? noteBtn('citem', it.id, '', id, inner, it.n) : '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + inner + '</label>';
           })() +
           '<button type="button" class="del pen" data-act="item-edit" data-iid="' + esc(it.id) + '" aria-label="' + esc(it.text) + ' bearbeiten">✎</button>' +
@@ -2811,7 +2811,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         return;
       }
       if (isUni(c)) return;
-      dueItems(c.id, k).forEach(function (it) { out.push({ kind: 'citem', id: it.id, tid: c.id, k: k, text: it.text, done: isChecked(k, c.id, it.id), sub: '', go: 'c_' + c.id }); });
+      dueItems(c.id, k).forEach(function (it) { out.push({ kind: 'citem', id: it.id, tid: c.id, k: k, text: it.text, done: isChecked(k, c.id, it.id), sub: '', go: 'c_' + c.id, ist: isPhysio(c) && it.rep !== 'once' ? itemStreak(c.id, it) : 0 }); });
     });
     return out;
   }
@@ -2833,12 +2833,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
         var grp = tds.filter(function (t) { return t.go === tb[0]; });
         if (!grp.length) return;
         var nd = grp.filter(function (x) { return x.done; }).length;
-        h += '<div class="field allgrp"' + (kStyle(tb[0]) ? ' style="' + kStyle(tb[0]) + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0], (/^c_/.test(tb[0]) ? streakHtml(tabById(tb[0].slice(2))) : '') +
+        h += '<div class="field allgrp"' + (kStyle(tb[0]) ? ' style="' + kStyle(tb[0]) + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0], (/^c_/.test(tb[0]) ? streakHtml(tabById(tb[0].slice(2)), true) : '') +
           '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button>') + '<ul class="list">' + grp.map(function (t) {
           var cid = 'al_' + (n++);
           return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
             (function () {
-              var inner = esc(t.text) + (t.sub ? '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small>' : '');
+              var inner = esc(t.text) + (t.sub ? '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small>' : '') +
+                (t.ist ? '<small><span class="istreak" title="' + plTage(t.ist) + ' in Folge gemacht">🔥 ' + plTage(t.ist) + ' in Folge</span></small>' : '');
               var ref = noteRef(t.kind, t.id, t.k, t.tid), can = t.kind !== 'citem' || notesOn(tabById(t.tid));
               return can ? noteBtn(t.kind, t.id, t.k, t.tid, inner, ref && ref.n) : '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + inner + '</label>';
             })() + '</li>' +
