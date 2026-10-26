@@ -466,7 +466,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 80</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 81</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1144,7 +1144,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
   // Tagesring neben dem Datum: wie viel vom gewählten Tag erledigt ist (alle Aufgaben aus „Alle“ zusammen)
   function renderRing() {
     var el = document.getElementById('dayRing'); if (!el) return;
-    var td = vmode === 'day' && ready ? allTodos(selected, false) : [], n = td.filter(function (x) { return x.done; }).length, p = td.length ? n / td.length : 0;
+    // Nur, was an diesem Tag zu erledigen ist: Fristaufgaben erst ab ihrem Fristtag (oder wenn sie an diesem Tag erledigt wurden)
+    var td = vmode === 'day' && ready ? allTodos(selected, false).filter(function (x) { return !x.due || x.due <= selected || x.doneOn === selected; }) : [], n = td.filter(function (x) { return x.done; }).length, p = td.length ? n / td.length : 0;
     el.hidden = !td.length;
     if (!td.length) return;
     document.getElementById('dayRingC').style.strokeDashoffset = (113.1 * (1 - p)).toFixed(1);
@@ -2799,7 +2800,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function allTodos(k, carry) {
     var out = [], d = days[k], tl = tabLabelOf('tasks');
     todosOn(null, k).forEach(function (t) {
-      out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: uniGo() });
+      out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: uniGo(), due: t.due || '', doneOn: t.done || '' });
     });
     if (d) d.tasks.forEach(function (t) { out.push({ kind: 'task', id: t.id, k: k, text: t.text, done: !!t.done, sub: '', go: 'tasks' }); });
     if (carry) Object.keys(days).sort().forEach(function (dk) {
@@ -2807,7 +2808,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     });
     customTabs.forEach(function (c) {
       if (isTodoTab(c)) {
-        todosOn(c, k).forEach(function (t) { out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: 'c_' + c.id }); });
+        todosOn(c, k).forEach(function (t) { out.push({ kind: 'uni', id: t.id, k: k, text: t.x, done: !!t.done, sub: t.due ? dueText(t, k) : '', late: !t.done && t.due && t.due < k, go: 'c_' + c.id, due: t.due || '', doneOn: t.done || '' }); });
         return;
       }
       if (isUni(c)) return;

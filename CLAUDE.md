@@ -62,7 +62,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - **Farben pro Tab** (`--k-events/weight/sport/tasks/uni/physio/note/ideas`, hell und dunkel): Im Tab ersetzt seine Farbe die Akzentfarbe (`applyTabColor` setzt `--accent` auf `#panel`), in „Alle“ pro Gruppe (`kStyle`). Tabs zeigen Symbol, Name (am Handy nur Symbol) und Farbpunkt (`tabKind`, `TAB_ICONS`).
 - **Akzentfarbe** Silber/Rosa/Limette unter Einstellungen, pro Gerät (`tagesbuch:accent`, `data-accent` am html). Gilt für alles ohne eigenen Tab.
 - Leere Zustände mit `emptyHtml`, Ladeanimation (`.skel`) solange `ready` falsch ist.
-- **Tagesring** hinter dem Datum (nur Tagesansicht, `renderRing`): Anteil erledigter Aufgaben aus „Alle“, bei 100 % ein ✓.
+- **Tagesring** hinter dem Datum (nur Tagesansicht, `renderRing`): Anteil erledigter Aufgaben aus „Alle“, bei 100 % ein ✓. Fristaufgaben zählen erst ab ihrem Fristtag (überfällige also weiter), vorher nur, wenn sie an diesem Tag erledigt wurden.
 - **Physio-Serie** 🔥 (`physioStreak` → `{run,total}`): Tage in Folge mit allen fälligen Übungen; Tage ohne Übungen zählen nicht, ein offener heutiger Tag unterbricht nicht. Im Physio-Tab und in „Alle“ zusätzlich „✓ N× geschafft“ (alle Tage insgesamt, reißt nicht ab). Jede wiederkehrende Übung zeigt ihre eigene Serie „🔥 N Tage“ (`itemStreak`), in beiden Ansichten.
 - **Sport-Serie** (`sportStreak`, oben im Sport-Tab): Wochen Mo–So mit mindestens 2× Krafttraining oder Bouldern (Sportart passt auf `/kraft|bould/i`). Zeigt „Diese Woche x von 2“, „🔥 N Wochen“ in Folge (laufende Woche unterbricht nicht) und „✓ N Wochen in JJJJ“.
 - **Frist früh geschafft:** Beim Abhaken einer Fristaufgabe vor dem Fristtag kommt „🎉 N Tage vor der Frist geschafft!“.
