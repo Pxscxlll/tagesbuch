@@ -295,6 +295,56 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .fnb .ok { color: var(--accent); font-weight: 600; font-size: .82rem; }
 .fdone { border: 0; background: transparent; color: var(--accent); font-weight: 600; font-size: .82rem; padding: 6px 0 0; }
 @media (max-width: 480px) { .finfo { grid-template-columns: 1fr; } .finfo > span:nth-child(odd) { margin-top: 4px; } }
+/* Stundenplan: Wochentabelle und Termin-Fenster */
+.tmsub { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 3px; background: var(--surface-2); padding: 3px; border-radius: 9px; margin-bottom: 12px; align-self: flex-start; }
+.tmsub button { border: 0; background: transparent; border-radius: 6px; padding: 5px 16px; font-size: .86rem; font-weight: 500; color: var(--muted); }
+.tmsub button:hover { color: var(--fg); }
+.tmsub button[aria-selected="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 0 0 1px var(--line); }
+.tmhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.tmhead b { flex: 1; min-width: 0; font-family: var(--font-display); font-size: 1.02rem; }
+.tmtt { display: grid; grid-template-columns: 38px repeat(var(--cols), minmax(0, 1fr)); position: relative; }
+.tmdh { height: 44px; text-align: center; font-size: .76rem; font-weight: 600; color: var(--muted); padding-top: 4px; border-bottom: 1px solid var(--line); line-height: 1.15; }
+.tmdh b { display: block; font: 700 1.02rem var(--font-display); color: var(--fg); }
+.tmdh.today, .tmdh.today b { color: var(--accent); }
+.tmdh.today::after { content: ""; display: block; height: 3px; border-radius: 3px; background: var(--accent); margin: 2px 14% 0; }
+.tmhours { position: relative; }
+.tmhours span { position: absolute; right: 6px; transform: translateY(-50%); font-size: .68rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tmcol { position: relative; border-left: 1px solid var(--line); }
+.tmcol.today { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.tmgl { position: absolute; left: 0; right: 0; border-top: 1px dashed color-mix(in srgb, var(--line) 70%, transparent); pointer-events: none; }
+.tmblk { position: absolute; left: 2px; right: 2px; border-radius: 7px; border: 0; border-left: 4px solid var(--fc); background: color-mix(in srgb, var(--fc) 22%, var(--surface)); padding: 3px 5px; overflow: hidden; text-align: left; color: var(--fg); line-height: 1.2; }
+.tmblk:hover { background: color-mix(in srgb, var(--fc) 34%, var(--surface)); }
+.tmblk b { display: block; font-size: .76rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tmblk small { display: block; font-size: .66rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tmblk .abbr { display: none; }
+.tmblk.now { box-shadow: 0 0 0 2px var(--fc); background: color-mix(in srgb, var(--fc) 40%, var(--surface)); }
+.tmblk.past { opacity: .5; }
+.tmnow { position: absolute; left: 0; right: 0; border-top: 2px solid var(--danger); z-index: 3; pointer-events: none; }
+.tmcnt { position: absolute; top: 2px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--fc); color: var(--k-ink); font-size: .66rem; font-weight: 700; display: grid; place-items: center; }
+.tmcnt.tmcnt-d { position: static; height: auto; padding: 2px 9px; font-size: .74rem; flex: none; }
+button.ev.evb { width: 100%; text-align: left; border: 0; border-left: 3px solid var(--fc); color: var(--fg); font: inherit; align-items: center; cursor: pointer; position: relative; padding: 9px 10px; border-radius: 8px; background: color-mix(in srgb, var(--fc) 8%, transparent); margin-top: 6px; }
+button.ev.evb:hover { background: color-mix(in srgb, var(--fc) 18%, transparent); }
+button.ev.evb .x { flex: 1; min-width: 0; text-align: left; }
+button.ev.evb .chev { color: var(--muted); font-size: 1.3rem; flex: none; }
+.tmback { position: fixed; inset: 0; z-index: 55; background: rgba(8,12,11,.72); display: grid; place-items: center; padding: 16px; }
+body.tmopen { overflow: hidden; }
+.tmdlg { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--fc); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.5); animation: tmpop .22s cubic-bezier(.3,1.4,.5,1); }
+@keyframes tmpop { from { transform: scale(.94); opacity: 0; } }
+.tmh { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px 0; }
+.tmh > div { flex: 1; min-width: 0; }
+.tmh b { display: block; font: 700 1.2rem/1.2 var(--font-display); color: var(--fc); }
+.tmh small { color: var(--muted); }
+.tmx { border: 0; background: var(--surface-2); border-radius: 8px; width: 34px; height: 34px; font-size: 1.2rem; flex: none; }
+.tmx:hover { background: var(--hover); }
+.tmb { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
+.tminfo { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; color: var(--muted); align-items: center; }
+.tmsec > .label, .tmsec > label { display: block; margin-bottom: 4px; }
+.tmsec textarea { width: 100%; }
+.tmform { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; padding-top: 12px; margin-top: 8px; border-top: 1px solid var(--line); }
+.tmgrow { flex: 1 1 100%; }
+.tmdlg .list input[type="checkbox"] { accent-color: var(--fc); }
+.tmdlg .tbadge { background: var(--fc); color: var(--k-ink); }
+@media (max-width: 560px) { .tmblk .full { display: none; } .tmblk .abbr { display: inline; } .tmblk small { display: none; } .tmtt { grid-template-columns: 30px repeat(var(--cols), minmax(0, 1fr)); } .tmback { place-items: end center; padding: 0; } .tmdlg { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; } }
 /* Akzentfarbe wählen */
 .acc-list { display: flex; gap: 10px; flex-wrap: wrap; }
 .acc-sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
@@ -549,7 +599,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 85</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 86</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -958,7 +1008,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var tabNames = {};
   try { var tnr = JSON.parse(localStorage.getItem('tagesbuch:tabnames') || '{}'); if (tnr && typeof tnr === 'object') tabNames = tnr; } catch (e) {}
   // Uni-Daten (Stundenplan und Aufgaben mit Frist), unabhängig vom Tab gespeichert
-  var UNI = { lessons: [], todos: [], exams: {}, projects: [] };
+  var UNI = { lessons: [], todos: [], exams: {}, projects: [], notes: {} };
   // Ideen-Liste: langfristige Aufgaben und Projektideen ohne Datum
   var IDEAS = [], ideasLoaded = false, openIdea = null, ideaTimer = null;
   function normIdeas(a) {
@@ -972,7 +1022,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (delay) ideaTimer = setTimeout(go, delay); else go();
   }
   var uniLoaded = false;
-  function loadUniLocal() { if (uniLoaded) return; uniLoaded = true; try { var ur = JSON.parse(localStorage.getItem('tagesbuch:uni') || 'null'); if (ur && typeof ur === 'object') UNI = { lessons: normLessons(ur.lessons), todos: normTodos(ur.todos), exams: normExams(ur.exams), projects: normProjects(ur.projects) }; } catch (e) {} }
+  function loadUniLocal() { if (uniLoaded) return; uniLoaded = true; try { var ur = JSON.parse(localStorage.getItem('tagesbuch:uni') || 'null'); if (ur && typeof ur === 'object') UNI = { lessons: normLessons(ur.lessons), todos: normTodos(ur.todos), exams: normExams(ur.exams), projects: normProjects(ur.projects), notes: normNotes(ur.notes) }; } catch (e) {} }
   function saveUni() {
     try { localStorage.setItem('tagesbuch:uni', JSON.stringify(UNI)); } catch (e) {}
     meta.uni = Date.now(); saveMeta(); scheduleSync();
@@ -1922,6 +1972,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (typeof t.fa === 'string' && t.fa) o.fa = t.fa.slice(0, 80);
       if (typeof t.nb === 'string' && t.nb) o.nb = t.nb.slice(0, 30);
       if (typeof t.nbl === 'string' && t.nbl) o.nbl = t.nbl.slice(0, 40);
+      if (typeof t.vb === 'string' && t.vb) o.vb = t.vb.slice(0, 30);
       return o;
     }).slice(-300);
   }
@@ -1962,6 +2013,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
     return out;
   }
   function daysBetween(a, b) { return Math.round((parseKey(b) - parseKey(a)) / 864e5); }
+  // Notizen pro Termin: { 'Veranstaltungs-ID@Datum': Text }
+  function normNotes(e) {
+    var o = {};
+    if (e && typeof e === 'object') Object.keys(e).slice(0, 400).forEach(function (k) { if (typeof e[k] === 'string' && e[k].trim()) o[String(k).slice(0, 60)] = e[k].slice(0, 5000); });
+    return o;
+  }
   // Klausurtermine pro Fach: { Fachname: 'JJJJ-MM-TT' }
   function normExams(e) {
     var o = {};
@@ -2468,8 +2525,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   try { var uvr = localStorage.getItem('tagesbuch:uniview'); if (uvr === 'todo' || uvr === 'fach' || uvr === 'proj') uniView = uvr; } catch (e) {}
   function lessonHtml(l, s) {
-    var sub = [l.a, l.r].filter(Boolean).map(esc).join(' · ');
-    return '<div class="ev uni' + (s && s.cls || '') + '">' + (s && s.bar || '') + '<span class="t">' + esc(l.f) + '–' + esc(l.t) + '</span><span class="x">' + nbTitle(l.s) + (s && s.badge || '') + (sub ? '<small>' + sub + '</small>' : '') + '</span></div>';
+    var sub = [l.a, l.r].filter(Boolean).map(esc).join(' · '), fa = lessonFach(l), cnt = termOpenCount(l, selected);
+    // Tipp auf den Termin öffnet das Termin-Fenster (Aufgaben, Notiz, Bearbeiten)
+    return '<button type="button" class="ev uni evb' + (s && s.cls || '') + '" data-act="term-open" data-lid="' + esc(l.id) + '" data-k="' + selected + '" style="--fc:' + fachColor(fa) + '">' + (s && s.bar || '') + '<span class="t">' + esc(l.f) + '–' + esc(l.t) + '</span><span class="x">' + nbTitle(l.s) + (s && s.badge || '') + (sub ? '<small>' + sub + '</small>' : '') + '</span>' +
+      (cnt ? '<span class="tmcnt tmcnt-d">' + cnt + ' offen</span>' : '') + '<span class="chev" aria-hidden="true">›</span></button>';
   }
   /* ---------- „läuft gerade“ und Countdown (nur für heute) ---------- */
   function hmMin(s) { var p = /^(\d{1,2}):(\d{2})$/.exec(s || ''); return p ? +p[1] * 60 + +p[2] : null; }
@@ -2518,7 +2577,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     return out;
   }
   function nbExists(key) {
-    return ((days[selected] || blank()).tasks || []).some(function (t) { return t.nbl === key; }) || (UNI.todos || []).some(function (t) { return t.nbl === key; });
+    return ((days[selected] || blank()).tasks || []).some(function (t) { return t.nbl === key && !t.vb; }) || (UNI.todos || []).some(function (t) { return t.nbl === key && !t.vb; });
   }
   // Stand eines Fachs am gewählten Tag: alles erledigt / alles für heute erledigt
   function fachState(fa) {
@@ -2698,6 +2757,87 @@ textarea.autogrow { resize: none; overflow: hidden; }
     renderPanel();
     return true;
   }
+  /* ---------- Stundenplan als Woche und Termin-Fenster ---------- */
+  var uniPlanView = 'week', termModal = null, termDelAsk = false, termNoteT = null;
+  try { if (localStorage.getItem('tagesbuch:uniplan') === 'day') uniPlanView = 'day'; } catch (e) {}
+  function abbr(s) { var w = String(s).trim().split(/\s+/).filter(Boolean); return w.length > 1 ? w.map(function (x) { return x[0]; }).join('').slice(0, 3).toUpperCase() : String(s).slice(0, 3); }
+  function lessonById(id) { return (UNI.lessons || []).filter(function (l) { return l.id === id; })[0]; }
+  function termKey(l, k) { return l.id + '@' + k; }
+  // Aufgaben zu einem Termin: verknüpfte, Fristen an dem Tag, weitere offene Aufgaben des Fachs
+  function termTasks(l, k) {
+    var key = termKey(l, k), fa = lessonFach(l), out = { linked: [], due: [], others: [] };
+    ((days[k] || {}).tasks || []).forEach(function (t) {
+      if (t.nbl === key) out.linked.push({ kind: 'task', t: t, k: k });
+      else if (t.fa === fa && !t.done) out.others.push({ kind: 'task', t: t, k: k });
+    });
+    (UNI.todos || []).forEach(function (t) {
+      if (t.nbl === key) out.linked.push({ kind: 'uni', t: t, k: k });
+      else if (t.fa === fa && t.due === k) out.due.push({ kind: 'uni', t: t, k: k });
+      else if (t.fa === fa && !t.done) out.others.push({ kind: 'uni', t: t, k: k });
+    });
+    return out;
+  }
+  function termOpenCount(l, k) { var t = termTasks(l, k); return t.linked.concat(t.due).filter(function (x) { return !x.t.done; }).length; }
+  function termLi(x, withDel) {
+    var t = x.t, text = x.kind === 'task' ? t.text : t.x, done = !!t.done, id = 'tm_' + x.kind + '_' + t.id;
+    var tag = t.nb ? '📖 Nachbereiten · ' + esc(t.nb) : t.vb ? '🧠 Vorbereiten' : '', due = x.kind === 'uni' && t.due ? esc(dueText(t, x.k)) : '';
+    var sub = [tag, due].filter(Boolean).join(' · ');
+    return '<li class="' + (done ? 'done' : '') + '"><input type="checkbox" id="' + id + '" data-act="term-tk" data-kind="' + x.kind + '" data-id="' + esc(t.id) + '" data-k="' + x.k + '"' + (done ? ' checked' : '') + dis() + '>' +
+      '<label for="' + id + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(text) + (sub ? '<small>' + sub + '</small>' : '') + '</label>' +
+      (withDel ? '<button type="button" class="del" data-act="term-tdel" data-kind="' + x.kind + '" data-id="' + esc(t.id) + '" data-k="' + x.k + '" aria-label="' + esc(text) + ' löschen">×</button>' : '') + '</li>';
+  }
+  function planWeekHtml(c) {
+    var mon = addDays(selected, -(dowOf(selected) - 1)), keys = [], perDay = [], lo = 8 * 60, hi = 17 * 60, last = 4, PX = 46, i, m;
+    for (i = 0; i < 7; i++) {
+      var k0 = addDays(mon, i), ls0 = lessonsOn(c, k0); keys.push(k0); perDay.push(ls0); if (ls0.length && i > last) last = i;
+      ls0.forEach(function (l) { lo = Math.min(lo, Math.floor(hmMin(l.f) / 60) * 60); hi = Math.max(hi, Math.ceil(hmMin(l.t) / 60) * 60); });
+    }
+    var cols = last + 1, total = (hi - lo) / 60 * PX, dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes();
+    var h = '<div class="tmhead"><button type="button" class="icon-btn" data-act="term-week" data-n="-1" aria-label="Vorherige Woche">‹</button><b>KW ' + isoWeek(mon) + ' · ' + esc(shortDate(mon)) + ' – ' + esc(shortDate(addDays(mon, cols - 1))) + '</b>' +
+      (keys.indexOf(todayKey) < 0 ? '<button type="button" class="text-btn" data-act="term-week" data-n="0">Diese Woche</button>' : '') +
+      '<button type="button" class="icon-btn" data-act="term-week" data-n="1" aria-label="Nächste Woche">›</button></div>';
+    if (!perDay.some(function (a) { return a.length; })) return h + emptyHtml('🎓', 'Keine Veranstaltungen', 'Diese Woche ist uni-frei.');
+    h += '<div class="tmtt" style="--cols:' + cols + '"><div></div>';
+    for (i = 0; i < cols; i++) h += '<div class="tmdh' + (keys[i] === todayKey ? ' today' : '') + '">' + WD_SHORT[i] + '<b>' + parseKey(keys[i]).getDate() + '</b></div>';
+    h += '<div class="tmhours" style="height:' + total + 'px">';
+    for (m = lo; m <= hi; m += 60) h += '<span style="top:' + ((m - lo) / 60 * PX) + 'px">' + pad(m / 60) + ':00</span>';
+    h += '</div>';
+    for (i = 0; i < cols; i++) {
+      var isT = keys[i] === todayKey, past = keys[i] < todayKey, kk = keys[i];
+      h += '<div class="tmcol' + (isT ? ' today' : '') + '" style="height:' + total + 'px">';
+      for (m = lo; m < hi; m += 60) h += '<div class="tmgl" style="top:' + ((m - lo) / 60 * PX) + 'px"></div>';
+      perDay[i].forEach(function (l) {
+        var a = hmMin(l.f), b = hmMin(l.t), fa = lessonFach(l), live = isT && nowM >= a && nowM < b, gone = past || (isT && nowM >= b), cnt = termOpenCount(l, kk);
+        h += '<button type="button" class="tmblk' + (live ? ' now' : '') + (gone ? ' past' : '') + '" data-act="term-open" data-lid="' + esc(l.id) + '" data-k="' + kk + '" style="--fc:' + fachColor(fa) + ';top:' + ((a - lo) / 60 * PX) + 'px;height:' + Math.max((b - a) / 60 * PX - 2, 18) + 'px" aria-label="' + esc(l.s + ', ' + l.f + ' bis ' + l.t) + '">' +
+          '<b><span class="full">' + esc(l.s) + '</span><span class="abbr">' + esc(abbr(l.s)) + '</span></b><small>' + esc(l.f) + (l.r ? ' · ' + esc(l.r) : '') + '</small>' + (cnt ? '<span class="tmcnt" title="' + cnt + ' offene Aufgaben">' + cnt + '</span>' : '') + '</button>';
+      });
+      if (isT && nowM >= lo && nowM <= hi) h += '<div class="tmnow" style="top:' + ((nowM - lo) / 60 * PX) + 'px"></div>';
+      h += '</div>';
+    }
+    h += '</div><p class="hint" style="margin-top:10px">Tipp auf einen Termin öffnet ihn mit Aufgaben, Notiz und Bearbeiten. Die Zahl am Block zeigt offene Aufgaben.</p>';
+    return h;
+  }
+  function termModalHtml(c) {
+    if (!termModal) return '';
+    var l = lessonById(termModal.lid); if (!l) { termModal = null; return ''; }
+    var k = termModal.k, fa = lessonFach(l), col = fachColor(fa);
+    var h = '<div class="tmback" data-act="term-back"><div class="tmdlg" role="dialog" aria-modal="true" aria-labelledby="tmT" style="--fc:' + col + '"><div class="tmh"><div><b id="tmT">' + esc(l.s) + '</b><small>' + esc([l.a, l.r].filter(Boolean).join(' · ')) + '</small></div><button type="button" class="tmx" data-act="term-close" aria-label="Schließen">×</button></div>';
+    if (uniEditLesson === l.id) return h + '<div class="tmb"><ul class="list">' + lessonEditRow(l) + '</ul></div></div></div>';
+    var st = liveStates(k, [{ f: l.f, t: l.t }])[0], t = termTasks(l, k), mine = t.linked.concat(t.due), defK = k <= todayKey ? 'nb' : 'vb';
+    h += '<div class="tmb"><div class="tminfo"><span>📅 ' + esc(dayShort(k)) + '</span><span>🕐 ' + esc(l.f) + '–' + esc(l.t) + '</span>' + (l.w ? '<span>🔁 nur ' + (l.w === 'g' ? 'gerade' : 'ungerade') + ' Wochen</span>' : '') + (fa !== l.s ? '<span class="ftag" style="--fc:' + col + '">' + esc(fa) + '</span>' : '') + (st && st.badge || '') + '</div>' +
+      '<div class="tmsec"><span class="label">Aufgaben zu diesem Termin</span>' + (mine.length ? '<ul class="list">' + mine.map(function (x) { return termLi(x, true); }).join('') + '</ul>' : '<p class="hint">Noch nichts geplant. Leg unten etwas an.</p>') +
+      '<form data-form="termtask" class="tmform" novalidate><div class="field tmgrow"><label for="tmX">Neue Aufgabe</label><input id="tmX" type="text" maxlength="140" autocomplete="off" placeholder="z. B. Kapitel 3.2 Momente wiederholen"' + dis() + '></div>' +
+      '<div class="field" style="flex:1 1 130px"><label for="tmK">Art</label><select id="tmK"' + dis() + '><option value="nb"' + (defK === 'nb' ? ' selected' : '') + '>Nachbereiten</option><option value="vb"' + (defK === 'vb' ? ' selected' : '') + '>Vorbereiten</option><option value="">Aufgabe</option></select></div>' +
+      '<div class="field" style="flex:1 1 140px"><label for="tmD">Bis</label><input id="tmD" type="date" value="' + k + '"' + dis() + '></div>' +
+      '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form></div>';
+    if (t.others.length) h += '<div class="tmsec"><span class="label">Weitere offene Aufgaben in ' + esc(fa) + '</span><ul class="list">' + t.others.map(function (x) { return termLi(x, false); }).join('') + '</ul></div>';
+    h += '<div class="tmsec"><label for="tmNote">Notiz zu diesem Termin</label><textarea id="tmNote" style="min-height:80px" placeholder="z. B. Prof hat Klausurstoff genannt …"' + dis() + '>' + esc((UNI.notes || {})[termKey(l, k)] || '') + '</textarea></div>' +
+      '<div class="row"><button type="button" class="btn ghost" data-act="term-edit"' + dis() + '>✎ Termin bearbeiten</button><button type="button" class="btn" data-act="term-close">Fertig</button></div>' +
+      (termDelAsk
+        ? '<div class="evdel"><span>„' + esc(l.s) + '“ aus dem Stundenplan löschen? Gilt für alle Wochen.</span><span class="evdel-b"><button type="button" class="btn" style="height:36px" data-act="term-del-yes">Löschen</button><button type="button" class="btn ghost" style="height:36px" data-act="term-del-no">Abbrechen</button></span></div>'
+        : '<button type="button" class="fdone" style="color:var(--danger)" data-act="term-del-ask"' + dis() + '>Veranstaltung löschen</button>') + '</div></div></div>';
+    return h;
+  }
   function renderUni(c) {
     var id = c ? c.id : null, h = '<div class="modes subtabs four" role="tablist" aria-label="Uni-Bereich">' +
       '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="plan" aria-selected="' + (uniView === 'plan') + '">Stundenplan</button>' +
@@ -2709,13 +2849,15 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (uniView === 'proj' && !todoOnly) { elPanel.innerHTML = h + renderProjects(); return; }
     if (uniView === 'plan' && !todoOnly) {
       var ls = lessonsOn(c, selected);
-      h += ls.length ? '<div class="events uniplan">' + (function () { var st = liveStates(selected, ls.map(function (l) { return { f: l.f, t: l.t }; })); return ls.map(function (l, i) { return lessonHtml(l, st[i]); }).join(''); })() + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
+      h += '<div class="tmsub" role="tablist" aria-label="Ansicht"><button type="button" role="tab" data-act="plan-view" data-v="week" aria-selected="' + (uniPlanView === 'week') + '">Woche</button><button type="button" role="tab" data-act="plan-view" data-v="day" aria-selected="' + (uniPlanView === 'day') + '">Tag</button></div>';
+      if (uniPlanView === 'week') h += planWeekHtml(c);
+      else h += ls.length ? '<div class="events uniplan">' + (function () { var st = liveStates(selected, ls.map(function (l) { return { f: l.f, t: l.t }; })); return ls.map(function (l, i) { return lessonHtml(l, st[i]); }).join(''); })() + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
       if (uniMsg && !uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
       var all = (UNI.lessons || []).slice().sort(function (a, b) { var x = (a.k || String(a.d)) + a.f, y = (b.k || String(b.d)) + b.f; return x < y ? -1 : x > y ? 1 : 0; });
       h += '<details class="abo"' + (uniEditPlan ? ' open' : '') + ' data-uni-det="1"><summary>Stundenplan bearbeiten (' + all.length + ')</summary><div class="panel" style="margin-top:10px">';
       if (all.length) {
         h += '<ul class="list">' + all.map(function (l) {
-          if (uniEditLesson === l.id) return lessonEditRow(l);
+          if (uniEditLesson === l.id && !termModal) return lessonEditRow(l);
           var when = l.k ? shortDate(l.k) + l.k.slice(0, 4) : WD_SHORT[l.d - 1] + (l.w ? (l.w === 'g' ? ', gerade KW' : ', ungerade KW') : '');
           var rng = l.k ? '' : (l.from || l.until ? ' · ' + (l.from ? shortDate(l.from) : '') + '–' + (l.until ? shortDate(l.until) : '') : '');
           var lfx = lessonFach(l);
@@ -2740,7 +2882,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         : '<div class="row"><button type="button" class="btn ghost" data-act="uni-lclear-ask"' + dis() + '>Stundenplan leeren</button></div>';
       if (uniMsg && uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
       h += '<div class="row"><button type="button" class="btn" data-act="uni-done">Fertig</button></div></div></details>';
-      elPanel.innerHTML = h;
+      elPanel.innerHTML = h + termModalHtml(c);
       return;
     }
     var ts = todosOn(c, selected);
@@ -3346,6 +3488,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function renderPanel() {
     $('#grid').dataset.notime = tab === 'ideas' && !addingTab ? '1' : '';
+    // Termin-Fenster nur im Stundenplan; beim Verlassen schließen
+    if (termModal && (addingTab || !uniActive() || uniView !== 'plan')) { termModal = null; termDelAsk = false; uniEditLesson = null; }
+    document.body.classList.toggle('tmopen', !!termModal);
     // Bis die Daten geladen sind: pulsierende Platzhalter statt leerer Felder
     if (!ready && !addingTab) { elPanel.innerHTML = '<div class="skel" aria-label="Lädt …"><i style="width:30%"></i><i class="h"></i><i class="h"></i><i style="width:45%"></i><i></i><i style="width:80%"></i></div>'; return; }
     if (addingTab) renderAddTab();
@@ -3370,9 +3515,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var ae = document.activeElement;
     if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && elPanel.contains(ae)) return;
     if (tab === 'events') renderEvents();
-    else if (tab === 'all' || (uniActive() && uniView === 'plan' && !uniEditPlan)) renderPanel();
+    else if (tab === 'all' || (uniActive() && uniView === 'plan' && !uniEditPlan && !termModal)) renderPanel();
   }, 60000);
 
+  // Escape schließt das Termin-Fenster
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && termModal) { termModal = null; termDelAsk = false; uniEditLesson = null; renderPanel(); } });
   // iPad/iPhone: Zoomen mit zwei Fingern unterbinden (Safari ignoriert user-scalable=no)
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
 
@@ -3683,6 +3830,17 @@ textarea.autogrow { resize: none; overflow: hidden; }
       IDEAS.unshift({ id: uid(), x: iv }); saveIdeas(); renderPanel();
       return;
     }
+    if (f === 'termtask') {
+      var tl = termModal && lessonById(termModal.lid); if (!tl) return;
+      var tx = $('#tmX').value.trim().slice(0, 140); if (!tx) { $('#tmX').placeholder = 'Bitte eintragen, was zu tun ist'; return; }
+      var tkind = $('#tmK').value, tdv = $('#tmD').value, dueK = KRE.test(tdv) ? tdv : termModal.k, tbase = { fa: lessonFach(tl), nbl: termKey(tl, termModal.k) };
+      if (tkind === 'nb') tbase.nb = (tl.a || 'Vorlesung').slice(0, 30); else if (tkind === 'vb') tbase.vb = 'Vorbereiten';
+      if (dueK > todayKey) { UNI.todos = (UNI.todos || []).concat([Object.assign({ id: uid(), x: tx, from: todayKey, due: dueK }, tbase)]); saveUni(); }
+      else if (uniTasksMode() && tab === 'tasks') { ensure(dueK).tasks.push(Object.assign({ id: uid(), text: tx.slice(0, 200), done: false }, tbase)); commit(dueK); }
+      else { UNI.todos = (UNI.todos || []).concat([Object.assign({ id: uid(), x: tx, from: dueK, day: dueK }, tbase)]); saveUni(); }
+      refreshAfterEdit(true);
+      return;
+    }
     if (f === 'unitodo' || f === 'unilesson' || f === 'uniimport') {
       var tdc = f === 'unitodo' ? curTodoTab() : null;
       if (!uniActive() && !tdc) return;
@@ -3795,6 +3953,31 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var act = b.dataset.act, d = days[selected];
     if (act === 'cancel-tab') { addingTab = false; catDelAsk = null; renderTabs(); renderPanel(); renderEvents(); return; }
     // Uni → „Fach“
+    // Stundenplan: Woche/Tag und Termin-Fenster
+    if (act === 'plan-view') { uniPlanView = b.dataset.v === 'day' ? 'day' : 'week'; try { localStorage.setItem('tagesbuch:uniplan', uniPlanView); } catch (er) {} renderPanel(); return; }
+    if (act === 'term-week') {
+      var twn = +b.dataset.n; selected = twn === 0 ? todayKey : addDays(selected, 7 * twn);
+      var tws = parseKey(selected); viewDate = new Date(tws.getFullYear(), tws.getMonth(), 1); renderAll(); return;
+    }
+    if (act === 'term-open') { termModal = { lid: b.dataset.lid, k: b.dataset.k }; termDelAsk = false; uniEditLesson = null; renderPanel(); return; }
+    if (act === 'term-close' || (act === 'term-back' && e.target === b)) { termModal = null; termDelAsk = false; uniEditLesson = null; renderPanel(); return; }
+    if (act === 'term-back') return;
+    if (act === 'term-edit' && termModal) { uniEditLesson = termModal.lid; termDelAsk = false; renderPanel(); return; }
+    if (act === 'term-del-ask') { termDelAsk = true; renderPanel(); return; }
+    if (act === 'term-del-no') { termDelAsk = false; renderPanel(); return; }
+    if (act === 'term-del-yes' && termModal) {
+      var tdl = termModal.lid, snapTL = (UNI.lessons || []).slice();
+      UNI.lessons = snapTL.filter(function (x) { return x.id !== tdl; });
+      termModal = null; termDelAsk = false; saveUni(); renderPanel(); renderCal();
+      undoable('Veranstaltung entfernt', function () { UNI.lessons = snapTL; saveUni(); renderPanel(); renderCal(); });
+      return;
+    }
+    if (act === 'term-tdel') {
+      var tdk = b.dataset.k, tdid = b.dataset.id;
+      if (b.dataset.kind === 'task') { var tdd = days[tdk]; if (tdd) { tdd.tasks = tdd.tasks.filter(function (x) { return x.id !== tdid; }); commit(tdk); } }
+      else { var tsnap = (UNI.todos || []).slice(); UNI.todos = tsnap.filter(function (x) { return x.id !== tdid; }); saveUni(); undoable('Aufgabe gelöscht', function () { UNI.todos = tsnap; saveUni(); renderPanel(); renderCal(); }); }
+      refreshAfterEdit(true); return;
+    }
     if (act === 'fach-done') { fachShowDone[b.dataset.fach] = !fachShowDone[b.dataset.fach]; renderPanel(); return; }
     if (act === 'fach-exam') { fachExamEdit = b.dataset.fach; renderPanel(); return; }
     if (act === 'fach-exam-no') { fachExamEdit = null; renderPanel(); return; }
@@ -4196,6 +4379,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
   });
   elPanel.addEventListener('change', function (e) {
     var el = e.target;
+    if (el.dataset && el.dataset.act === 'term-tk' && ready) {
+      var tkk = el.dataset.k, tkid = el.dataset.id;
+      if (el.dataset.kind === 'task') { var tkt = ((days[tkk] || {}).tasks || []).filter(function (x) { return x.id === tkid; })[0]; if (tkt) { tkt.done = el.checked; commit(tkk); } }
+      else { var tkf = todoFind(tkid); if (tkf) { if (el.checked) tkf.t.done = selected; else delete tkf.t.done; todoSave(tkf.c); } }
+      refreshAfterEdit(true);
+      return;
+    }
     if (el.dataset && el.dataset.act === 'inotes' && ready) {
       var ic = tabById(tab.slice(2)); if (!ic) return;
       ic.inotes = el.checked; savePrefs(); renderPanel();
@@ -4259,6 +4449,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
   });
   elPanel.addEventListener('input', function (e) {
+    if (e.target.id === 'tmNote' && termModal && ready) {
+      var tnk = termModal.lid + '@' + termModal.k, tnv = e.target.value.slice(0, 5000);
+      UNI.notes = UNI.notes || {}; if (tnv.trim()) UNI.notes[tnk] = tnv; else delete UNI.notes[tnk];
+      clearTimeout(termNoteT); termNoteT = setTimeout(saveUni, 700);
+      return;
+    }
     if (e.target.id === 'customIn' && ready) {
       var cd = ensure(selected), cid2 = tab.slice(2), v = e.target.value.slice(0, 20000);
       if (v.trim()) cd.custom[cid2] = v; else delete cd.custom[cid2];
@@ -4606,7 +4802,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (ridt > lid && Array.isArray(rid.v)) { IDEAS = normIdeas(rid.v); meta.ideas = ridt; changed = true; }
     else if (lid > ridt) dirty = true;
     var ru = remote.uni || { t: 0 }, lu = meta.uni || 0, rut = ru.t || 0;
-    if (rut > lu && ru.v && typeof ru.v === 'object') { UNI = { lessons: normLessons(ru.v.lessons), todos: normTodos(ru.v.todos), exams: normExams(ru.v.exams), projects: normProjects(ru.v.projects) }; meta.uni = rut; changed = true; }
+    if (rut > lu && ru.v && typeof ru.v === 'object') { UNI = { lessons: normLessons(ru.v.lessons), todos: normTodos(ru.v.todos), exams: normExams(ru.v.exams), projects: normProjects(ru.v.projects), notes: normNotes(ru.v.notes) }; meta.uni = rut; changed = true; }
     else if (lu > rut) dirty = true;
     var rtn = remote.tabnames || { t: 0 }, ltn = meta.tabnames || 0, rtnt = rtn.t || 0;
     if (rtnt > ltn && rtn.v && typeof rtn.v === 'object') { tabNames = rtn.v; meta.tabnames = rtnt; changed = true; }
