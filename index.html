@@ -1,5 +1,6 @@
 <!doctype html><html lang="de"><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><meta name="theme-color" media="(prefers-color-scheme: light)" content="#EEF2F0"><meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0C1110"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png"></head><body>
 <title>Planner</title>
+<script>/* Darstellung sofort setzen, damit nichts aufblitzt: dark (Standard), light oder auto (wie Gerät) */try{var tbTh=localStorage.getItem('tagesbuch:theme')||'dark';if(tbTh!=='auto')document.documentElement.setAttribute('data-theme',tbTh)}catch(e){document.documentElement.setAttribute('data-theme','dark')}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap">
@@ -548,7 +549,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 83</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 84</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -580,6 +581,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
   <div class="set-modal" id="setCard" hidden>
   <section class="card set-dlg" role="dialog" aria-modal="true" aria-labelledby="setTitle">
     <div class="set-head"><h2 id="setTitle">Einstellungen</h2><button type="button" class="icon-btn" id="setClose" aria-label="Einstellungen schließen" title="Schließen">×</button></div>
+    <details class="set-sec" id="setTheme">
+      <summary><span>Darstellung</span><span class="set-sum" id="themeSum"></span></summary>
+      <div class="panel set-body">
+        <p class="hint">Gilt nur für dieses Gerät. „Wie Gerät“ folgt der Hell-/Dunkel-Einstellung von Handy, iPad oder Laptop.</p>
+        <div class="modes subtabs three" id="themeList" role="radiogroup" aria-label="Darstellung"></div>
+      </div>
+    </details>
     <details class="set-sec" id="setAcc">
       <summary><span>Akzentfarbe</span><span class="set-sum" id="accSum"></span></summary>
       <div class="panel set-body">
@@ -1775,6 +1783,20 @@ textarea.autogrow { resize: none; overflow: hidden; }
   try { var acr = localStorage.getItem('tagesbuch:accent'); if (ACCENTS.some(function (a) { return a[0] === acr; })) accentId = acr; } catch (e) {}
   function applyAccent() { document.documentElement.setAttribute('data-accent', accentId); }
   applyAccent();
+  /* ---------- Darstellung: Dunkel / Hell / Wie Gerät (Einstellungen, pro Gerät) ---------- */
+  var THEMES = [['dark', 'Dunkel'], ['light', 'Hell'], ['auto', 'Wie Gerät']], themeId = 'dark';
+  try { var thr = localStorage.getItem('tagesbuch:theme'); if (THEMES.some(function (t) { return t[0] === thr; })) themeId = thr; } catch (e) {}
+  var THEME_BAR = { dark: '#0C1110', light: '#EEF2F0' };
+  function applyTheme() {
+    var root = document.documentElement;
+    if (themeId === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', themeId);
+    // Farbe der Statusleiste am Handy: fest bei Dunkel/Hell, sonst je nach Gerät
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+      if (!m.dataset.orig) m.dataset.orig = m.getAttribute('content');
+      m.setAttribute('content', themeId === 'auto' ? m.dataset.orig : THEME_BAR[themeId]);
+    });
+  }
+  applyTheme();
   // Leerer Zustand: Symbol, Überschrift, kurzer Satz
   function emptyHtml(icon, title, text) { return '<div class="empty"><span class="em" aria-hidden="true">' + icon + '</span><b>' + esc(title) + '</b>' + esc(text) + '</div>'; }
 
@@ -2247,7 +2269,20 @@ textarea.autogrow { resize: none; overflow: hidden; }
     try { localStorage.setItem('tagesbuch:accent', accentId); } catch (er) {}
     applyAccent(); renderAccent();
   });
+  function renderTheme() {
+    document.getElementById('themeSum').textContent = THEMES.filter(function (t) { return t[0] === themeId; })[0][1];
+    document.getElementById('themeList').innerHTML = THEMES.map(function (t) {
+      return '<button type="button" class="mode" role="radio" data-theme-id="' + t[0] + '" aria-checked="' + (t[0] === themeId) + '" aria-selected="' + (t[0] === themeId) + '">' + t[1] + '</button>';
+    }).join('');
+  }
+  document.getElementById('themeList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-theme-id]'); if (!b) return;
+    themeId = b.dataset.themeId;
+    try { localStorage.setItem('tagesbuch:theme', themeId); } catch (er) {}
+    applyTheme(); renderTheme();
+  });
   function renderSettings() {
+    renderTheme();
     renderAccent();
     sndSumDraw();
     document.getElementById('sndOn').checked = SND.on;
