@@ -57,7 +57,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Keine Notiz-Vorschau, nur ein Notiz-Symbol.
 - Nie automatisch fokussieren (Tastatur). Einzige Ausnahme ist „+ Übung“.
 - So wenig Scrollen wie möglich. Die Seite hat keine Scrollleiste.
-- Kein Zoomen am Handy/iPad (weder Doppeltipp noch zwei Finger): Viewport `maximum-scale=1,user-scalable=no`, `touch-action: pan-x pan-y`, `gesturestart` wird blockiert.
+- Kein Zoomen, auch nicht beim Zusammenschieben der Finger oder mit Strg + Mausrad: Viewport `minimum-scale=1,maximum-scale=1,user-scalable=no`, `touch-action: pan-x pan-y` auf html und body, `text-size-adjust: 100%`, `gesture*`-Ereignisse und Zwei-Finger-`touchmove` sowie Strg + `wheel` werden blockiert. Die Tastatur-Zoomkürzel (Strg + / −) bleiben bewusst frei (Barrierefreiheit).
 - Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit Rand in der Akzentfarbe, heute mit Datum in der Akzentfarbe.
 - Dunkles Design mit genug Kontrast.
 - **Farben pro Tab** (`--k-events/weight/sport/tasks/uni/physio/note/ideas`, hell und dunkel): Im Tab ersetzt seine Farbe die Akzentfarbe (`applyTabColor` setzt `--accent` auf `#panel`), in „Alle“ pro Gruppe (`kStyle`). Tabs zeigen Symbol, Name (am Handy nur Symbol) und Farbpunkt (`tabKind`, `TAB_ICONS`).
