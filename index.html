@@ -75,13 +75,13 @@ body {
   font-size: 15px;
   line-height: 1.45;
   padding-inline: 16px;
-  padding-block: 20px 40px;
+  padding-block: 0 40px;
 }
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.app { max-width: 1040px; margin: 0 auto; padding-top: 20px; display: flex; flex-direction: column; gap: 16px; }
 .brand { display: flex; flex-direction: column; line-height: 1.1; }
 .ver { font-size: 0.72rem; color: var(--muted); }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
@@ -156,8 +156,9 @@ button.cell:hover { background: var(--surface-2); }
 .day-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
 .day-sub { margin: 0; color: var(--muted); font-size: 0.9rem; }
 /* Keine Scrollleiste für die Seite: sonst springt das Layout beim Tabwechsel, wenn die Leiste kommt oder geht */
-html { scrollbar-width: none; touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* kein Zoomen per Doppeltipp oder zwei Fingern */
-body { touch-action: pan-x pan-y; }
+html { height: 100%; overflow: hidden; scrollbar-width: none; touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* kein Zoomen per Doppeltipp oder zwei Fingern */
+/* Gescrollt wird im body statt im Dokument: Handy-Browser blenden den Balken des Dokuments selbst ein, den eines Elements nicht */
+body { height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: none; touch-action: pan-x pan-y; }
 html::-webkit-scrollbar { display: none; }
 /* Keine sichtbaren Scrollbalken, auch nicht in Fenstern, Listen und Textfeldern (scrollen geht weiter) */
 * { scrollbar-width: none; -ms-overflow-style: none; }
@@ -586,7 +587,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media (max-width: 640px) {
-  body { padding-block: 10px 32px; }
+  body { padding-block: 0 32px; }
+  .app { padding-top: 10px; }
   .app { gap: 12px; }
   h1 { font-size: 1.3rem; }
   .card { padding: 12px; }
@@ -617,7 +619,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 89</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 90</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
