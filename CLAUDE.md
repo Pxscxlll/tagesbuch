@@ -56,7 +56,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Beim Öffnen startet die App immer bei Tag → heute → Alle.
 - Keine Notiz-Vorschau, nur ein Notiz-Symbol.
 - Nie automatisch fokussieren (Tastatur). Einzige Ausnahme ist „+ Übung“.
-- So wenig Scrollen wie möglich. Die Seite hat keine Scrollleiste.
+- So wenig Scrollen wie möglich. Es gibt nirgends sichtbare Scrollbalken (Seite, Fenster, Listen, Textfelder: `scrollbar-width: none` auf allen Elementen), gescrollt wird trotzdem normal.
 - Kein Zoomen, auch nicht beim Zusammenschieben der Finger oder mit Strg + Mausrad: Viewport `minimum-scale=1,maximum-scale=1,user-scalable=no`, `touch-action: pan-x pan-y` auf html und body, `text-size-adjust: 100%`, `gesture*`-Ereignisse und Zwei-Finger-`touchmove` sowie Strg + `wheel` werden blockiert. Die Tastatur-Zoomkürzel (Strg + / −) bleiben bewusst frei (Barrierefreiheit).
 - Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit Rand in der Akzentfarbe, heute mit Datum in der Akzentfarbe.
 - Dunkles Design mit genug Kontrast.
