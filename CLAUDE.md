@@ -56,7 +56,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Beim Öffnen startet die App immer bei Tag → heute → Alle.
 - Keine Notiz-Vorschau, nur ein Notiz-Symbol.
 - Nie automatisch fokussieren (Tastatur). Einzige Ausnahme ist „+ Übung“.
-- So wenig Scrollen wie möglich. Es gibt nirgends sichtbare Scrollbalken (`scrollbar-width: none` auf allen Elementen). Die Seite scrollt im `body` (`html` ist `overflow: hidden`), weil Handy-Browser den Balken des Dokuments selbst einblenden, den eines Elements aber nicht. Der obere Abstand liegt deshalb in `.app` statt im `body`, sonst sitzt die Sticky-Leiste verschoben.
+- So wenig Scrollen wie möglich. Es gibt nirgends sichtbare Scrollbalken (`scrollbar-width: none` auf allen Elementen). Die Seite scrollt im `body` (`html` ist `overflow: hidden`), weil Handy-Browser den Balken des Dokuments selbst einblenden, den eines Elements aber nicht. Der obere Abstand liegt deshalb in `.app` statt im `body`, sonst sitzt die Sticky-Leiste verschoben. Zusätzlich ist der `body` 24px breiter als der Bildschirm (`width: calc(100% + 24px)`, rechts 24px mehr Innenabstand), damit ein vom Handy gezeichneter Balken außerhalb des sichtbaren Bereichs liegt.
 - Kein Zoomen, auch nicht beim Zusammenschieben der Finger oder mit Strg + Mausrad: Viewport `minimum-scale=1,maximum-scale=1,user-scalable=no`, `touch-action: pan-x pan-y` auf html und body, `text-size-adjust: 100%`, `gesture*`-Ereignisse und Zwei-Finger-`touchmove` sowie Strg + `wheel` werden blockiert. Die Tastatur-Zoomkürzel (Strg + / −) bleiben bewusst frei (Barrierefreiheit).
 - Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit Rand in der Akzentfarbe, heute mit Datum in der Akzentfarbe.
 - Dunkles Design mit genug Kontrast.

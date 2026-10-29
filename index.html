@@ -74,7 +74,7 @@ body {
   font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.45;
-  padding-inline: 16px;
+  padding-inline: 16px 40px; /* rechts 24px mehr, siehe width: Der Scrollbalken des Handys liegt dort außerhalb des Bildschirms */
   padding-block: 0 40px;
 }
 button, input, textarea { font: inherit; color: inherit; }
@@ -158,7 +158,7 @@ button.cell:hover { background: var(--surface-2); }
 /* Keine Scrollleiste für die Seite: sonst springt das Layout beim Tabwechsel, wenn die Leiste kommt oder geht */
 html { height: 100%; overflow: hidden; scrollbar-width: none; touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; } /* kein Zoomen per Doppeltipp oder zwei Fingern */
 /* Gescrollt wird im body statt im Dokument: Handy-Browser blenden den Balken des Dokuments selbst ein, den eines Elements nicht */
-body { height: 100%; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: none; touch-action: pan-x pan-y; }
+body { height: 100%; width: calc(100% + 24px); overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: none; touch-action: pan-x pan-y; }
 html::-webkit-scrollbar { display: none; }
 /* Keine sichtbaren Scrollbalken, auch nicht in Fenstern, Listen und Textfeldern (scrollen geht weiter) */
 * { scrollbar-width: none; -ms-overflow-style: none; }
@@ -619,7 +619,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 90</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 91</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
