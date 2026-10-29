@@ -221,6 +221,54 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .nbtag { display: inline-block; font-size: .72rem; font-weight: 600; color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); border-radius: 99px; padding: 0 7px; }
 .ftags { display: block; }
 .modes.subtabs.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.modes.subtabs.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 480px) { .modes.subtabs.four .mode { font-size: .82rem; padding: 8px 2px; } }
+/* Uni → „Projekte“ */
+.pj { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 12px; }
+.modes + .pj, .modes + .pj-form { margin-top: 0; }
+.pj-h { display: flex; align-items: flex-start; gap: 10px; }
+.pj-t { flex: 1; min-width: 0; }
+.pj-t b { display: block; font: 700 1.08rem var(--font-display, inherit); }
+.pj-t small, .pj-goal small { color: var(--muted); font-size: .82rem; }
+.pj-goal { text-align: right; flex: none; }
+.pj-goal b { display: block; font: 700 1.35rem/1 var(--font-display, inherit); color: var(--accent); }
+.pj-goal small { display: block; }
+.pj-prog { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: .84rem; color: var(--muted); }
+.pj-next { margin-top: 10px; padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, transparent); display: flex; gap: 10px; align-items: center; }
+.pj-next .x { flex: 1; min-width: 0; }
+.pj-next small, .pj-tl small { display: block; color: var(--muted); font-size: .8rem; text-decoration: none; }
+.pj-chip { flex: none; font-size: .78rem; font-weight: 600; border-radius: 99px; padding: 2px 9px; white-space: nowrap; }
+.pj-chip.soon { background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent); }
+.pj-chip.urgent { background: #F0847B; color: #0B1511; }
+.pj-chip.calm { background: var(--surface-2); color: var(--muted); }
+.pj-tog { border: 0; background: transparent; color: var(--accent); font-weight: 600; font-size: .86rem; padding: 8px 0 0; }
+.pj-tog:hover { text-decoration: underline; }
+.pj-tl { list-style: none; margin: 10px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--line); }
+.pj-tl li { position: relative; padding: 6px 0 6px 12px; display: flex; gap: 8px; align-items: center; }
+.pj-tl li::before { content: ""; position: absolute; left: -21px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); }
+.pj-tl li.done::before { background: var(--accent); border-color: var(--accent); }
+.pj-tl li.cur::before { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+.pj-tl li .item-main { flex: 1; min-width: 0; cursor: pointer; text-transform: none; letter-spacing: 0; font-size: inherit; color: inherit; font-weight: 400; }
+.pj-tl li.done .item-main { color: var(--muted); text-decoration: line-through; }
+.pj-tl input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; flex: none; }
+.pj-tl li.edit { flex-wrap: wrap; }
+.pj-tl li.edit input[type="text"] { flex: 1 1 100%; }
+.pj-tl li.edit input[type="date"] { flex: 0 1 180px; min-width: 150px; }
+.pj-tl .btn { height: 36px; padding: 0 12px; }
+.pj-add { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.pj-add input[type="text"] { flex: 1 1 180px; min-width: 0; }
+.pj-add input[type="date"] { flex: 0 1 160px; min-width: 150px; }
+.pj-form { margin-top: 12px; padding: 14px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; gap: 12px; }
+.pj-form h3 { margin: 0; font-size: 1rem; }
+.btn.ghost.danger { color: #F0847B; border-color: color-mix(in srgb, #F0847B 45%, var(--line)); }
+.err:empty { display: none; }
+/* „Demnächst“ in „Alle“ */
+.soonlist { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.srow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); cursor: pointer; }
+.srow:hover { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.srow .x { flex: 1; min-width: 0; }
+.srow small { display: block; color: var(--muted); font-size: .8rem; }
+.field.soon { margin-top: 14px; }
 .fachcard { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 10px 12px; background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .fachcard + .fachcard { margin-top: 12px; }
 .fachcard .phead .label { color: var(--accent); font-size: .9rem; letter-spacing: 0; text-transform: none; font-family: var(--font-display); font-weight: 700; }
@@ -500,7 +548,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 82</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 83</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -902,7 +950,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   var tabNames = {};
   try { var tnr = JSON.parse(localStorage.getItem('tagesbuch:tabnames') || '{}'); if (tnr && typeof tnr === 'object') tabNames = tnr; } catch (e) {}
   // Uni-Daten (Stundenplan und Aufgaben mit Frist), unabhängig vom Tab gespeichert
-  var UNI = { lessons: [], todos: [], exams: {} };
+  var UNI = { lessons: [], todos: [], exams: {}, projects: [] };
   // Ideen-Liste: langfristige Aufgaben und Projektideen ohne Datum
   var IDEAS = [], ideasLoaded = false, openIdea = null, ideaTimer = null;
   function normIdeas(a) {
@@ -916,7 +964,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (delay) ideaTimer = setTimeout(go, delay); else go();
   }
   var uniLoaded = false;
-  function loadUniLocal() { if (uniLoaded) return; uniLoaded = true; try { var ur = JSON.parse(localStorage.getItem('tagesbuch:uni') || 'null'); if (ur && typeof ur === 'object') UNI = { lessons: normLessons(ur.lessons), todos: normTodos(ur.todos), exams: normExams(ur.exams) }; } catch (e) {} }
+  function loadUniLocal() { if (uniLoaded) return; uniLoaded = true; try { var ur = JSON.parse(localStorage.getItem('tagesbuch:uni') || 'null'); if (ur && typeof ur === 'object') UNI = { lessons: normLessons(ur.lessons), todos: normTodos(ur.todos), exams: normExams(ur.exams), projects: normProjects(ur.projects) }; } catch (e) {} }
   function saveUni() {
     try { localStorage.setItem('tagesbuch:uni', JSON.stringify(UNI)); } catch (e) {}
     meta.uni = Date.now(); saveMeta(); scheduleSync();
@@ -1855,6 +1903,43 @@ textarea.autogrow { resize: none; overflow: hidden; }
       return o;
     }).slice(-300);
   }
+  // Projekte (Uni → „Projekte“): { id, name, note?, goal?, steps: [{ id, x, d?, done? (Tag des Abhakens) }] }
+  function normProjects(a) {
+    return (Array.isArray(a) ? a : []).filter(function (p) { return p && typeof p.id === 'string' && typeof p.name === 'string' && p.name; }).map(function (p) {
+      var o = { id: p.id.slice(0, 20), name: p.name.slice(0, 60), steps: [] };
+      if (typeof p.note === 'string' && p.note) o.note = p.note.slice(0, 100);
+      if (KRE.test(p.goal || '')) o.goal = p.goal;
+      o.steps = (Array.isArray(p.steps) ? p.steps : []).filter(function (s) { return s && typeof s.id === 'string' && typeof s.x === 'string' && s.x; }).map(function (s) {
+        var so = { id: s.id.slice(0, 20), x: s.x.slice(0, 80) };
+        if (KRE.test(s.d || '')) so.d = s.d;
+        if (KRE.test(s.done || '')) so.done = s.done;
+        return so;
+      }).slice(0, 60);
+      pjSort(o);
+      return o;
+    }).slice(0, 30);
+  }
+  // Schritte nach Datum, ohne Datum ans Ende
+  function pjSort(p) { p.steps.sort(function (a, b) { var x = a.d || '9999', y = b.d || '9999'; return x < y ? -1 : x > y ? 1 : 0; }); }
+  function pjList() { return UNI.projects || (UNI.projects = []); }
+  function pjFind(sid) {
+    var ps = pjList();
+    for (var i = 0; i < ps.length; i++) for (var j = 0; j < ps[i].steps.length; j++) if (ps[i].steps[j].id === sid) return { p: ps[i], s: ps[i].steps[j] };
+    return null;
+  }
+  function pjNext(p) { return p.steps.filter(function (s) { return !s.done; })[0] || null; }
+  // Schritte für „Alle“ an Tag k: an diesem Tag fällig; heute zusätzlich überfällige (und die heute abgehakten davon)
+  function stepsOn(k) {
+    var out = [];
+    pjList().forEach(function (p) {
+      p.steps.forEach(function (s) {
+        if (!s.d) return;
+        if (s.d === k || (k === todayKey && s.d < k && (!s.done || s.done === k))) out.push({ p: p, s: s });
+      });
+    });
+    return out;
+  }
+  function daysBetween(a, b) { return Math.round((parseKey(b) - parseKey(a)) / 864e5); }
   // Klausurtermine pro Fach: { Fachname: 'JJJJ-MM-TT' }
   function normExams(e) {
     var o = {};
@@ -2066,7 +2151,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<span class="allgrp-n' + (full ? ' full' : '') + '">' + done + ' von ' + total + ' erledigt</span>' + (extra || '') + '</div>';
   }
   /* ---------- Feier beim Abhaken: Häkchen-Pop, Konfetti, Spruch, „… erledigt!“ ---------- */
-  var CELE_ACTS = { 'all-toggle': 1, 'uni-ttoggle': 1, 'ctoggle': 1, 'toggle': 1 }; // Ideen bewusst nicht
+  var CELE_ACTS = { 'all-toggle': 1, 'uni-ttoggle': 1, 'ctoggle': 1, 'toggle': 1, 'pj-toggle': 1 }; // Ideen bewusst nicht
   var SAYINGS = ['Erledigt, weiter so!', 'Stark!', 'Ein Punkt weniger auf der Liste.', 'Läuft bei dir.', 'Sauber gemacht!', 'Gut gemacht!'];
   var celeEls = null, celeToastT = null, celeBigT = null, fxParts = [], fxRun = false;
   function celeInit() {
@@ -2209,12 +2294,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (b) sndPlay(b.dataset.snd, b.dataset.big === '1');
   });
 
-  function celebrate(x, y, doneName, col, msg, sub) {
+  // rawTitle: doneName ist schon der fertige Titel (z. B. „… geschafft! 🎉“)
+  function celebrate(x, y, doneName, col, msg, sub, rawTitle) {
     var E = celeInit(), calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     celePling(!!doneName);
     if (!calm) fxBurst(x, y, doneName ? 70 : 40, col);
     if (doneName) {
-      E.big.querySelector('b').textContent = doneName + ' erledigt!'; E.big.querySelector('b').style.color = col || ''; E.big.querySelector('span').textContent = sub || 'Alles für heute geschafft. Stark!';
+      E.big.querySelector('b').textContent = rawTitle ? doneName : doneName + ' erledigt!'; E.big.querySelector('b').style.color = col || ''; E.big.querySelector('span').textContent = sub || 'Alles für heute geschafft. Stark!';
       E.big.classList.add('on');
       if (!calm) { fxBurst(innerWidth * 0.25, innerHeight * 0.4, 120, col); fxBurst(innerWidth * 0.75, innerHeight * 0.4, 120, col); }
       clearTimeout(celeBigT); celeBigT = setTimeout(function () { E.big.classList.remove('on'); }, 2600);
@@ -2248,13 +2334,23 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (SND.on) celeAudio();
     var h0 = celeHead(el), key = celeKey(h0), wasFull = !!(h0 && h0.dataset.full === '1'), wasToday = !!(h0 && h0.dataset.tfull === '1');
     var r = el.getBoundingClientRect(), col = getComputedStyle(el).getPropertyValue('--accent').trim(), sel = 'input[data-act="' + ds.act + '"]';
-    ['id', 'tid', 'iid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
+    ['id', 'tid', 'iid', 'sid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
     // Frist früh geschafft: Fristaufgabe vor dem Fristtag abgehakt
     var msg = null, utid = ds.act === 'uni-ttoggle' ? ds.tid : (ds.act === 'all-toggle' && ds.kind === 'uni' ? ds.id : null);
     var ut = utid && (todoFind(utid) || {}).t;
     if (ut && ut.due && ut.due > todayKey) {
       var early = Math.round((parseKey(ut.due) - parseKey(todayKey)) / 864e5);
       msg = '🎉 ' + early + (early === 1 ? ' Tag' : ' Tage') + ' vor der Frist geschafft!';
+    }
+    // Projekt-Schritt: früher als geplant, und ist es der letzte offene Schritt, wird das ganze Projekt gefeiert
+    var pjs = ds.act === 'pj-toggle' ? pjFind(ds.sid) : (ds.act === 'all-toggle' && ds.kind === 'pstep' ? pjFind(ds.id) : null), pjDone = null;
+    if (pjs) {
+      var pday = ds.act === 'pj-toggle' ? todayKey : ds.k;
+      if (pjs.s.d && pjs.s.d > pday) msg = '🎉 ' + plTage(daysBetween(pday, pjs.s.d)) + ' früher als geplant!';
+      if (pjs.p.steps.every(function (s) { return s === pjs.s || s.done; })) {
+        var gl = pjs.p.goal ? daysBetween(todayKey, pjs.p.goal) : null;
+        pjDone = { t: pjs.p.name + ' geschafft! 🎉', s: gl > 0 ? plTage(gl) + ' vor dem Ziel.' : gl === 0 ? 'Genau am Zieltag.' : 'Alle Schritte erledigt.' };
+      }
     }
     setTimeout(function () {
       var h1 = celeFind(key), full = !wasFull && !!(h1 && h1.dataset.full === '1');
@@ -2264,6 +2360,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
         var li = cb.closest('li'); if (li) { li.classList.add('glow'); setTimeout(function () { li.classList.remove('glow'); }, 700); }
       }
       // Serie bei Physio in der großen Feier nennen
+      if (pjDone) { celebrate(r.left + r.width / 2, r.top + r.height / 2, pjDone.t, col, null, pjDone.s, true); return; }
       var st = full && h1.querySelector('.streak[data-run]'), sub = st ? '🔥 ' + plTage(+st.dataset.run) + ' in Folge, weiter so!' : null;
       // Fach für heute geschafft (Uni → „Fach“), aber noch nicht ganz leer
       if (!full && !wasToday && h1 && h1.dataset.tfull === '1') {
@@ -2326,7 +2423,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<div class="row"><button type="button" class="btn" data-act="uni-lsave" data-lid="' + esc(l.id) + '"' + dis() + '>Speichern</button>' +
       '<button type="button" class="btn ghost" data-act="uni-lcancel">Abbrechen</button></div></div></li>';
   }
-  try { var uvr = localStorage.getItem('tagesbuch:uniview'); if (uvr === 'todo' || uvr === 'fach') uniView = uvr; } catch (e) {}
+  try { var uvr = localStorage.getItem('tagesbuch:uniview'); if (uvr === 'todo' || uvr === 'fach' || uvr === 'proj') uniView = uvr; } catch (e) {}
   function lessonHtml(l, s) {
     var sub = [l.a, l.r].filter(Boolean).map(esc).join(' · ');
     return '<div class="ev uni' + (s && s.cls || '') + '">' + (s && s.bar || '') + '<span class="t">' + esc(l.f) + '–' + esc(l.t) + '</span><span class="x">' + nbTitle(l.s) + (s && s.badge || '') + (sub ? '<small>' + sub + '</small>' : '') + '</span></div>';
@@ -2447,13 +2544,116 @@ textarea.autogrow { resize: none; overflow: hidden; }
         '<button type="submit" class="btn"' + dis() + '>Hinzufügen</button></form>';
     return h;
   }
+  /* ---------- Uni → „Projekte“: Zieldatum, Countdown, nächster Schritt, Zeitleiste ---------- */
+  // pjEdit: Projekt-ID oder 'new', pjDel: Projekt mit offener Rückfrage, pjStepEdit/pjStepDel: Schritt-ID, pjOpen: aufgeklappte Schrittlisten
+  var pjEdit = null, pjDel = null, pjStepEdit = null, pjStepDel = null, pjOpen = {};
+  function pjFmt(k) { return WD_SHORT[(parseKey(k).getDay() + 6) % 7] + ' ' + shortDate(k); }
+  function pjChip(k) {
+    var n = daysBetween(todayKey, k);
+    return '<span class="pj-chip ' + (n <= 1 ? 'urgent' : n <= 7 ? 'soon' : 'calm') + '">' + (n < 0 ? 'seit ' + plTage(-n).replace(/e$/, 'en') + ' fällig' : n === 0 ? 'heute' : n === 1 ? 'morgen' : 'in ' + n + ' Tagen') + '</span>';
+  }
+  function pjForm(p) {
+    var isNew = !p; p = p || { name: '', note: '', goal: '' };
+    var h = '<div class="pj-form panel"><h3>' + (isNew ? 'Neues Projekt' : 'Projekt bearbeiten') + '</h3>' +
+      '<div class="field"><label for="pjName">Name</label><input id="pjName" type="text" maxlength="60" autocomplete="off" placeholder="z. B. Bachelorarbeit" value="' + esc(p.name) + '"' + dis() + '></div>' +
+      '<div class="field"><label for="pjNote">Beschreibung (optional)</label><input id="pjNote" type="text" maxlength="100" autocomplete="off" placeholder="z. B. Abgabe beim Prüfungsamt" value="' + esc(p.note || '') + '"' + dis() + '></div>' +
+      '<div class="field" style="max-width:220px"><label for="pjGoal">Zieldatum (optional)</label><input id="pjGoal" type="date" value="' + esc(p.goal || '') + '"' + dis() + '></div>' +
+      '<p class="err" id="pjErr" role="alert"></p>' +
+      '<div class="row"><button type="button" class="btn" data-act="pj-save"' + dis() + '>Speichern</button><button type="button" class="btn ghost" data-act="pj-cancel">Abbrechen</button></div>';
+    if (!isNew) h += pjDel === p.id
+      ? '<div class="row"><span class="hint">Projekt mit allen Schritten löschen?</span><button type="button" class="btn ghost danger" data-act="pj-del" data-pid="' + esc(p.id) + '"' + dis() + '>Löschen</button><button type="button" class="btn ghost" data-act="pj-keep">Abbrechen</button></div>'
+      : '<div class="row"><button type="button" class="btn ghost danger" data-act="pj-ask" data-pid="' + esc(p.id) + '"' + dis() + '>Projekt löschen</button></div>';
+    return h + '</div>';
+  }
+  function pjStepRow(p, s, nx) {
+    var at = ' data-pid="' + esc(p.id) + '" data-sid="' + esc(s.id) + '"', cid = 'pjs_' + s.id;
+    if (pjStepEdit === s.id) {
+      return '<li class="edit"><input id="pjsX" type="text" maxlength="80" autocomplete="off" value="' + esc(s.x) + '" aria-label="Schritt"' + dis() + '>' +
+        '<input id="pjsD" type="date" value="' + esc(s.d || '') + '" aria-label="Datum (optional)"' + dis() + '>' +
+        '<button type="button" class="btn" data-act="pj-ssave"' + at + dis() + '>Speichern</button><button type="button" class="btn ghost" data-act="pj-scancel">Abbrechen</button></li>';
+    }
+    var tail = pjStepDel === s.id
+      ? '<button type="button" class="btn ghost danger" data-act="pj-sdel"' + at + dis() + '>Löschen</button><button type="button" class="btn ghost" data-act="pj-skeep">Abbrechen</button>'
+      : '<button type="button" class="del pen" data-act="pj-sedit"' + at + ' aria-label="' + esc(s.x) + ' bearbeiten">✎</button>' +
+        '<button type="button" class="del" data-act="pj-sask"' + at + ' aria-label="' + esc(s.x) + ' löschen">×</button>';
+    return '<li class="' + (s.done ? 'done' : '') + (nx === s ? ' cur' : '') + '"><input type="checkbox" id="' + cid + '" data-act="pj-toggle"' + at + (s.done ? ' checked' : '') + dis() + '>' +
+      '<label for="' + cid + '" class="item-main">' + esc(s.x) + '<small>' + (s.d ? pjFmt(s.d) : 'ohne Datum') + '</small></label>' + tail + '</li>';
+  }
+  function renderProjects() {
+    var ps = pjList().slice().sort(function (a, b) { var x = pjNext(a), y = pjNext(b); x = x && x.d || '9999'; y = y && y.d || '9999'; return x < y ? -1 : x > y ? 1 : 0; });
+    var h = pjEdit === 'new' ? pjForm(null) : '';
+    h += ps.map(function (p) {
+      if (pjEdit === p.id) return pjForm(p);
+      var n = p.steps.length, nd = p.steps.filter(function (s) { return s.done; }).length, nx = pjNext(p), open = !!pjOpen[p.id] || !n;
+      var left = p.goal ? daysBetween(todayKey, p.goal) : null;
+      var meta = [p.note, p.goal ? 'Ziel ' + pjFmt(p.goal) : ''].filter(Boolean).map(esc).join(' · ');
+      return '<div class="pj"><div class="pj-h"><div class="pj-t"><b>' + esc(p.name) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</div>' +
+        (left === null ? '' : '<div class="pj-goal"><b>' + left + '</b><small>' + (Math.abs(left) === 1 ? 'Tag' : 'Tage') + (left < 0 ? ' über dem Ziel' : ' bis zum Ziel') + '</small></div>') +
+        '<button type="button" class="del pen" data-act="pj-edit" data-pid="' + esc(p.id) + '" aria-label="Projekt ' + esc(p.name) + ' bearbeiten">✎</button></div>' +
+        (n ? '<div class="pj-prog"><span class="pbar" aria-hidden="true"><i style="width:' + Math.round(nd / n * 100) + '%"></i></span><span>' + nd + ' von ' + n + (n === 1 ? ' Schritt' : ' Schritten') + '</span></div>' : '') +
+        (nx ? '<div class="pj-next"><span aria-hidden="true">👉</span><span class="x">' + esc(nx.x) + '<small>Nächster Schritt' + (nx.d ? ' · bis ' + pjFmt(nx.d) : '') + '</small></span>' + (nx.d ? pjChip(nx.d) : '') + '</div>'
+          : '<div class="pj-next"><span aria-hidden="true">' + (n ? '🎉' : '📝') + '</span><span class="x">' + (n ? 'Alle Schritte erledigt!' : 'Noch keine Schritte. Leg unten den ersten an.') + '</span></div>') +
+        (n ? '<button type="button" class="pj-tog" data-act="pj-open" data-pid="' + esc(p.id) + '" aria-expanded="' + open + '">' + (open ? 'Schritte ausblenden ▲' : 'Alle Schritte ▼') + '</button>' : '') +
+        (open ? (n ? '<ul class="pj-tl">' + p.steps.map(function (s) { return pjStepRow(p, s, nx); }).join('') + '</ul>' : '') +
+          '<div class="pj-add"><input id="pjaX_' + esc(p.id) + '" type="text" maxlength="80" autocomplete="off" placeholder="Neuer Schritt" aria-label="Neuer Schritt"' + dis() + '>' +
+          '<input id="pjaD_' + esc(p.id) + '" type="date" aria-label="Datum (optional)" title="Datum (optional)"' + dis() + '>' +
+          '<button type="button" class="btn ghost" data-act="pj-sadd" data-pid="' + esc(p.id) + '"' + dis() + '>+ Schritt</button></div>' : '') + '</div>';
+    }).join('');
+    if (!ps.length && pjEdit !== 'new') h += emptyHtml('🗂️', 'Noch keine Projekte', 'Plane langfristige Vorhaben mit Zieldatum und Schritten.');
+    if (pjEdit !== 'new') h += '<button type="button" class="btn" data-act="pj-new" style="margin-top:14px;align-self:flex-start"' + dis() + '>+ Neues Projekt</button>';
+    return h;
+  }
+  // Bearbeiten-Aktionen im Projekt-Bereich; true = erledigt
+  function pjAction(act, b) {
+    var pid = b.dataset.pid, sid = b.dataset.sid, p = pid ? pjList().filter(function (x) { return x.id === pid; })[0] : null, v = function (i) { var el = document.getElementById(i); return el ? el.value.trim() : ''; };
+    if (act === 'pj-new') { pjEdit = 'new'; pjDel = null; }
+    else if (act === 'pj-edit') { pjEdit = pid; pjDel = pjStepEdit = pjStepDel = null; }
+    else if (act === 'pj-cancel') pjEdit = pjDel = null;
+    else if (act === 'pj-ask') pjDel = pid;
+    else if (act === 'pj-keep') pjDel = null;
+    else if (act === 'pj-open') pjOpen[pid] = !pjOpen[pid];
+    else if (act === 'pj-del') { UNI.projects = pjList().filter(function (x) { return x.id !== pid; }); pjEdit = pjDel = null; saveUni(); renderCal(); }
+    else if (act === 'pj-save') {
+      var name = v('pjName'), goal = v('pjGoal');
+      if (!name) { var er = document.getElementById('pjErr'); if (er) er.textContent = 'Bitte gib dem Projekt einen Namen.'; return true; }
+      var tgt = pjEdit === 'new' ? { id: uid(), name: '', steps: [] } : pjList().filter(function (x) { return x.id === pjEdit; })[0];
+      if (!tgt) { pjEdit = null; renderPanel(); return true; }
+      tgt.name = name.slice(0, 60);
+      if (v('pjNote')) tgt.note = v('pjNote').slice(0, 100); else delete tgt.note;
+      if (KRE.test(goal)) tgt.goal = goal; else delete tgt.goal;
+      if (pjEdit === 'new') { pjList().push(tgt); pjOpen[tgt.id] = true; }
+      pjEdit = pjDel = null; saveUni();
+    }
+    else if (act === 'pj-sadd' && p) {
+      var x = v('pjaX_' + pid), d = v('pjaD_' + pid);
+      if (!x) return true;
+      var ns = { id: uid(), x: x.slice(0, 80) }; if (KRE.test(d)) ns.d = d;
+      p.steps.push(ns); pjSort(p); pjOpen[pid] = true; saveUni(); renderCal();
+    }
+    else if (act === 'pj-sedit') { pjStepEdit = sid; pjStepDel = null; }
+    else if (act === 'pj-scancel') pjStepEdit = null;
+    else if (act === 'pj-sask') { pjStepDel = sid; pjStepEdit = null; }
+    else if (act === 'pj-skeep') pjStepDel = null;
+    else if (act === 'pj-sdel' && p) { p.steps = p.steps.filter(function (s) { return s.id !== sid; }); pjStepDel = null; saveUni(); renderCal(); }
+    else if (act === 'pj-ssave') {
+      var f = pjFind(sid), sx = v('pjsX'), sd = v('pjsD');
+      if (!f || !sx) return true;
+      f.s.x = sx.slice(0, 80); if (KRE.test(sd)) f.s.d = sd; else delete f.s.d;
+      pjSort(f.p); pjStepEdit = null; saveUni(); renderCal();
+    }
+    else return false;
+    renderPanel();
+    return true;
+  }
   function renderUni(c) {
-    var id = c ? c.id : null, h = '<div class="modes subtabs three" role="tablist" aria-label="Uni-Bereich">' +
+    var id = c ? c.id : null, h = '<div class="modes subtabs four" role="tablist" aria-label="Uni-Bereich">' +
       '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="plan" aria-selected="' + (uniView === 'plan') + '">Stundenplan</button>' +
       '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="todo" aria-selected="' + (uniView === 'todo') + '">Liste</button>' +
-      '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="fach" aria-selected="' + (uniView === 'fach') + '">Fach</button></div>';
+      '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="fach" aria-selected="' + (uniView === 'fach') + '">Fach</button>' +
+      '<button type="button" class="mode" role="tab" data-act="uni-view" data-v="proj" aria-selected="' + (uniView === 'proj') + '">Projekte</button></div>';
     var todoOnly = isTodoTab(c); if (todoOnly) h = '';
     if (uniView === 'fach' && !todoOnly) { elPanel.innerHTML = h + renderFach(c); return; }
+    if (uniView === 'proj' && !todoOnly) { elPanel.innerHTML = h + renderProjects(); return; }
     if (uniView === 'plan' && !todoOnly) {
       var ls = lessonsOn(c, selected);
       h += ls.length ? '<div class="events uniplan">' + (function () { var st = liveStates(selected, ls.map(function (l) { return { f: l.f, t: l.t }; })); return ls.map(function (l, i) { return lessonHtml(l, st[i]); }).join(''); })() + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
@@ -3013,7 +3213,30 @@ textarea.autogrow { resize: none; overflow: hidden; }
       if (isUni(c)) return;
       dueItems(c.id, k).forEach(function (it) { out.push({ kind: 'citem', id: it.id, tid: c.id, k: k, text: it.text, done: isChecked(k, c.id, it.id), sub: '', go: 'c_' + c.id, ist: isPhysio(c) && it.rep !== 'once' ? itemStreak(c.id, it) : 0 }); });
     });
+    // Projekt-Schritte (Uni → „Projekte“), die an diesem Tag fällig sind
+    if (uniGo()) stepsOn(k).forEach(function (x) {
+      var late = x.s.d < k;
+      out.push({ kind: 'pstep', id: x.s.id, tid: x.p.id, k: k, text: x.s.x, done: !!x.s.done, sub: x.p.name + (late ? ' · seit ' + plTage(daysBetween(x.s.d, k)).replace(/e$/, 'en') + ' fällig' : ''), late: late && !x.s.done, go: 'proj' });
+    });
     return out;
+  }
+  // Notizen gibt es bei Tages-, Uni-/To-do-Aufgaben und eigenen Tabs mit Notizen, nicht bei Projekt-Schritten
+  function canNote(t) { return t.kind === 'task' || t.kind === 'uni' || (t.kind === 'citem' && notesOn(tabById(t.tid))); }
+  // „Demnächst“: was in den nächsten 7 Tagen ansteht und nicht schon oben in der Liste steht (Projekt-Schritte, Klausuren)
+  function soonHtml(k) {
+    if (!uniGo()) return '';
+    var end = addDays(k, 7), items = [];
+    pjList().forEach(function (p) { p.steps.forEach(function (s) { if (!s.done && s.d && s.d > k && s.d <= end) items.push({ d: s.d, x: s.x, sub: 'Projekt · ' + p.name, go: 'proj' }); }); });
+    var ex = UNI.exams || {};
+    Object.keys(ex).forEach(function (f) { if (ex[f] > k && ex[f] <= end) items.push({ d: ex[f], x: '📝 Klausur ' + f, sub: 'Uni · Fach', go: uniGo() }); });
+    if (!items.length) return '';
+    items.sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; });
+    var ks = kStyle(uniGo());
+    return '<div class="field soon"' + (ks ? ' style="' + ks + '"' : '') + '><span class="label">Demnächst</span><div class="soonlist">' + items.slice(0, 6).map(function (it) {
+      var n = daysBetween(k, it.d);
+      return '<div class="srow tap" data-act="all-go" data-go="' + esc(it.go) + '" role="button" tabindex="0"><span class="x">' + esc(it.x) + '<small>' + esc(it.sub) + ' · ' + pjFmt(it.d) + '</small></span>' +
+        '<span class="pj-chip ' + (n <= 1 ? 'urgent' : 'soon') + '">' + (n === 1 ? 'morgen' : 'in ' + n + ' Tagen') + '</span></div>';
+    }).join('') + '</div></div>';
   }
   function allCounts(k) {
     return { ev: allEvents(k).length, open: allTodos(k, false).filter(function (x) { return !x.done; }).length };
@@ -3029,24 +3252,25 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (tds.length) {
       // Nach Herkunft gruppieren, in der Reihenfolge der Tabs oben
       var n = 0;
-      allTabs().forEach(function (tb) {
+      allTabs().concat([['proj', 'Projekte']]).forEach(function (tb) {
         var grp = tds.filter(function (t) { return t.go === tb[0]; });
         if (!grp.length) return;
-        var nd = grp.filter(function (x) { return x.done; }).length;
-        h += '<div class="field allgrp"' + (kStyle(tb[0]) ? ' style="' + kStyle(tb[0]) + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0], (/^c_/.test(tb[0]) ? streakHtml(tabById(tb[0].slice(2)), true) : '') +
+        var nd = grp.filter(function (x) { return x.done; }).length, ks = kStyle(tb[0] === 'proj' ? uniGo() : tb[0]);
+        h += '<div class="field allgrp"' + (ks ? ' style="' + ks + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0], (/^c_/.test(tb[0]) ? streakHtml(tabById(tb[0].slice(2)), true) : '') +
           '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button>') + '<ul class="list">' + grp.map(function (t) {
           var cid = 'al_' + (n++);
           return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
             (function () {
               var inner = esc(t.text) + (t.sub ? '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small>' : '') +
                 (t.ist ? '<small><span class="istreak" title="' + plTage(t.ist) + ' in Folge gemacht">🔥 ' + plTage(t.ist) + ' in Folge</span></small>' : '');
-              var ref = noteRef(t.kind, t.id, t.k, t.tid), can = t.kind !== 'citem' || notesOn(tabById(t.tid));
+              var ref = noteRef(t.kind, t.id, t.k, t.tid), can = canNote(t);
               return can ? noteBtn(t.kind, t.id, t.k, t.tid, inner, ref && ref.n) : '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + inner + '</label>';
             })() + '</li>' +
-            (t.kind !== 'citem' || notesOn(tabById(t.tid)) ? noteArea(t.kind, t.id, t.k, t.tid, (noteRef(t.kind, t.id, t.k, t.tid) || {}).n) : '');
+            (canNote(t) ? noteArea(t.kind, t.id, t.k, t.tid, (noteRef(t.kind, t.id, t.k, t.tid) || {}).n) : '');
         }).join('') + '</ul></div>';
       });
     } else h += '<div class="field" style="margin-top:14px"><span class="label">Aufgaben</span>' + emptyHtml('☀️', 'Nichts offen', 'Genieß den Tag.') + '</div>';
+    h += soonHtml(selected);
     elPanel.innerHTML = h;
   }
   function renderIdeas() {
@@ -3548,7 +3772,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
       fachNbOpen = null; refreshAfterEdit(true);
       return;
     }
-    if (act === 'uni-view') { uniView = b.dataset.v === 'todo' || b.dataset.v === 'fach' ? b.dataset.v : 'plan'; uniMsg = null; try { localStorage.setItem('tagesbuch:uniview', uniView); } catch (er) {} renderPanel(); return; }
+    if (/^pj-/.test(act) && pjAction(act, b)) return;
+    if (act === 'uni-view') { uniView = ['todo', 'fach', 'proj'].indexOf(b.dataset.v) >= 0 ? b.dataset.v : 'plan'; uniMsg = null; try { localStorage.setItem('tagesbuch:uniview', uniView); } catch (er) {} renderPanel(); return; }
     if (act === 'uni-tdel' && curTodoTab()) {
       var tdt = curTodoTab(), tsnap = todoList(tdt).slice();
       tdt.todos = tsnap.filter(function (t) { return t.id !== b.dataset.tid; });
@@ -3566,6 +3791,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       undoable(act === 'uni-tdel' ? 'Aufgabe gelöscht' : act === 'uni-lclear' ? 'Stundenplan geleert' : 'Veranstaltung entfernt', function () { UNI.lessons = snapL; UNI.todos = snapT; saveUni(); renderPanel(); renderCal(); });
       return;
     }
+    if (act === 'all-go' && b.dataset.go === 'proj') { var pg = uniGo(); if (pg) { tab = pg; wtab = pg; uniView = 'proj'; try { localStorage.setItem('tagesbuch:tab', tab); } catch (er) {} renderAll(); renderEvents(); } return; }
     if (act === 'all-go') { var g = b.dataset.go; if (g && tabExists(g)) { tab = g; wtab = g; try { localStorage.setItem('tagesbuch:tab', tab); } catch (er) {} if (g === 'tasks' && uniTasksMode()) uniView = 'todo'; renderAll(); renderEvents(); } return; }
     if (act === 'tnote') { openNote = openNote === b.dataset.nk ? null : b.dataset.nk; renderPanel(); return; }
     if (act === 'idea-open') { openIdea = openIdea === b.dataset.iid ? null : b.dataset.iid; renderPanel(); return; }
@@ -3906,6 +4132,15 @@ textarea.autogrow { resize: none; overflow: hidden; }
     else { clearTimeout(noteSaveT); noteSaveT = setTimeout(function () { if (ds.kind === 'uni') todoSave((todoFind(ds.id) || {}).c); else savePrefs(); }, 700); }
   });
   elPanel.addEventListener('toggle', function (e) { if (e.target.dataset && e.target.dataset.uniDet) uniEditPlan = e.target.open; }, true);
+  // Projekte: Enter speichert (Formular, Schritt bearbeiten, neuer Schritt); „Demnächst“-Zeilen per Tastatur öffnen
+  elPanel.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || !ready) return;
+    if (e.target.matches && e.target.matches('.srow[data-act]')) { e.preventDefault(); e.target.click(); return; }
+    if (e.target.tagName !== 'INPUT') return;
+    var box = e.target.closest('.pj-form, .pj-tl li.edit, .pj-add'); if (!box) return;
+    var b = box.querySelector('[data-act="pj-save"], [data-act="pj-ssave"], [data-act="pj-sadd"]');
+    if (b) { e.preventDefault(); pjAction(b.dataset.act, b); }
+  });
   elPanel.addEventListener('change', function (e) {
     var el = e.target;
     if (el.dataset && el.dataset.act === 'inotes' && ready) {
@@ -3921,6 +4156,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
       } else if (kd === 'task') {
         var tt2 = ((days[ak] || {}).tasks || []).filter(function (x) { return x.id === aid; })[0]; if (!tt2) return;
         tt2.done = el.checked; commit(ak);
+      } else if (kd === 'pstep') {
+        var af = pjFind(aid); if (!af) return;
+        if (el.checked) af.s.done = ak; else delete af.s.done; saveUni();
       } else if (kd === 'citem') {
         var ad = ensure(ak), atid = el.dataset.tid;
         ad.checks[atid] = ad.checks[atid] || {};
@@ -3929,6 +4167,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
         commit(ak);
       }
       renderPanel(); renderCal();
+      return;
+    }
+    if (el.dataset && el.dataset.act === 'pj-toggle' && ready) {
+      var pf = pjFind(el.dataset.sid); if (!pf) return;
+      if (el.checked) pf.s.done = todayKey; else delete pf.s.done;
+      saveUni(); renderPanel(); renderCal();
       return;
     }
     if (el.dataset && el.dataset.act === 'idea-toggle' && ready) {
@@ -4309,7 +4553,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     if (ridt > lid && Array.isArray(rid.v)) { IDEAS = normIdeas(rid.v); meta.ideas = ridt; changed = true; }
     else if (lid > ridt) dirty = true;
     var ru = remote.uni || { t: 0 }, lu = meta.uni || 0, rut = ru.t || 0;
-    if (rut > lu && ru.v && typeof ru.v === 'object') { UNI = { lessons: normLessons(ru.v.lessons), todos: normTodos(ru.v.todos), exams: normExams(ru.v.exams) }; meta.uni = rut; changed = true; }
+    if (rut > lu && ru.v && typeof ru.v === 'object') { UNI = { lessons: normLessons(ru.v.lessons), todos: normTodos(ru.v.todos), exams: normExams(ru.v.exams), projects: normProjects(ru.v.projects) }; meta.uni = rut; changed = true; }
     else if (lu > rut) dirty = true;
     var rtn = remote.tabnames || { t: 0 }, ltn = meta.tabnames || 0, rtnt = rtn.t || 0;
     if (rtnt > ltn && rtn.v && typeof rtn.v === 'object') { tabNames = rtn.v; meta.tabnames = rtnt; changed = true; }

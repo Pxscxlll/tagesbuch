@@ -35,7 +35,8 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 
 ## Datenmodell
 - **Pro Tag `days[k]`:** `weight`, `sports`, `tasks` (`{id,text,done,n?}`), `note`, `custom[tabId]`, `checks`, `evnotes`
-- **`UNI = {lessons, todos}`:**
+- **`UNI = {lessons, todos, exams, projects}`:**
+  - Projects: `{id,name,note?,goal?, steps:[{id,x,d?,done? (Tag des Abhakens)}]}`, Schritte nach Datum sortiert (`pjSort`, ohne Datum ans Ende). Werden mit `uni` synchronisiert.
   - Lessons: `{id,s,a,r,f,t, d (1–7) | k (Datum), from?, until?, w?}`
   - Todos: `{id,x,from, day | due, done?, n?}`
   - Uni-Modus: `TABSET.uni` (der eingebaute Aufgaben-Tab heißt dann fest „Uni“, bei Pascal so). Früher wurde das über den Tab-Namen erkannt; ohne gespeichertes `TABSET` wird es aus `tabNames.tasks` übernommen.
@@ -67,7 +68,8 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - **Sport-Serie** (`sportStreak`, oben im Sport-Tab): Wochen Mo–So mit mindestens 2× Krafttraining oder Bouldern (Sportart passt auf `/kraft|bould/i`). Zeigt „Diese Woche x von 2“, „🔥 N Wochen“ in Folge (laufende Woche unterbricht nicht) und „✓ N Wochen in JJJJ“.
 - **Frist früh geschafft:** Beim Abhaken einer Fristaufgabe vor dem Fristtag kommt „🎉 N Tage vor der Frist geschafft!“.
 - **„läuft gerade“ und Countdown** (`liveStates`, nur für heute) bei Terminen, in „Alle“ und im Stundenplan; wird jede Minute aufgefrischt, außer während man tippt.
-- **Uni-Tab: „Stundenplan | Liste | Fach“** (`uniView` plan/todo/fach). Fächer kommen aus dem Stundenplan (`fachList`, `lessonFach`): „Praktikum/Übung/Tutorium … X“ wird automatisch dem passenden Fach zugeordnet (`autoFach`), von Hand über „Gehört zu Fach“ (`lesson.fa`). Aufgaben tragen `fa` (Fach), Nacharbeitungen `nb` (Art) und `nbl` (Stunde@Datum). Klausurtermine in `UNI.exams`. Farbe pro Fach `--f0…--f7`. „Fach“ zeigt pro Fach nächste Veranstaltung, nächste Frist, 🎯 Für heute, 📝 Klausur, „+ Nachbereiten“; Feier „… – für heute erledigt“ (`data-tfull`) und „… erledigt!“.
+- **Uni → „Projekte“** (`uniView` proj, `renderProjects`, Aktionen `pj-*` in `pjAction`): Projekte mit Zieldatum, Countdown, Fortschritt, nächstem Schritt und Zeitleiste. Anlegen/Bearbeiten/Löschen (mit Rückfrage) von Projekten und Schritten. Feier: Spruch, „🎉 N Tage früher als geplant!“, letzter Schritt → „<Projekt> geschafft! 🎉“ mit Tagen bis zum Ziel. In „Alle“: Gruppe „Projekte“ mit an dem Tag fälligen Schritten (heute auch überfällige, `stepsOn`, `kind: 'pstep'`), zählen im Tagesring; darunter „Demnächst“ (`soonHtml`): Projekt-Schritte und Klausuren der nächsten 7 Tage (Uni-Fristen nicht, die stehen schon in der Liste).
+- **Uni-Tab: „Stundenplan | Liste | Fach | Projekte“** (`uniView` plan/todo/fach/proj). Fächer kommen aus dem Stundenplan (`fachList`, `lessonFach`): „Praktikum/Übung/Tutorium … X“ wird automatisch dem passenden Fach zugeordnet (`autoFach`), von Hand über „Gehört zu Fach“ (`lesson.fa`). Aufgaben tragen `fa` (Fach), Nacharbeitungen `nb` (Art) und `nbl` (Stunde@Datum). Klausurtermine in `UNI.exams`. Farbe pro Fach `--f0…--f7`. „Fach“ zeigt pro Fach nächste Veranstaltung, nächste Frist, 🎯 Für heute, 📝 Klausur, „+ Nachbereiten“; Feier „… – für heute erledigt“ (`data-tfull`) und „… erledigt!“.
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.
 - Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar. Dazu ein Ton (bei „… erledigt!“ die längere Variante).
 - Zahnrad oben rechts (`setBtn`) öffnet das Fenster „Einstellungen“ (`setCard`, über der App). Schließen mit ×, Tipp daneben oder Escape. Darin aufklappbare Bereiche (`details.set-sec`), zugeklappt mit Kurzinfo rechts:
