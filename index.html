@@ -583,7 +583,10 @@ textarea.autogrow { resize: none; overflow: hidden; }
 .aboli .item-main { flex: 1 1 140px; }
 .pick { display: flex; align-items: center; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 0.95rem; color: var(--fg); font-weight: 400; padding: 4px 0; }
 .pick input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
-.gnote { margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* Hinweis zum Google-Kalender (lädt …, Fehler): schwebt unten über der Seite, damit nichts springt */
+.gnote { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: fit-content; max-width: 460px; z-index: 50; margin: 0 auto; padding: 8px 16px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0,0,0,.35); color: var(--fg); font-size: 0.86rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; pointer-events: none; }
+.gnote[hidden] { display: none; }
+.gnote button { pointer-events: auto; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 @media (max-width: 640px) {
@@ -619,7 +622,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 92</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 93</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
