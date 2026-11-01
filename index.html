@@ -340,6 +340,11 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .tmblk.past { opacity: .5; }
 .tmnow { position: absolute; left: 0; right: 0; border-top: 2px solid var(--danger); z-index: 3; pointer-events: none; }
 .tmcnt { position: absolute; top: 2px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--fc); color: var(--k-ink); font-size: .66rem; font-weight: 700; display: grid; place-items: center; }
+.tmadl { font-size: .62rem; color: var(--muted); text-align: right; padding: 4px 5px 0 0; line-height: 1.1; border-bottom: 1px solid var(--line); }
+.tmadc { border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 2px; display: flex; flex-direction: column; gap: 2px; min-height: 26px; min-width: 0; }
+.tmadchip { border: 0; border-left: 4px solid var(--fc); border-radius: 5px; background: color-mix(in srgb, var(--fc) 22%, var(--surface)); color: var(--fg); font-size: .68rem; font-weight: 600; text-align: left; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tmleg { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .78rem; color: var(--muted); }
+.tmleg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--fc); margin-right: 5px; }
 .tmcnt.tmcnt-d { position: static; height: auto; padding: 2px 9px; font-size: .74rem; flex: none; }
 button.ev.evb { width: 100%; text-align: left; border: 0; border-left: 3px solid var(--fc); color: var(--fg); font: inherit; align-items: center; cursor: pointer; position: relative; padding: 9px 10px; border-radius: 8px; background: color-mix(in srgb, var(--fc) 8%, transparent); margin-top: 6px; }
 button.ev.evb:hover { background: color-mix(in srgb, var(--fc) 18%, transparent); }
@@ -622,7 +627,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 93</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 94</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1541,7 +1546,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   function renderEvents() {
     var el = $('#events'), list = evIdx[selected] || [];
-    if (tab !== 'events' || addingTab || !list.length) { el.hidden = true; el.innerHTML = ''; return; }
+    if (tab !== 'events' || addingTab || !list.length || evView === 'week') { el.hidden = true; el.innerHTML = ''; return; }
     var ae = document.activeElement;
     if (ae && (ae.id === 'evNoteIn' || ae.id === 'evGenIn' || (ae.closest && ae.closest('.evedit'))) && el.contains(ae) && !remBusy) return;
     el.hidden = false;
@@ -2809,6 +2814,75 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<label for="' + id + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(text) + (sub ? '<small>' + sub + '</small>' : '') + '</label>' +
       (withDel ? '<button type="button" class="del" data-act="term-tdel" data-kind="' + x.kind + '" data-id="' + esc(t.id) + '" data-k="' + x.k + '" aria-label="' + esc(text) + ' löschen">×</button>' : '') + '</li>';
   }
+  /* ---------- Wochentabelle für alle Termine (Alle → Termine und Tab „Termine“) ---------- */
+  var evView = 'week', allSub = 'termine';
+  try { if (localStorage.getItem('tagesbuch:evview') === 'day') evView = 'day'; if (localStorage.getItem('tagesbuch:allsub') === 'aufgaben') allSub = 'aufgaben'; } catch (e) {}
+  // Farbe nach Quelle: Google Kalender lila, Kalender-Abo rosa, eigene Erinnerungen und Termine gelb
+  function evColor(x) { return x.e.pl || x.aid === 'eigene' ? 'var(--k-ideas)' : x.aid.indexOf('g:') === 0 ? 'var(--k-events)' : 'var(--acc-rosa)'; }
+  function evSrcKey(x) { return x.e.pl || x.aid === 'eigene' ? 'erin' : x.aid.indexOf('g:') === 0 ? 'google' : 'abo'; }
+  function evViewHtml() {
+    return '<div class="tmsub" role="tablist" aria-label="Ansicht"><button type="button" role="tab" data-act="ev-view" data-v="week" aria-selected="' + (evView === 'week') + '">Woche</button><button type="button" role="tab" data-act="ev-view" data-v="day" aria-selected="' + (evView === 'day') + '">Tag</button></div>';
+  }
+  // Überlappende Termine nebeneinander legen: pro Termin Spalte (lane) und Anzahl der Spalten (n)
+  function evLanes(list) {
+    var s = list.filter(function (e) { return !e.ad; }).sort(function (a, b) { return a.a - b.a || b.b - a.b; }), out = [], cl = [], clEnd = -1;
+    function flush() { var n = cl.reduce(function (m, x) { return Math.max(m, x.lane + 1); }, 1); cl.forEach(function (x) { x.n = n; out.push(x); }); cl = []; }
+    s.forEach(function (e) {
+      if (cl.length && e.a >= clEnd) { flush(); clEnd = -1; }
+      var used = cl.filter(function (x) { return x.e.b > e.a; }).map(function (x) { return x.lane; }), lane = 0; while (used.indexOf(lane) >= 0) lane++;
+      cl.push({ e: e, lane: lane }); clEnd = Math.max(clEnd, e.b);
+    });
+    flush(); return out;
+  }
+  function weekEventsHtml(includeUni) {
+    var mon = addDays(selected, -(dowOf(selected) - 1)), keys = [], per = [], lo = 8 * 60, hi = 17 * 60, last = 4, PX = 46, i, m, srcs = {};
+    for (i = 0; i < 7; i++) {
+      var k0 = addDays(mon, i), items = [];
+      (evIdx[k0] || []).forEach(function (x) {
+        var e = x.e, a = hmMin(e.time), ad = a == null, b = ad ? 0 : (hmMin(e.end) > a ? hmMin(e.end) : a + 60);
+        if (!ad) b = Math.min(b, 24 * 60);
+        srcs[evSrcKey(x)] = 1;
+        items.push({ ad: ad, a: ad ? 0 : a, b: b, title: e.title, ab: abbr(e.title), loc: e.loc || '', col: evColor(x), act: 'ev-open', key: x.aid + '|' + e.id, k: k0, f: e.time || '', t: e.end || '' });
+      });
+      if (includeUni) lessonsOn(null, k0).forEach(function (l) {
+        srcs.uni = 1;
+        items.push({ ad: false, a: hmMin(l.f), b: hmMin(l.t), title: l.s, ab: abbr(l.s), loc: l.r || '', col: fachColor(lessonFach(l)), act: 'term-open', lid: l.id, k: k0, f: l.f, t: l.t, cnt: termOpenCount(l, k0) });
+      });
+      keys.push(k0); per.push(items); if (items.length && i > last) last = i;
+      items.forEach(function (it) { if (!it.ad) { lo = Math.min(lo, Math.floor(it.a / 60) * 60); hi = Math.max(hi, Math.ceil(it.b / 60) * 60); } });
+    }
+    var cols = last + 1, total = (hi - lo) / 60 * PX, dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes(), hasAd = per.some(function (l) { return l.some(function (e) { return e.ad; }); });
+    var h = '<div class="tmhead"><button type="button" class="icon-btn" data-act="term-week" data-n="-1" aria-label="Vorherige Woche">‹</button><b>KW ' + isoWeek(mon) + ' · ' + esc(shortDate(mon)) + ' – ' + esc(shortDate(addDays(mon, cols - 1))) + '</b>' +
+      (keys.indexOf(todayKey) < 0 ? '<button type="button" class="text-btn" data-act="term-week" data-n="0">Diese Woche</button>' : '') +
+      '<button type="button" class="icon-btn" data-act="term-week" data-n="1" aria-label="Nächste Woche">›</button></div>';
+    if (!per.some(function (a) { return a.length; })) return h + emptyHtml('📅', 'Keine Termine', 'Diese Woche ist frei.');
+    h += '<div class="tmtt" style="--cols:' + cols + '"><div></div>';
+    for (i = 0; i < cols; i++) h += '<div class="tmdh' + (keys[i] === todayKey ? ' today' : '') + '">' + WD_SHORT[i] + '<b>' + parseKey(keys[i]).getDate() + '</b></div>';
+    if (hasAd) {
+      h += '<div class="tmadl">ganztägig</div>';
+      for (i = 0; i < cols; i++) h += '<div class="tmadc">' + per[i].filter(function (e) { return e.ad; }).map(function (e) {
+        return '<button type="button" class="tmadchip" style="--fc:' + e.col + '" data-act="ev-open" data-key="' + esc(e.key) + '" data-k="' + e.k + '">' + esc(e.title) + '</button>'; }).join('') + '</div>';
+    }
+    h += '<div class="tmhours" style="height:' + total + 'px">';
+    for (m = lo; m <= hi; m += 60) h += '<span style="top:' + ((m - lo) / 60 * PX) + 'px">' + pad(m / 60 % 24) + ':00</span>';
+    h += '</div>';
+    for (i = 0; i < cols; i++) {
+      var isT = keys[i] === todayKey, past = keys[i] < todayKey;
+      h += '<div class="tmcol' + (isT ? ' today' : '') + '" style="height:' + total + 'px">';
+      for (m = lo; m < hi; m += 60) h += '<div class="tmgl" style="top:' + ((m - lo) / 60 * PX) + 'px"></div>';
+      evLanes(per[i]).forEach(function (x) {
+        var e = x.e, live = isT && nowM >= e.a && nowM < e.b, gone = past || (isT && nowM >= e.b), w = 100 / x.n;
+        h += '<button type="button" class="tmblk' + (live ? ' now' : '') + (gone ? ' past' : '') + '" data-act="' + e.act + '" ' + (e.act === 'term-open' ? 'data-lid="' + esc(e.lid) + '"' : 'data-key="' + esc(e.key) + '"') + ' data-k="' + e.k + '" style="--fc:' + e.col + ';top:' + ((e.a - lo) / 60 * PX) + 'px;height:' + Math.max((e.b - e.a) / 60 * PX - 2, 18) + 'px;left:calc(' + (x.lane * w) + '% + 2px);width:calc(' + w + '% - 4px);right:auto" aria-label="' + esc(e.title + ', ' + e.f + (e.t ? ' bis ' + e.t : '')) + '">' +
+          '<b><span class="full">' + esc(e.title) + '</span><span class="abbr">' + esc(e.ab) + '</span></b><small>' + esc(e.f) + (e.loc ? ' · ' + esc(e.loc) : '') + '</small>' + (e.cnt ? '<span class="tmcnt" title="' + e.cnt + ' offene Aufgaben">' + e.cnt + '</span>' : '') + '</button>';
+      });
+      if (isT && nowM >= lo && nowM <= hi) h += '<div class="tmnow" style="top:' + ((nowM - lo) / 60 * PX) + 'px"></div>';
+      h += '</div>';
+    }
+    var NAMES = { google: ['Google Kalender', 'var(--k-events)'], abo: ['Kalender-Abo', 'var(--acc-rosa)'], erin: ['Erinnerung', 'var(--k-ideas)'], uni: ['Uni', 'var(--k-uni)'] };
+    h += '</div><div class="tmleg">' + ['google', 'abo', 'erin', 'uni'].filter(function (k) { return srcs[k]; }).map(function (k) { return '<span style="--fc:' + NAMES[k][1] + '"><i></i>' + NAMES[k][0] + '</span>'; }).join('') + '</div>' +
+      '<p class="hint" style="margin-top:10px">Tipp auf einen Termin öffnet ihn.</p>';
+    return h;
+  }
   function planWeekHtml(c) {
     var mon = addDays(selected, -(dowOf(selected) - 1)), keys = [], perDay = [], lo = 8 * 60, hi = 17 * 60, last = 4, PX = 46, i, m;
     for (i = 0; i < 7; i++) {
@@ -3344,7 +3418,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function renderEvPanel() {
     var keep = {};
     ['remTitle', 'remTime', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
-    var h = (evIdx[selected] || []).length ? '' : emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
+    var h = evViewHtml();
+    if (evView === 'week') h += weekEventsHtml(false);
+    else if (!(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
     if (GCLIENT) {
       if (!remOpen) h += '<div class="row"><button type="button" class="btn ghost" data-act="rem-open">+ Erinnerung</button></div>';
       else {
@@ -3460,13 +3536,21 @@ textarea.autogrow { resize: none; overflow: hidden; }
     return { ev: allEvents(k).length, open: allTodos(k, false).filter(function (x) { return !x.done; }).length };
   }
   function renderAllTab() {
-    var evs = allEvents(selected), tds = allTodos(selected, selected === todayKey), evSt = liveStates(selected, evs.map(function (e) { return { f: e.time, t: e.end }; }));
-    var h = '<div class="field"><span class="label">Termine</span>';
-    h += evs.length ? '<div class="events allev">' + evs.map(function (e) {
-      var s = evSt[evs.indexOf(e)];
-      return '<div class="ev' + (e.uni ? ' uni' : '') + (e.go ? ' tap' : '') + (s && s.cls || '') + '" style="--accent:var(--k-' + (e.uni ? 'uni' : 'events') + ');--accent-ink:var(--k-ink)"' + (e.go ? ' data-act="all-go" data-go="' + esc(e.go) + '" role="button" tabindex="0"' : '') + '>' + (s && s.bar || '') + '<span class="t">' + (e.time ? esc(e.time) + (e.end ? '–' + esc(e.end) : '') : 'ganztägig') + '</span><span class="x">' + nbTitle(e.title) + (s && s.badge || '') + (e.sub ? '<small>' + esc(e.sub) + '</small>' : '') + '</span></div>';
-    }).join('') + '</div>' : '<p class="hint">Keine Termine.</p>';
-    h += '</div>';
+    var tds = allTodos(selected, selected === todayKey);
+    var h = '<div class="tmsub" role="tablist" aria-label="Bereich"><button type="button" role="tab" data-act="all-sub" data-v="termine" aria-selected="' + (allSub === 'termine') + '">Termine</button><button type="button" role="tab" data-act="all-sub" data-v="aufgaben" aria-selected="' + (allSub === 'aufgaben') + '">Aufgaben</button></div>';
+    if (allSub === 'termine') {
+      h += evViewHtml();
+      if (evView === 'week') h += weekEventsHtml(true);
+      else {
+        var evs = allEvents(selected), evSt = liveStates(selected, evs.map(function (e) { return { f: e.time, t: e.end }; }));
+        h += evs.length ? '<div class="events allev">' + evs.map(function (e, i) {
+          var s = evSt[i];
+          return '<div class="ev' + (e.uni ? ' uni' : '') + (e.go ? ' tap' : '') + (s && s.cls || '') + '" style="--accent:var(--k-' + (e.uni ? 'uni' : 'events') + ');--accent-ink:var(--k-ink)"' + (e.go ? ' data-act="all-go" data-go="' + esc(e.go) + '" role="button" tabindex="0"' : '') + '>' + (s && s.bar || '') + '<span class="t">' + (e.time ? esc(e.time) + (e.end ? '–' + esc(e.end) : '') : 'ganztägig') + '</span><span class="x">' + nbTitle(e.title) + (s && s.badge || '') + (e.sub ? '<small>' + esc(e.sub) + '</small>' : '') + '</span></div>';
+        }).join('') + '</div>' : emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
+      }
+      elPanel.innerHTML = h + termModalHtml(null);
+      return;
+    }
     if (tds.length) {
       // Nach Herkunft gruppieren, in der Reihenfolge der Tabs oben
       var n = 0;
@@ -3512,7 +3596,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function renderPanel() {
     $('#grid').dataset.notime = tab === 'ideas' && !addingTab ? '1' : '';
     // Termin-Fenster nur im Stundenplan; beim Verlassen schließen
-    if (termModal && (addingTab || !uniActive() || uniView !== 'plan')) { termModal = null; termDelAsk = false; uniEditLesson = null; }
+    var tmHere = tab === 'all' ? allSub === 'termine' && evView === 'week' : uniActive() && uniView === 'plan';
+    if (termModal && (addingTab || !tmHere)) { termModal = null; termDelAsk = false; uniEditLesson = null; }
     document.body.classList.toggle('tmopen', !!termModal);
     // Bis die Daten geladen sind: pulsierende Platzhalter statt leerer Felder
     if (!ready && !addingTab) { elPanel.innerHTML = '<div class="skel" aria-label="Lädt …"><i style="width:30%"></i><i class="h"></i><i class="h"></i><i style="width:45%"></i><i></i><i style="width:80%"></i></div>'; return; }
@@ -3981,6 +4066,14 @@ textarea.autogrow { resize: none; overflow: hidden; }
     // Uni → „Fach“
     // Stundenplan: Woche/Tag und Termin-Fenster
     if (act === 'plan-view') { uniPlanView = b.dataset.v === 'day' ? 'day' : 'week'; try { localStorage.setItem('tagesbuch:uniplan', uniPlanView); } catch (er) {} renderPanel(); return; }
+    if (act === 'ev-view') { evView = b.dataset.v === 'day' ? 'day' : 'week'; try { localStorage.setItem('tagesbuch:evview', evView); } catch (er) {} renderPanel(); renderEvents(); return; }
+    if (act === 'all-sub') { allSub = b.dataset.v === 'aufgaben' ? 'aufgaben' : 'termine'; try { localStorage.setItem('tagesbuch:allsub', allSub); } catch (er) {} renderPanel(); return; }
+    if (act === 'ev-open') {
+      // Termin aus der Wochentabelle: Tagesansicht dieses Tages im Tab „Termine“ mit geöffnetem Termin
+      selected = b.dataset.k; var eos = parseKey(selected); viewDate = new Date(eos.getFullYear(), eos.getMonth(), 1);
+      evView = 'day'; openEv = b.dataset.key; tab = 'events'; wtab = 'events'; try { localStorage.setItem('tagesbuch:tab', tab); } catch (er) {}
+      renderAll(); renderEvents(); return;
+    }
     if (act === 'term-week') {
       var twn = +b.dataset.n; selected = twn === 0 ? todayKey : addDays(selected, 7 * twn);
       var tws = parseKey(selected); viewDate = new Date(tws.getFullYear(), tws.getMonth(), 1); renderAll(); return;
