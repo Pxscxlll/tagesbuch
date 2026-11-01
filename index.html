@@ -627,7 +627,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 94</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 95</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2835,7 +2835,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     flush(); return out;
   }
   function weekEventsHtml(includeUni) {
-    var mon = addDays(selected, -(dowOf(selected) - 1)), keys = [], per = [], lo = 8 * 60, hi = 17 * 60, last = 4, PX = 46, i, m, srcs = {};
+    var mon = addDays(selected, -(dowOf(selected) - 1)), keys = [], per = [], lo = 8 * 60, hi = 17 * 60, last = 6, PX = 46, i, m, srcs = {};
     for (i = 0; i < 7; i++) {
       var k0 = addDays(mon, i), items = [];
       (evIdx[k0] || []).forEach(function (x) {
