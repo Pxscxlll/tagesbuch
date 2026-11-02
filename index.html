@@ -320,6 +320,7 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .tmsub button:hover { color: var(--fg); }
 .tmsub button[aria-selected="true"] { background: var(--surface); color: var(--accent); box-shadow: 0 0 0 1px var(--line); }
 .tmhead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.tmhead-ev .tmsub { margin-bottom: 0; }
 .tmhead b { flex: 1; min-width: 0; font-family: var(--font-display); font-size: 1.02rem; }
 .tmtt { display: grid; grid-template-columns: 38px repeat(var(--cols), minmax(0, 1fr)); position: relative; }
 .tmdh { height: 44px; text-align: center; font-size: .76rem; font-weight: 600; color: var(--muted); padding-top: 4px; border-bottom: 1px solid var(--line); line-height: 1.15; }
@@ -368,7 +369,7 @@ body.tmopen #scroller { overflow-y: hidden; }
 .tmgrow { flex: 1 1 100%; }
 .tmdlg .list input[type="checkbox"] { accent-color: var(--fc); }
 .tmdlg .tbadge { background: var(--fc); color: var(--k-ink); }
-@media (max-width: 560px) { .tmblk .full { display: none; } .tmblk .abbr { display: inline; } .tmblk small { display: none; } .tmtt { grid-template-columns: 30px repeat(var(--cols), minmax(0, 1fr)); } .tmback { place-items: end center; padding: 0; } .tmdlg { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; } }
+@media (max-width: 560px) { .tmhead-ev .rng { display: none; } .tmblk .full { display: none; } .tmblk .abbr { display: inline; } .tmblk small { display: none; } .tmtt { grid-template-columns: 30px repeat(var(--cols), minmax(0, 1fr)); } .tmback { place-items: end center; padding: 0; } .tmdlg { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; } }
 /* Akzentfarbe wählen */
 .acc-list { display: flex; gap: 10px; flex-wrap: wrap; }
 .acc-sw { width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; padding: 0; }
@@ -627,7 +628,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 96</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 97</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2852,9 +2853,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
       items.forEach(function (it) { if (!it.ad) { lo = Math.min(lo, Math.floor(it.a / 60) * 60); hi = Math.max(hi, Math.ceil(it.b / 60) * 60); } });
     }
     var cols = last + 1, total = (hi - lo) / 60 * PX, dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes(), hasAd = per.some(function (l) { return l.some(function (e) { return e.ad; }); });
-    var h = '<div class="tmhead"><button type="button" class="icon-btn" data-act="term-week" data-n="-1" aria-label="Vorherige Woche">‹</button><b>KW ' + isoWeek(mon) + ' · ' + esc(shortDate(mon)) + ' – ' + esc(shortDate(addDays(mon, cols - 1))) + '</b>' +
+    var h = '<div class="tmhead tmhead-ev">' + evViewHtml() + '<b>KW ' + isoWeek(mon) + '<span class="rng"> · ' + esc(shortDate(mon)) + ' – ' + esc(shortDate(addDays(mon, cols - 1))) + '</span></b>' +
       (keys.indexOf(todayKey) < 0 ? '<button type="button" class="text-btn" data-act="term-week" data-n="0">Diese Woche</button>' : '') +
-      '<button type="button" class="icon-btn" data-act="term-week" data-n="1" aria-label="Nächste Woche">›</button></div>';
+      '<button type="button" class="icon-btn" data-act="term-week" data-n="-1" aria-label="Vorherige Woche">‹</button><button type="button" class="icon-btn" data-act="term-week" data-n="1" aria-label="Nächste Woche">›</button></div>';
     if (!per.some(function (a) { return a.length; })) return h + emptyHtml('📅', 'Keine Termine', 'Diese Woche ist frei.');
     h += '<div class="tmtt" style="--cols:' + cols + '"><div></div>';
     for (i = 0; i < cols; i++) h += '<div class="tmdh' + (keys[i] === todayKey ? ' today' : '') + '">' + WD_SHORT[i] + '<b>' + parseKey(keys[i]).getDate() + '</b></div>';
@@ -3418,9 +3419,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function renderEvPanel() {
     var keep = {};
     ['remTitle', 'remTime', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
-    var h = evViewHtml();
+    var h = '';
     if (evView === 'week') h += weekEventsHtml(false);
-    else if (!(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
+    else if (h = evViewHtml(), !(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
     if (GCLIENT) {
       if (!remOpen) h += '<div class="row"><button type="button" class="btn ghost" data-act="rem-open">+ Erinnerung</button></div>';
       else {
@@ -3539,9 +3540,9 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var tds = allTodos(selected, selected === todayKey);
     var h = '<div class="tmsub" role="tablist" aria-label="Bereich"><button type="button" role="tab" data-act="all-sub" data-v="termine" aria-selected="' + (allSub === 'termine') + '">Termine</button><button type="button" role="tab" data-act="all-sub" data-v="aufgaben" aria-selected="' + (allSub === 'aufgaben') + '">Aufgaben</button></div>';
     if (allSub === 'termine') {
-      h += evViewHtml();
       if (evView === 'week') h += weekEventsHtml(true);
       else {
+        h += evViewHtml();
         var evs = allEvents(selected), evSt = liveStates(selected, evs.map(function (e) { return { f: e.time, t: e.end }; }));
         h += evs.length ? '<div class="events allev">' + evs.map(function (e, i) {
           var s = evSt[i];
