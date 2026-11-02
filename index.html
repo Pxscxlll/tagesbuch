@@ -628,7 +628,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 97</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 98</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1547,7 +1547,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
   function renderEvents() {
     var el = $('#events'), list = evIdx[selected] || [];
-    if (tab !== 'events' || addingTab || !list.length || evView === 'week') { el.hidden = true; el.innerHTML = ''; return; }
+    if (tab !== 'events' || addingTab || !list.length || evWeek()) { el.hidden = true; el.innerHTML = ''; return; }
     var ae = document.activeElement;
     if (ae && (ae.id === 'evNoteIn' || ae.id === 'evGenIn' || (ae.closest && ae.closest('.evedit'))) && el.contains(ae) && !remBusy) return;
     el.hidden = false;
@@ -2816,14 +2816,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
       (withDel ? '<button type="button" class="del" data-act="term-tdel" data-kind="' + x.kind + '" data-id="' + esc(t.id) + '" data-k="' + x.k + '" aria-label="' + esc(text) + ' löschen">×</button>' : '') + '</li>';
   }
   /* ---------- Wochentabelle für alle Termine (Alle → Termine und Tab „Termine“) ---------- */
-  var evView = 'week', allSub = 'termine';
-  try { if (localStorage.getItem('tagesbuch:evview') === 'day') evView = 'day'; if (localStorage.getItem('tagesbuch:allsub') === 'aufgaben') allSub = 'aufgaben'; } catch (e) {}
+  // Woche oder Tag ergibt sich aus dem Umschalter ganz oben (Tag | Woche | Monat | Jahr)
+  var allSub = 'termine';
+  try { if (localStorage.getItem('tagesbuch:allsub') === 'aufgaben') allSub = 'aufgaben'; } catch (e) {}
+  function evWeek() { return vmode === 'week'; }
   // Farbe nach Quelle: Google Kalender lila, Kalender-Abo rosa, eigene Erinnerungen und Termine gelb
   function evColor(x) { return x.e.pl || x.aid === 'eigene' ? 'var(--k-ideas)' : x.aid.indexOf('g:') === 0 ? 'var(--k-events)' : 'var(--acc-rosa)'; }
   function evSrcKey(x) { return x.e.pl || x.aid === 'eigene' ? 'erin' : x.aid.indexOf('g:') === 0 ? 'google' : 'abo'; }
-  function evViewHtml() {
-    return '<div class="tmsub" role="tablist" aria-label="Ansicht"><button type="button" role="tab" data-act="ev-view" data-v="week" aria-selected="' + (evView === 'week') + '">Woche</button><button type="button" role="tab" data-act="ev-view" data-v="day" aria-selected="' + (evView === 'day') + '">Tag</button></div>';
-  }
   // Überlappende Termine nebeneinander legen: pro Termin Spalte (lane) und Anzahl der Spalten (n)
   function evLanes(list) {
     var s = list.filter(function (e) { return !e.ad; }).sort(function (a, b) { return a.a - b.a || b.b - a.b; }), out = [], cl = [], clEnd = -1;
@@ -2853,9 +2852,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       items.forEach(function (it) { if (!it.ad) { lo = Math.min(lo, Math.floor(it.a / 60) * 60); hi = Math.max(hi, Math.ceil(it.b / 60) * 60); } });
     }
     var cols = last + 1, total = (hi - lo) / 60 * PX, dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes(), hasAd = per.some(function (l) { return l.some(function (e) { return e.ad; }); });
-    var h = '<div class="tmhead tmhead-ev">' + evViewHtml() + '<b>KW ' + isoWeek(mon) + '<span class="rng"> · ' + esc(shortDate(mon)) + ' – ' + esc(shortDate(addDays(mon, cols - 1))) + '</span></b>' +
-      (keys.indexOf(todayKey) < 0 ? '<button type="button" class="text-btn" data-act="term-week" data-n="0">Diese Woche</button>' : '') +
-      '<button type="button" class="icon-btn" data-act="term-week" data-n="-1" aria-label="Vorherige Woche">‹</button><button type="button" class="icon-btn" data-act="term-week" data-n="1" aria-label="Nächste Woche">›</button></div>';
+    var h = '';
     if (!per.some(function (a) { return a.length; })) return h + emptyHtml('📅', 'Keine Termine', 'Diese Woche ist frei.');
     h += '<div class="tmtt" style="--cols:' + cols + '"><div></div>';
     for (i = 0; i < cols; i++) h += '<div class="tmdh' + (keys[i] === todayKey ? ' today' : '') + '">' + WD_SHORT[i] + '<b>' + parseKey(keys[i]).getDate() + '</b></div>';
@@ -3420,8 +3417,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var keep = {};
     ['remTitle', 'remTime', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var h = '';
-    if (evView === 'week') h += weekEventsHtml(false);
-    else if (h = evViewHtml(), !(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
+    if (evWeek()) h += weekEventsHtml(false);
+    else if (!(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
     if (GCLIENT) {
       if (!remOpen) h += '<div class="row"><button type="button" class="btn ghost" data-act="rem-open">+ Erinnerung</button></div>';
       else {
@@ -3540,9 +3537,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var tds = allTodos(selected, selected === todayKey);
     var h = '<div class="tmsub" role="tablist" aria-label="Bereich"><button type="button" role="tab" data-act="all-sub" data-v="termine" aria-selected="' + (allSub === 'termine') + '">Termine</button><button type="button" role="tab" data-act="all-sub" data-v="aufgaben" aria-selected="' + (allSub === 'aufgaben') + '">Aufgaben</button></div>';
     if (allSub === 'termine') {
-      if (evView === 'week') h += weekEventsHtml(true);
+      if (evWeek()) h += weekEventsHtml(true);
       else {
-        h += evViewHtml();
         var evs = allEvents(selected), evSt = liveStates(selected, evs.map(function (e) { return { f: e.time, t: e.end }; }));
         h += evs.length ? '<div class="events allev">' + evs.map(function (e, i) {
           var s = evSt[i];
@@ -3597,7 +3593,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function renderPanel() {
     $('#grid').dataset.notime = tab === 'ideas' && !addingTab ? '1' : '';
     // Termin-Fenster nur im Stundenplan; beim Verlassen schließen
-    var tmHere = tab === 'all' ? allSub === 'termine' && evView === 'week' : uniActive() && uniView === 'plan';
+    var tmHere = tab === 'all' ? allSub === 'termine' && evWeek() : uniActive() && uniView === 'plan';
     if (termModal && (addingTab || !tmHere)) { termModal = null; termDelAsk = false; uniEditLesson = null; }
     document.body.classList.toggle('tmopen', !!termModal);
     // Bis die Daten geladen sind: pulsierende Platzhalter statt leerer Felder
@@ -4067,12 +4063,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
     // Uni → „Fach“
     // Stundenplan: Woche/Tag und Termin-Fenster
     if (act === 'plan-view') { uniPlanView = b.dataset.v === 'day' ? 'day' : 'week'; try { localStorage.setItem('tagesbuch:uniplan', uniPlanView); } catch (er) {} renderPanel(); return; }
-    if (act === 'ev-view') { evView = b.dataset.v === 'day' ? 'day' : 'week'; try { localStorage.setItem('tagesbuch:evview', evView); } catch (er) {} renderPanel(); renderEvents(); return; }
     if (act === 'all-sub') { allSub = b.dataset.v === 'aufgaben' ? 'aufgaben' : 'termine'; try { localStorage.setItem('tagesbuch:allsub', allSub); } catch (er) {} renderPanel(); return; }
     if (act === 'ev-open') {
       // Termin aus der Wochentabelle: Tagesansicht dieses Tages im Tab „Termine“ mit geöffnetem Termin
       selected = b.dataset.k; var eos = parseKey(selected); viewDate = new Date(eos.getFullYear(), eos.getMonth(), 1);
-      evView = 'day'; openEv = b.dataset.key; tab = 'events'; wtab = 'events'; try { localStorage.setItem('tagesbuch:tab', tab); } catch (er) {}
+      vmode = 'day'; openEv = b.dataset.key; tab = 'events'; wtab = 'events'; try { localStorage.setItem('tagesbuch:tab', tab); localStorage.setItem('tagesbuch:vmode', vmode); } catch (er) {}
       renderAll(); renderEvents(); return;
     }
     if (act === 'term-week') {
