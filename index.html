@@ -193,14 +193,15 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .skel i.h { height: 40px; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 /* Tagesring neben dem Datum */
-.dring { position: relative; display: inline-block; width: 40px; height: 40px; vertical-align: middle; margin-left: 8px; }
-.dring[hidden] { display: none; }
+.drings { display: inline-flex; gap: 6px; vertical-align: middle; margin-left: 8px; }
+.drings[hidden] { display: none; }
+.dring { position: relative; display: inline-block; width: 40px; height: 40px; vertical-align: middle; }
 .dring svg { display: block; width: 40px; height: 40px; transform: rotate(-90deg); }
 .dring circle { fill: none; stroke-width: 5; }
 .dring .bgc { stroke: color-mix(in srgb, var(--muted) 30%, var(--surface)); }
-.dring .fgc { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .6s cubic-bezier(.3,1.3,.5,1); }
+.dring .fgc { stroke: var(--rc, var(--accent)); stroke-linecap: round; transition: stroke-dashoffset .6s cubic-bezier(.3,1.3,.5,1); }
 .dring span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 .64rem var(--font-display); letter-spacing: -.02em; }
-.dring span.full { font-size: 1.1rem; color: var(--accent); }
+.dring span.full { font-size: 1.1rem; color: var(--rc, var(--accent)); }
 @media (max-width: 480px) { .dring, .dring svg { width: 32px; height: 32px; } .dring span { font-size: .56rem; } .dring span.full { font-size: .95rem; } }
 /* „läuft gerade“ und Countdown bei Terminen und Stundenplan */
 .ev.now, .lesson.now { box-shadow: inset 3px 0 0 var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); position: relative; overflow: hidden; }
@@ -641,7 +642,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 99</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 100</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -659,7 +660,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       <button type="button" class="mode" role="tab" data-vm="year" aria-selected="false">Jahr</button>
     </div>
     <div class="nav">
-      <h2 id="rangeLabel"><span id="rangeTxt"></span><span class="dring" id="dayRing" hidden title="Heute erledigt"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="bgc" cx="22" cy="22" r="18"/><circle class="fgc" id="dayRingC" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="113.1"/></svg><span id="dayRingP"></span></span></h2>
+      <h2 id="rangeLabel"><span id="rangeTxt"></span><span class="drings" id="dayRings" hidden></span></h2>
       <button type="button" class="text-btn" id="todayBtn">Heute</button>
       <button type="button" class="icon-btn" id="prevBtn" aria-label="Zurück">‹</button>
       <button type="button" class="icon-btn" id="nextBtn" aria-label="Weiter">›</button>
@@ -1323,17 +1324,24 @@ textarea.autogrow { resize: none; overflow: hidden; }
     elMonth.textContent = t;
     renderRing();
   }
-  // Tagesring neben dem Datum: wie viel vom gewählten Tag erledigt ist (alle Aufgaben aus „Alle“ zusammen)
+  // Tagesringe neben dem Datum: pro Kategorie ein Ring, wie viel vom gewählten Tag erledigt ist
+  // (Aufgaben = To-do + Uni + Projekt-Schritte, Physio, bei Bedarf Weitere = andere eigene Tabs)
+  var ringPrev = {};
   function renderRing() {
-    var el = document.getElementById('dayRing'); if (!el) return;
+    var el = document.getElementById('dayRings'); if (!el) return;
     // Nur, was an diesem Tag zu erledigen ist: Fristaufgaben erst ab ihrem Fristtag (oder wenn sie an diesem Tag erledigt wurden)
-    var td = vmode === 'day' && ready ? allTodos(selected, false).filter(function (x) { return !x.due || x.due <= selected || x.doneOn === selected; }) : [], n = td.filter(function (x) { return x.done; }).length, p = td.length ? n / td.length : 0;
-    el.hidden = !td.length;
-    if (!td.length) return;
-    document.getElementById('dayRingC').style.strokeDashoffset = (113.1 * (1 - p)).toFixed(1);
-    var tp = document.getElementById('dayRingP'); tp.textContent = p >= 1 ? '✓' : Math.round(p * 100) + '%'; tp.classList.toggle('full', p >= 1);
-    el.title = n + ' von ' + td.length + ' erledigt';
-    el.setAttribute('aria-label', el.title);
+    var td = vmode === 'day' && ready ? allTodos(selected, false).filter(function (x) { return !x.due || x.due <= selected || x.doneOn === selected; }) : [];
+    var G = [['task', 'Aufgaben', 'var(--k-tasks)'], ['physio', 'Physio', 'var(--k-physio)'], ['other', 'Weitere', 'var(--accent)']], h = '', fin = [];
+    function grp(x) { return x.kind === 'citem' ? (isPhysio(tabById(x.tid)) ? 'physio' : 'other') : 'task'; }
+    G.forEach(function (g) {
+      var l = td.filter(function (x) { return grp(x) === g[0]; }); if (!l.length) return;
+      var n = l.filter(function (x) { return x.done; }).length, p = n / l.length, title = g[1] + ': ' + n + ' von ' + l.length + ' erledigt';
+      var from = ringPrev[g[0]] != null ? ringPrev[g[0]] : 0; ringPrev[g[0]] = p; fin.push((113.1 * (1 - p)).toFixed(1));
+      h += '<span class="dring" style="--rc:' + g[2] + '" title="' + esc(title) + '" role="img" aria-label="' + esc(title) + '"><svg viewBox="0 0 44 44" aria-hidden="true"><circle class="bgc" cx="22" cy="22" r="18"/><circle class="fgc" cx="22" cy="22" r="18" stroke-dasharray="113.1" stroke-dashoffset="' + (113.1 * (1 - from)).toFixed(1) + '"/></svg><span' + (p >= 1 ? ' class="full"' : '') + '>' + (p >= 1 ? '✓' : Math.round(p * 100) + '%') + '</span></span>';
+    });
+    el.hidden = !h; el.innerHTML = h;
+    // Ring läuft vom alten zum neuen Stand, statt bei jedem Neuzeichnen neu zu starten
+    if (h) { el.getBoundingClientRect(); [].slice.call(el.querySelectorAll('.fgc')).forEach(function (c, i) { c.style.strokeDashoffset = fin[i]; }); }
   }
 
   function renderCal() {
