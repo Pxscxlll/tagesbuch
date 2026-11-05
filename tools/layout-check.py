@@ -8,11 +8,15 @@ os.makedirs(S, exist_ok=True)
 d={}
 for dd in range(1,15):
     d['2026-10-%02d'%dd]={'weight':80+dd/10,'sports':[{'id':'s%d'%dd,'type':'Tischtennis','min':90,'note':'','ex':[]}],'tasks':[{'id':'t%d'%dd,'text':'Übungsblatt Technische Mechanik','done':dd%2==0}],'note':'Notiz','custom':{},'evnotes':{},'checks':{}}
-CHK="""(()=>{const W=document.documentElement.clientWidth,out=[];
-document.querySelectorAll('body *').forEach(e=>{if(!e.offsetParent&&getComputedStyle(e).position!=='fixed')return;const r=e.getBoundingClientRect();if(r.width&&r.right>W+1&&!e.closest('.tabs'))out.push((e.id||e.className||e.tagName)+':'+Math.round(r.right))});
+CHK="""(()=>{const W=document.documentElement.clientWidth,out=[],SC=document.getElementById('scroller');
+// Sichtbarer rechter Rand: Text, den ein Element mit overflow abschneidet (z. B. „…“ in Wochenblöcken), steht nicht über.
+// #scroller ist absichtlich 24px breiter (Scrollbalken außerhalb), body schneidet ihn ab – beide zählen hier nicht als Abschneider.
+const visRight=e=>{let r=e.getBoundingClientRect().right;for(let a=e.parentElement;a&&a!==document.body&&a!==SC;a=a.parentElement){if(getComputedStyle(a).overflowX!=='visible')r=Math.min(r,a.getBoundingClientRect().right)}return r};
+document.querySelectorAll('body *').forEach(e=>{if(e===SC)return;if(!e.offsetParent&&getComputedStyle(e).position!=='fixed')return;const r=e.getBoundingClientRect();const vr=visRight(e);if(r.width&&vr>W+1&&!e.closest('.tabs'))out.push((e.id||e.className||e.tagName)+':'+Math.round(vr))});
 const sc=document.documentElement.scrollWidth>W;
-// Überlappung von Buttons in derselben Zeile
-const bs=[...document.querySelectorAll('button,input,select')].filter(e=>e.offsetParent).map(e=>[e,e.getBoundingClientRect()]);const ov=[];
+// Überlappung von Buttons in derselben Zeile (schwebende Hinweise unten wie #gNote liegen absichtlich über dem Inhalt)
+const FLOAT='.gnote,.toast,.cele-toast';
+const bs=[...document.querySelectorAll('button,input,select')].filter(e=>e.offsetParent&&!e.closest(FLOAT)).map(e=>[e,e.getBoundingClientRect()]);const ov=[];
 for(let i=0;i<bs.length;i++)for(let j=i+1;j<bs.length;j++){const a=bs[i][1],b=bs[j][1];if(bs[i][0].contains(bs[j][0])||bs[j][0].contains(bs[i][0]))continue;const x=Math.min(a.right,b.right)-Math.max(a.left,b.left),y=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);if(x>2&&y>2)ov.push((bs[i][0].textContent||bs[i][0].id).trim().slice(0,15)+' x '+(bs[j][0].textContent||bs[j][0].id).trim().slice(0,15))}
 return {hscroll:sc,over:out.slice(0,5),overlap:ov.slice(0,5)}})()"""
 with sync_playwright() as p:

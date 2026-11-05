@@ -13,7 +13,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - `index.html`: die ganze App (HTML, CSS und JS inline)
 - `sw.js`: Service Worker (network-first, `cache:'no-cache'`)
 - `manifest.webmanifest`, `icons/`, `datenschutz.html`
-- `tools/layout-check.py`: Layout-Prüfung für Handy, iPad und Laptop
+- `tools/layout-check.py`: Layout-Prüfung für Handy, iPad und Laptop. Zählt nur, was sichtbar übersteht: `#scroller` (absichtlich 24px breiter) und von `overflow` abgeschnittener Text (z. B. „…“ in Wochenblöcken) zählen nicht; schwebende Hinweise (`.gnote`, Toasts) sind von der Überlappungsprüfung ausgenommen. Solange `#gNote` schwebt, bekommt `#scroller` unten mehr Platz, damit nichts dauerhaft verdeckt ist.
 
 ## Bei jeder Änderung (nach OK)
 1. Versionsnummer an zwei Stellen erhöhen:
@@ -32,6 +32,8 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
   - Sync nach „letzter Stand gewinnt“, getrennt für Tage, Abos, Tabs, Sportarten, `gsel`, Tab-Reihenfolge, Tab-Namen, gelöschte Tabs, evgen, `uni` und `ideas`.
   - Wöchentliche Backups `planner-backup-JJJJ-MM-TT.json`, die letzten 8 bleiben erhalten.
 - **App-Anmeldung:** Scopes `drive.appdata` und `calendar.readonly`.
+  - **Angemeldet bleiben (ohne Server):** Google gibt nur Schlüssel für 1 Stunde. Der Schlüssel wird bis zum Ablauf in `localStorage` (`tagesbuch:tokl`, `tokSave`/`haveTok`) gemerkt, ein Neustart in dieser Zeit gleicht sofort ab. Ohne gültigen Schlüssel öffnet die App nie selbst ein Google-Fenster (würde ohne Tippen blockiert), sondern meldet sich beim nächsten Tippen irgendwo still neu an (`armAutoLogin`/`autoLoginTap` → `sync(true)`, `prompt: ''`). Anzeige: „Gleicht beim nächsten Tippen ab“. Kalender-Termine liegen zusätzlich in `tagesbuch:gcache`. Abmelden löscht alles (`wipeAndReload`).
+  - Echte Daueranmeldung über Monate ginge nur mit kleinem Server (Refresh-Token), siehe Ideen.
 - **Erinnerungen und Termin-Bearbeitung:** eigener Token Client mit `calendar.events` und `login_hint` pascal.gerlach23@gmail.com, `primary`-Kalender. In der App angelegte Events tragen `extendedProperties.shared.planner = '1'`.
 
 ## Datenmodell

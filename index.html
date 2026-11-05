@@ -606,6 +606,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
 /* Hinweis zum Google-Kalender (lädt …, Fehler): schwebt unten über der Seite, damit nichts springt */
 .gnote { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: fit-content; max-width: 460px; z-index: 50; margin: 0 auto; padding: 8px 16px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0,0,0,.35); color: var(--fg); font-size: 0.86rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; pointer-events: none; }
 .gnote[hidden] { display: none; }
+/* Solange der Hinweis schwebt, unten mehr Platz, damit sich alles über ihn hinaus scrollen lässt */
+body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 .gnote button { pointer-events: auto; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
@@ -642,7 +644,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 101</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 102</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1674,7 +1676,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   }
   function gErrMsg(e) {
     var c = e && e.code;
-    if (c === 'needs_reauth' && GCLIENT) return 'Zum Laden der Termine auf Aktualisieren tippen.';
+    if (c === 'needs_reauth' && GCLIENT) return connected() ? 'Termine laden beim nächsten Tippen.' : 'Zum Laden der Termine auf Aktualisieren tippen.';
     if (c === 'forbidden') return 'Kein Zugriff auf Google Kalender. Tippe auf Aktualisieren und erlaube den Kalender, und prüfe in der Cloud Console, ob die Kalender-API aktiv ist.';
     if (c === 'server_not_connected') return 'Google Kalender ist nicht verbunden. Füge den Konnektor in den Claude-Einstellungen unter Konnektoren hinzu.';
     if (c === 'needs_reauth') return 'Die Verbindung zu Google Kalender ist abgelaufen. Verbinde sie in den Claude-Einstellungen unter Konnektoren neu.';
@@ -4785,10 +4787,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
     function api(path) {
       // Nach dem Abmelden nicht still wieder anmelden
       if (!gTok && !connected()) return Promise.reject(calErr('needs_reauth'));
+      // Ohne gültigen Schlüssel kein Google-Fenster ohne Tippen (würde blockiert): beim nächsten Tippen anmelden
+      if (!haveTok()) { armAutoLogin(); return Promise.reject(calErr('needs_reauth')); }
       return getToken(false).catch(function () { throw calErr('needs_reauth'); }).then(function (tok) {
         return fetch('https://www.googleapis.com/calendar/v3/' + path, { headers: { Authorization: 'Bearer ' + tok } });
       }).then(function (r) {
-        if (r.status === 401) { gTok = null; gTokExp = 0; throw calErr('needs_reauth'); }
+        if (r.status === 401) { gTok = null; gTokExp = 0; tokSave(); armAutoLogin(); throw calErr('needs_reauth'); }
         if (r.status === 403 || r.status === 404) throw calErr('forbidden');
         if (r.status === 429 || r.status >= 500) throw calErr('upstream_error');
         if (!r.ok) throw calErr('unknown');
@@ -4847,6 +4851,31 @@ textarea.autogrow { resize: none; overflow: hidden; }
     var tok0 = JSON.parse(sessionStorage.getItem('tagesbuch:tok') || 'null'); sessionStorage.removeItem('tagesbuch:tok');
     if (tok0 && tok0.t && Date.now() < tok0.e - 60000) { gTok = tok0.t; gTokExp = tok0.e; gAcct = tok0.a; gAcctTok = tok0.t; }
   } catch (e) {}
+  // Google gibt nur Schlüssel für 1 Stunde. Den merken wir uns auf dem Gerät, solange er gilt,
+  // damit ein Neustart der App in dieser Zeit keine neue Anmeldung braucht. Abmelden löscht ihn (wipeAndReload).
+  var TOK_KEY = 'tagesbuch:tokl';
+  function haveTok() { return !!gTok && Date.now() < gTokExp - 60000; }
+  function tokSave() { try { if (gTok) localStorage.setItem(TOK_KEY, JSON.stringify({ t: gTok, e: gTokExp })); else localStorage.removeItem(TOK_KEY); } catch (e) {} }
+  try {
+    var tokL = JSON.parse(localStorage.getItem(TOK_KEY) || 'null');
+    if (!gTok && tokL && tokL.t && Date.now() < tokL.e - 60000) { gTok = tokL.t; gTokExp = tokL.e; }
+    else if (gTok) tokSave(); // nach einem Kontowechsel weitergereichter Schlüssel
+  } catch (e) {}
+  // Ohne gültigen Schlüssel: beim nächsten Tippen irgendwo in der App still neu anmelden
+  // (Browser lassen das Google-Fenster nur direkt nach einem Tippen zu)
+  var autoArmed = false;
+  function armAutoLogin() {
+    if (autoArmed || !GCLIENT || !connected() || haveTok()) return;
+    autoArmed = true;
+    loadGsi().catch(function () {}); // vorladen, damit das Fenster noch im selben Tippen aufgeht
+    document.addEventListener('click', autoLoginTap, true);
+  }
+  function autoLoginTap(e) {
+    document.removeEventListener('click', autoLoginTap, true); autoArmed = false;
+    if (haveTok() || !connected()) return;
+    if (e.target.closest && e.target.closest('#syncBtn')) return; // der Knopf gleicht selbst ab
+    sync(true);
+  }
 
   /* ---------- Konto: Browser-Daten gehören immer zu genau einem Google-Konto ---------- */
   function acctId() { try { return localStorage.getItem('tagesbuch:acct') || ''; } catch (e) { return ''; } }
@@ -4935,7 +4964,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
             callback: function (r) {
               var t = tokResolve; tokResolve = null; if (!t) return;
               if (r && r.access_token) {
-                gTok = r.access_token; gTokExp = Date.now() + (Number(r.expires_in) || 3600) * 1000;
+                gTok = r.access_token; gTokExp = Date.now() + (Number(r.expires_in) || 3600) * 1000; tokSave();
                 try { localStorage.setItem('tagesbuch:gconn2', '1'); } catch (e) {}
                 t.res(gTok);
               } else t.rej(new Error((r && r.error) || 'auth'));
@@ -4950,7 +4979,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function gfetch(url, opt) {
     opt = opt || {}; opt.headers = Object.assign({ Authorization: 'Bearer ' + gTok }, opt.headers || {});
     return fetch(url, opt).then(function (r) {
-      if (r.status === 401) { gTok = null; gTokExp = 0; }
+      if (r.status === 401) { gTok = null; gTokExp = 0; tokSave(); }
       if (!r.ok) throw new Error('http ' + r.status);
       return r;
     });
@@ -5150,6 +5179,8 @@ textarea.autogrow { resize: none; overflow: hidden; }
   function sync(interactive) {
     if (!GCLIENT) { if (interactive) setSync('Drive ist noch nicht eingerichtet', 'err'); return Promise.resolve(); }
     if (syncing) { syncAgain = true; return Promise.resolve(); }
+    // Ohne Tippen kann sich die App nicht neu anmelden: dann beim nächsten Tippen abgleichen
+    if (!interactive && !haveTok() && connected()) { armAutoLogin(); setSync('Gleicht beim nächsten Tippen ab', ''); return Promise.resolve(); }
     syncing = true; elSyncBtn.disabled = true; setSync('Gleiche ab …', 'busy');
     syncOk = false;
     return getToken(interactive)
@@ -5188,7 +5219,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
     elSyncBtn.hidden = false; elStatus.hidden = true;
     if (connected()) setSync('Noch nicht abgeglichen', '');
     else setSync('Mit Drive verbinden: auf Aktualisieren tippen', '');
-    if (gTok && connected()) sync(false);
+    if (connected()) sync(false); // mit gemerktem Schlüssel sofort, sonst beim ersten Tippen
   }
 
   /* ---------- Diagramm: Punkt antippen ---------- */
