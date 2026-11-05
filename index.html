@@ -262,6 +262,29 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .pj-tl li.edit input[type="text"] { flex: 1 1 100%; }
 .pj-tl li.edit input[type="date"] { flex: 0 1 180px; min-width: 150px; }
 .pj-tl .btn { height: 36px; padding: 0 12px; }
+.pj-tools { display: flex; gap: 14px; }
+.pj-ml { margin: 10px 0 10px 8px; padding-left: 18px; border-left: 2px solid var(--line); }
+.pj-mw { position: relative; margin-bottom: 8px; }
+.pj-mw::before { content: ""; position: absolute; left: -27px; top: 15px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); z-index: 1; }
+.pj-mw.done::before { background: var(--accent); border-color: var(--accent); }
+.pj-mw.cur::before { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent); }
+.pj-mb { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.pj-mh { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface-2); flex-wrap: wrap; }
+.pj-mh .pj-tg { border: 0; background: transparent; color: var(--muted); font-size: 1rem; width: 26px; height: 30px; padding: 0; transition: transform .2s; }
+.pj-mh .pj-tg[aria-expanded="true"] { transform: rotate(90deg); }
+.pj-mh .pj-nm { flex: 1; min-width: 90px; font-weight: 600; }
+.pj-mh .pj-nm small { display: block; color: var(--muted); font-weight: 400; font-size: .78rem; }
+.pj-mh .pj-cnt { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.pj-mh .pj-mini { width: 54px; flex: none; }
+.pj-mh input.pj-auto { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); opacity: .9; cursor: default; flex: none; }
+.pj-mw.done .pj-nm { color: var(--accent); }
+.pj-mh.pj-medit input[type="text"] { flex: 1 1 150px; min-width: 0; }
+.pj-mh.pj-medit input[type="date"] { flex: 0 1 160px; min-width: 140px; }
+.pj-mdel { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: .84rem; color: var(--muted); }
+.pj-mw .pj-tl { margin: 6px 10px 6px 20px; }
+.pj-qa { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 6px 10px 10px 14px; }
+.pj-multi { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.pj-multi > button:not(.btn) { border: 1px solid var(--line); background: var(--surface-2); color: var(--fg); border-radius: 8px; width: 34px; height: 34px; font-size: 1rem; }
 .pj-add { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 .pj-add input[type="text"] { flex: 1 1 180px; min-width: 0; }
 .pj-add input[type="date"] { flex: 0 1 160px; min-width: 150px; }
@@ -644,7 +667,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 102</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 103</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2031,15 +2054,29 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   // Projekte (Uni → „Projekte“): { id, name, note?, goal?, steps: [{ id, x, d?, done? (Tag des Abhakens) }] }
   function normProjects(a) {
     return (Array.isArray(a) ? a : []).filter(function (p) { return p && typeof p.id === 'string' && typeof p.name === 'string' && p.name; }).map(function (p) {
-      var o = { id: p.id.slice(0, 20), name: p.name.slice(0, 60), steps: [] };
+      var o = { id: p.id.slice(0, 20), name: p.name.slice(0, 60), steps: [], ms: [] };
       if (typeof p.note === 'string' && p.note) o.note = p.note.slice(0, 100);
       if (KRE.test(p.goal || '')) o.goal = p.goal;
+      o.ms = (Array.isArray(p.ms) ? p.ms : []).filter(function (m) { return m && typeof m.id === 'string' && typeof m.t === 'string' && m.t; }).map(function (m) {
+        var mo = { id: m.id.slice(0, 20), t: m.t.slice(0, 60) };
+        if (KRE.test(m.d || '')) mo.d = m.d;
+        return mo;
+      }).slice(0, 30);
       o.steps = (Array.isArray(p.steps) ? p.steps : []).filter(function (s) { return s && typeof s.id === 'string' && typeof s.x === 'string' && s.x; }).map(function (s) {
         var so = { id: s.id.slice(0, 20), x: s.x.slice(0, 80) };
         if (KRE.test(s.d || '')) so.d = s.d;
         if (KRE.test(s.done || '')) so.done = s.done;
+        if (typeof s.m === 'string' && s.m) so.m = s.m.slice(0, 20);
         return so;
-      }).slice(0, 60);
+      }).slice(0, 300);
+      // Schritte ohne (gültigen) Meilenstein, z. B. aus der Zeit vor den Meilensteinen, wandern in den Meilenstein „Schritte“
+      var known = {}; o.ms.forEach(function (m) { known[m.id] = 1; });
+      var lost = o.steps.filter(function (s) { return !s.m || !known[s.m]; });
+      if (lost.length) {
+        var sid = ('sch_' + o.id).slice(0, 20);
+        if (!known[sid]) o.ms.unshift({ id: sid, t: 'Schritte' });
+        lost.forEach(function (s) { s.m = sid; });
+      }
       pjSort(o);
       return o;
     }).slice(0, 30);
@@ -2052,7 +2089,14 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     for (var i = 0; i < ps.length; i++) for (var j = 0; j < ps[i].steps.length; j++) if (ps[i].steps[j].id === sid) return { p: ps[i], s: ps[i].steps[j] };
     return null;
   }
-  function pjNext(p) { return p.steps.filter(function (s) { return !s.done; })[0] || null; }
+  // Nächster Schritt: erste offene Aufgabe im ersten noch nicht geschafften Meilenstein
+  function pjNext(p) {
+    for (var i = 0; i < p.ms.length; i++) { var o = pjMsSteps(p, p.ms[i].id).filter(function (s) { return !s.done; })[0]; if (o) return o; }
+    return p.steps.filter(function (s) { return !s.done; })[0] || null;
+  }
+  function pjMsSteps(p, mid) { return p.steps.filter(function (s) { return s.m === mid; }); }
+  function pjMsDone(p, m) { var l = pjMsSteps(p, m.id); return l.length > 0 && l.every(function (s) { return s.done; }); }
+  function pjMsOf(p, s) { return p.ms.filter(function (m) { return m.id === s.m; })[0] || null; }
   // Schritte für „Alle“ an Tag k: an diesem Tag fällig; heute zusätzlich überfällige (und die heute abgehakten davon)
   function stepsOn(k) {
     var out = [];
@@ -2498,9 +2542,15 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (pjs) {
       var pday = ds.act === 'pj-toggle' ? todayKey : ds.k;
       if (pjs.s.d && pjs.s.d > pday) msg = '🎉 ' + plTage(daysBetween(pday, pjs.s.d)) + ' früher als geplant!';
+      // Letzte offene Aufgabe eines Meilensteins: der Meilenstein ist geschafft
+      var pms = pjMsOf(pjs.p, pjs.s);
+      if (pms && pjMsSteps(pjs.p, pms.id).every(function (s) { return s === pjs.s || s.done; })) {
+        var mdl = pms.d ? daysBetween(pday, pms.d) : 0;
+        msg = '🏁 Meilenstein „' + pms.t + '“ geschafft!' + (mdl > 0 ? ' ' + plTage(mdl) + ' früher als geplant.' : '');
+      }
       if (pjs.p.steps.every(function (s) { return s === pjs.s || s.done; })) {
         var gl = pjs.p.goal ? daysBetween(todayKey, pjs.p.goal) : null;
-        pjDone = { t: pjs.p.name + ' geschafft! 🎉', s: gl > 0 ? plTage(gl) + ' vor dem Ziel.' : gl === 0 ? 'Genau am Zieltag.' : 'Alle Schritte erledigt.' };
+        pjDone = { t: pjs.p.name + ' geschafft! 🎉', s: gl > 0 ? plTage(gl) + ' vor dem Ziel.' : gl === 0 ? 'Genau am Zieltag.' : 'Alle Aufgaben erledigt.' };
       }
     }
     setTimeout(function () {
@@ -2711,6 +2761,14 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   /* ---------- Uni → „Projekte“: Zieldatum, Countdown, nächster Schritt, Zeitleiste ---------- */
   // pjEdit: Projekt-ID oder 'new', pjDel: Projekt mit offener Rückfrage, pjStepEdit/pjStepDel: Schritt-ID, pjOpen: aufgeklappte Schrittlisten
   var pjEdit = null, pjDel = null, pjStepEdit = null, pjStepDel = null, pjOpen = {};
+  // Meilensteine: pjMsOpen = aufgeklappte, pjMsEdit/pjMsDel = Meilenstein-ID, pjCnt = Anzahl für „leere Aufgaben anlegen“
+  var pjMsOpen = {}, pjMsEdit = null, pjMsDel = null, pjCnt = {}, PJ_LIST_DAYS = 10;
+  var PJ_TPL = {
+    leer: { name: 'Leer', ms: [] },
+    arbeit: { name: 'Abschlussarbeit', ms: [['Recherche', ['Thema eingrenzen', 'Literatur sammeln']], ['Gliederung', ['Grobgliederung', 'Mit Betreuer abstimmen']], ['Schreiben', ['Einleitung', 'Hauptteil', 'Fazit']], ['Korrektur', ['Korrekturlesen', 'Formatieren']], ['Abgabe', ['Drucken / PDF', 'Abgeben']]] },
+    pruefung: { name: 'Prüfung lernen', ms: [['Stoff sichten', []], ['Zusammenfassen', []], ['Üben', []], ['Wiederholen', []]] },
+    projekt: { name: 'Allgemeines Projekt', ms: [['Planung', []], ['Umsetzung', []], ['Test', []], ['Abschluss', []]] }
+  };
   function pjFmt(k) { return WD_SHORT[(parseKey(k).getDay() + 6) % 7] + ' ' + shortDate(k); }
   function pjChip(k) {
     var n = daysBetween(todayKey, k);
@@ -2722,6 +2780,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<div class="field"><label for="pjName">Name</label><input id="pjName" type="text" maxlength="60" autocomplete="off" placeholder="z. B. Bachelorarbeit" value="' + esc(p.name) + '"' + dis() + '></div>' +
       '<div class="field"><label for="pjNote">Beschreibung (optional)</label><input id="pjNote" type="text" maxlength="100" autocomplete="off" placeholder="z. B. Abgabe beim Prüfungsamt" value="' + esc(p.note || '') + '"' + dis() + '></div>' +
       '<div class="field" style="max-width:220px"><label for="pjGoal">Zieldatum (optional)</label><input id="pjGoal" type="date" value="' + esc(p.goal || '') + '"' + dis() + '></div>' +
+      (isNew ? '<div class="field" style="max-width:260px"><label for="pjTpl">Vorlage</label><select id="pjTpl"' + dis() + '>' + Object.keys(PJ_TPL).map(function (k) { return '<option value="' + k + '">' + esc(PJ_TPL[k].name) + '</option>'; }).join('') + '</select></div>' +
+        '<p class="hint">Eine Vorlage legt fertige Meilensteine (und Aufgaben) an. Alles lässt sich danach ändern.</p>' : '') +
       '<p class="err" id="pjErr" role="alert"></p>' +
       '<div class="row"><button type="button" class="btn" data-act="pj-save"' + dis() + '>Speichern</button><button type="button" class="btn ghost" data-act="pj-cancel">Abbrechen</button></div>';
     if (!isNew) h += pjDel === p.id
@@ -2743,25 +2803,65 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     return '<li class="' + (s.done ? 'done' : '') + (nx === s ? ' cur' : '') + '"><input type="checkbox" id="' + cid + '" data-act="pj-toggle"' + at + (s.done ? ' checked' : '') + dis() + '>' +
       '<label for="' + cid + '" class="item-main">' + esc(s.x) + '<small>' + (s.d ? pjFmt(s.d) : 'ohne Datum') + '</small></label>' + tail + '</li>';
   }
+  // Projekt-Aufgaben erscheinen erst 10 Tage vor ihrer Frist in der Uni-„Liste“ (überfällige bleiben, bis sie erledigt sind)
+  function pjListHtml(k) {
+    var out = [];
+    pjList().forEach(function (p) { p.steps.forEach(function (s) { if (s.d && daysBetween(k, s.d) <= PJ_LIST_DAYS && (!s.done || s.done === k)) out.push({ p: p, s: s }); }); });
+    if (!out.length) return '';
+    out.sort(function (a, b) { return a.s.d < b.s.d ? -1 : a.s.d > b.s.d ? 1 : 0; });
+    return '<div class="field"><span class="label">Aus Projekten</span><ul class="list">' + out.map(function (x) {
+      var m = pjMsOf(x.p, x.s), late = !x.s.done && x.s.d < k, on = !!x.s.done, cid = 'pjl_' + x.s.id;
+      return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" id="' + esc(cid) + '" data-act="pj-toggle" data-pid="' + esc(x.p.id) + '" data-sid="' + esc(x.s.id) + '"' + (on ? ' checked' : '') + dis() + '>' +
+        '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(x.s.x) +
+        '<small' + (late ? ' class="late"' : '') + '>📁 ' + esc(x.p.name) + (m ? ' · ' + esc(m.t) : '') + ' · ' + esc(dueText({ due: x.s.d }, k)) + '</small></label></li>';
+    }).join('') + '</ul></div>';
+  }
+  // Ein Meilenstein: Kopfzeile (Auf-/Zuklappen, automatischer Haken, Name, Fortschritt, Datum) und darunter seine Aufgaben
+  function pjMsHtml(p, m, nx) {
+    var l = pjMsSteps(p, m.id), n = l.length, nd = l.filter(function (s) { return s.done; }).length, done = pjMsDone(p, m), open = !!pjMsOpen[m.id], at = ' data-pid="' + esc(p.id) + '" data-mid="' + esc(m.id) + '"';
+    var cur = !!(nx && nx.m === m.id), h = '<div class="pj-mw' + (done ? ' done' : '') + (cur ? ' cur' : '') + '"><div class="pj-mb">';
+    if (pjMsEdit === m.id) {
+      return h + '<div class="pj-mh pj-medit"><input id="pjmX" type="text" maxlength="60" autocomplete="off" value="' + esc(m.t) + '" aria-label="Meilenstein"' + dis() + '>' +
+        '<input id="pjmD" type="date" value="' + esc(m.d || '') + '" aria-label="Datum (optional)"' + dis() + '>' +
+        '<button type="button" class="btn" data-act="pj-msave"' + at + dis() + '>Speichern</button><button type="button" class="btn ghost" data-act="pj-mcancel">Abbrechen</button></div></div></div>';
+    }
+    h += '<div class="pj-mh"><button type="button" class="pj-tg" data-act="pj-mtog"' + at + ' aria-expanded="' + open + '" aria-label="' + esc(m.t) + (open ? ' zuklappen' : ' aufklappen') + '">▸</button>' +
+      '<input type="checkbox" class="pj-auto" disabled' + (done ? ' checked' : '') + ' title="Wird automatisch abgehakt, sobald alle Aufgaben erledigt sind" aria-label="' + esc(m.t) + ' (automatisch)">' +
+      '<span class="pj-nm">' + esc(m.t) + (m.d ? '<small>bis ' + pjFmt(m.d) + '</small>' : '') + '</span>' +
+      '<span class="pj-cnt">' + (n ? nd + '/' + n : '–') + '</span><span class="pbar pj-mini" aria-hidden="true"><i style="width:' + (n ? Math.round(nd / n * 100) : 0) + '%"></i></span>';
+    if (pjMsDel === m.id) {
+      h += '<span class="pj-mdel">' + (n ? 'Mit ' + n + (n === 1 ? ' Aufgabe' : ' Aufgaben') + ' löschen?' : 'Löschen?') + '<button type="button" class="btn ghost danger" data-act="pj-mdel"' + at + dis() + '>Löschen</button><button type="button" class="btn ghost" data-act="pj-mkeep">Abbrechen</button></span>';
+    } else {
+      h += '<button type="button" class="del pen" data-act="pj-medit"' + at + ' aria-label="' + esc(m.t) + ' bearbeiten">✎</button><button type="button" class="del" data-act="pj-mask"' + at + ' aria-label="' + esc(m.t) + ' löschen">×</button>';
+    }
+    h += '</div>';
+    if (open) {
+      var c = pjCnt[m.id] || 3;
+      h += (n ? '<ul class="pj-tl">' + l.map(function (s) { return pjStepRow(p, s, nx); }).join('') + '</ul>' : '') +
+        '<div class="pj-qa"><button type="button" class="btn" data-act="pj-sadd1"' + at + dis() + '>+ Aufgabe</button>' +
+        '<span class="pj-multi"><button type="button" data-act="pj-cm"' + at + ' aria-label="weniger">−</button><b>' + c + '</b><button type="button" data-act="pj-cp"' + at + ' aria-label="mehr">+</button>' +
+        '<button type="button" class="btn ghost" data-act="pj-saddn"' + at + dis() + '>' + c + ' leere Aufgaben anlegen</button></span></div>';
+    }
+    return h + '</div></div>';
+  }
   function renderProjects() {
     var ps = pjList().slice().sort(function (a, b) { var x = pjNext(a), y = pjNext(b); x = x && x.d || '9999'; y = y && y.d || '9999'; return x < y ? -1 : x > y ? 1 : 0; });
     var h = pjEdit === 'new' ? pjForm(null) : '';
     h += ps.map(function (p) {
       if (pjEdit === p.id) return pjForm(p);
-      var n = p.steps.length, nd = p.steps.filter(function (s) { return s.done; }).length, nx = pjNext(p), open = !!pjOpen[p.id] || !n;
+      var n = p.steps.length, nd = p.steps.filter(function (s) { return s.done; }).length, nx = pjNext(p), open = !!pjOpen[p.id] || !p.ms.length;
       var left = p.goal ? daysBetween(todayKey, p.goal) : null;
       var meta = [p.note, p.goal ? 'Ziel ' + pjFmt(p.goal) : ''].filter(Boolean).map(esc).join(' · ');
       return '<div class="pj"><div class="pj-h"><div class="pj-t"><b>' + esc(p.name) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</div>' +
         (left === null ? '' : '<div class="pj-goal"><b>' + left + '</b><small>' + (Math.abs(left) === 1 ? 'Tag' : 'Tage') + (left < 0 ? ' über dem Ziel' : ' bis zum Ziel') + '</small></div>') +
         '<button type="button" class="del pen" data-act="pj-edit" data-pid="' + esc(p.id) + '" aria-label="Projekt ' + esc(p.name) + ' bearbeiten">✎</button></div>' +
-        (n ? '<div class="pj-prog"><span class="pbar" aria-hidden="true"><i style="width:' + Math.round(nd / n * 100) + '%"></i></span><span>' + nd + ' von ' + n + (n === 1 ? ' Schritt' : ' Schritten') + '</span></div>' : '') +
+        (n ? '<div class="pj-prog"><span class="pbar" aria-hidden="true"><i style="width:' + Math.round(nd / n * 100) + '%"></i></span><span>' + nd + ' von ' + n + (n === 1 ? ' Aufgabe' : ' Aufgaben') + ' · ' + p.ms.filter(function (m) { return pjMsDone(p, m); }).length + ' von ' + p.ms.length + (p.ms.length === 1 ? ' Meilenstein' : ' Meilensteinen') + '</span></div>' : '') +
         (nx ? '<div class="pj-next"><span aria-hidden="true">👉</span><span class="x">' + esc(nx.x) + '<small>Nächster Schritt' + (nx.d ? ' · bis ' + pjFmt(nx.d) : '') + '</small></span>' + (nx.d ? pjChip(nx.d) : '') + '</div>'
-          : '<div class="pj-next"><span aria-hidden="true">' + (n ? '🎉' : '📝') + '</span><span class="x">' + (n ? 'Alle Schritte erledigt!' : 'Noch keine Schritte. Leg unten den ersten an.') + '</span></div>') +
-        (n ? '<button type="button" class="pj-tog" data-act="pj-open" data-pid="' + esc(p.id) + '" aria-expanded="' + open + '">' + (open ? 'Schritte ausblenden ▲' : 'Alle Schritte ▼') + '</button>' : '') +
-        (open ? (n ? '<ul class="pj-tl">' + p.steps.map(function (s) { return pjStepRow(p, s, nx); }).join('') + '</ul>' : '') +
-          '<div class="pj-add"><input id="pjaX_' + esc(p.id) + '" type="text" maxlength="80" autocomplete="off" placeholder="Neuer Schritt" aria-label="Neuer Schritt"' + dis() + '>' +
-          '<input id="pjaD_' + esc(p.id) + '" type="date" aria-label="Datum (optional)" title="Datum (optional)"' + dis() + '>' +
-          '<button type="button" class="btn ghost" data-act="pj-sadd" data-pid="' + esc(p.id) + '"' + dis() + '>+ Schritt</button></div>' : '') + '</div>';
+          : '<div class="pj-next"><span aria-hidden="true">' + (n ? '🎉' : '📝') + '</span><span class="x">' + (n ? 'Alle Aufgaben erledigt!' : p.ms.length ? 'Noch keine Aufgaben. Klapp einen Meilenstein auf und leg welche an.' : 'Noch keine Meilensteine. Leg unten den ersten an.') + '</span></div>') +
+        '<button type="button" class="pj-tog" data-act="pj-open" data-pid="' + esc(p.id) + '" aria-expanded="' + open + '">' + (open ? 'Meilensteine ausblenden ▲' : 'Alle Meilensteine ▼') + '</button>' +
+        (open ? '<div class="pj-tools"><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="1">Alle aufklappen</button><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="0">Alle zuklappen</button></div>' +
+          '<div class="pj-ml">' + p.ms.map(function (m) { return pjMsHtml(p, m, nx); }).join('') + '</div>' +
+          '<button type="button" class="btn ghost" data-act="pj-madd" data-pid="' + esc(p.id) + '"' + dis() + '>+ Meilenstein</button>' : '') + '</div>';
     }).join('');
     if (!ps.length && pjEdit !== 'new') h += emptyHtml('🗂️', 'Noch keine Projekte', 'Plane langfristige Vorhaben mit Zieldatum und Schritten.');
     if (pjEdit !== 'new') h += '<button type="button" class="btn" data-act="pj-new" style="margin-top:14px;align-self:flex-start"' + dis() + '>+ Neues Projekt</button>';
@@ -2780,19 +2880,49 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     else if (act === 'pj-save') {
       var name = v('pjName'), goal = v('pjGoal');
       if (!name) { var er = document.getElementById('pjErr'); if (er) er.textContent = 'Bitte gib dem Projekt einen Namen.'; return true; }
-      var tgt = pjEdit === 'new' ? { id: uid(), name: '', steps: [] } : pjList().filter(function (x) { return x.id === pjEdit; })[0];
+      var tgt = pjEdit === 'new' ? { id: uid(), name: '', steps: [], ms: [] } : pjList().filter(function (x) { return x.id === pjEdit; })[0];
       if (!tgt) { pjEdit = null; renderPanel(); return true; }
       tgt.name = name.slice(0, 60);
       if (v('pjNote')) tgt.note = v('pjNote').slice(0, 100); else delete tgt.note;
       if (KRE.test(goal)) tgt.goal = goal; else delete tgt.goal;
-      if (pjEdit === 'new') { pjList().push(tgt); pjOpen[tgt.id] = true; }
+      if (pjEdit === 'new') {
+        // Vorlage: fertige Meilensteine (und Aufgaben), der erste Meilenstein ist aufgeklappt
+        var tpl = PJ_TPL[v('pjTpl')] || PJ_TPL.leer;
+        tpl.ms.forEach(function (tm, ti) {
+          var nm = { id: uid(), t: tm[0] }; tgt.ms.push(nm); if (ti === 0) pjMsOpen[nm.id] = true;
+          tm[1].forEach(function (tx) { tgt.steps.push({ id: uid(), x: tx, m: nm.id }); });
+        });
+        pjList().push(tgt); pjOpen[tgt.id] = true;
+      }
       pjEdit = pjDel = null; saveUni();
     }
-    else if (act === 'pj-sadd' && p) {
-      var x = v('pjaX_' + pid), d = v('pjaD_' + pid);
-      if (!x) return true;
-      var ns = { id: uid(), x: x.slice(0, 80) }; if (KRE.test(d)) ns.d = d;
-      p.steps.push(ns); pjSort(p); pjOpen[pid] = true; saveUni(); renderCal();
+    // Meilensteine: aufklappen, anlegen, umbenennen, löschen
+    else if (act === 'pj-mtog') pjMsOpen[b.dataset.mid] = !pjMsOpen[b.dataset.mid];
+    else if (act === 'pj-mall' && p) p.ms.forEach(function (m) { pjMsOpen[m.id] = b.dataset.v === '1'; });
+    else if (act === 'pj-madd' && p) {
+      var nms = { id: uid(), t: 'Meilenstein ' + (p.ms.length + 1) }; p.ms.push(nms); pjMsOpen[nms.id] = true; pjOpen[pid] = true; saveUni();
+    }
+    else if (act === 'pj-medit') { pjMsEdit = b.dataset.mid; pjMsDel = pjStepEdit = pjStepDel = null; }
+    else if (act === 'pj-mcancel') pjMsEdit = null;
+    else if (act === 'pj-msave' && p) {
+      var mo = p.ms.filter(function (x) { return x.id === b.dataset.mid; })[0], mx = v('pjmX'), md = v('pjmD');
+      if (!mo || !mx) return true;
+      mo.t = mx.slice(0, 60); if (KRE.test(md)) mo.d = md; else delete mo.d;
+      pjMsEdit = null; saveUni();
+    }
+    else if (act === 'pj-mask') { pjMsDel = b.dataset.mid; pjMsEdit = null; }
+    else if (act === 'pj-mkeep') pjMsDel = null;
+    else if (act === 'pj-mdel' && p) {
+      var dm = b.dataset.mid; p.ms = p.ms.filter(function (x) { return x.id !== dm; }); p.steps = p.steps.filter(function (s) { return s.m !== dm; });
+      pjMsDel = null; saveUni(); renderCal();
+    }
+    // Aufgaben schnell anlegen: Zeilen „Aufgabe 4“ entstehen sofort (später umbenennen), nichts muss getippt werden
+    else if (act === 'pj-cm') pjCnt[b.dataset.mid] = Math.max(2, (pjCnt[b.dataset.mid] || 3) - 1);
+    else if (act === 'pj-cp') pjCnt[b.dataset.mid] = Math.min(20, (pjCnt[b.dataset.mid] || 3) + 1);
+    else if ((act === 'pj-sadd1' || act === 'pj-saddn') && p) {
+      var cn = act === 'pj-saddn' ? (pjCnt[b.dataset.mid] || 3) : 1, have = pjMsSteps(p, b.dataset.mid).length;
+      for (var qi = 0; qi < cn && p.steps.length < 300; qi++) p.steps.push({ id: uid(), x: 'Aufgabe ' + (have + qi + 1), m: b.dataset.mid });
+      pjSort(p); pjMsOpen[b.dataset.mid] = true; saveUni(); renderCal();
     }
     else if (act === 'pj-sedit') { pjStepEdit = sid; pjStepDel = null; }
     else if (act === 'pj-scancel') pjStepEdit = null;
@@ -3034,12 +3164,13 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         tf.insertBefore(fd, btn);
         tf.insertAdjacentHTML('afterend', '<p class="hint">Ohne Frist gilt die Aufgabe nur für diesen Tag. Mit Frist steht sie jeden Tag oben bei „Mit Frist“, bis du sie abhakst.</p>');
       }
-      elPanel.insertAdjacentHTML('afterbegin', h + fh);
+      elPanel.insertAdjacentHTML('afterbegin', h + fh + pjListHtml(selected));
       return;
     }
     if (ts.length) {
       h += progHead('Aufgaben', ts.filter(function (t) { return t.done; }).length, ts.length, c.name) + '<ul class="list">' + ts.map(todoRow).join('') + '</ul>';
     } else h += emptyHtml('✅', 'Keine Aufgaben', 'Genieß den freien Tag.');
+    if (!todoOnly) h += pjListHtml(selected);
     h += '<form data-form="unitodo" class="row" novalidate>' +
       '<div class="field"><label for="utX">Neue Aufgabe</label><input id="utX" type="text" maxlength="140" autocomplete="off" placeholder="' + (todoOnly ? 'z. B. Wäsche waschen' : 'z. B. Übungsblatt 3 TM') + '"' + dis() + '></div>' +
       '<div class="field" style="flex-basis:150px"><label for="utDue">Frist (optional)</label><input id="utDue" type="date" min="' + selected + '"' + dis() + '></div>' + (todoOnly ? '' : fachSelect('utFach', '')) +
@@ -3544,7 +3675,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     // Projekt-Schritte (Uni → „Projekte“), die an diesem Tag fällig sind
     if (uniGo()) stepsOn(k).forEach(function (x) {
       var late = x.s.d < k;
-      out.push({ kind: 'pstep', id: x.s.id, tid: x.p.id, k: k, text: x.s.x, done: !!x.s.done, sub: x.p.name + (late ? ' · seit ' + plTage(daysBetween(x.s.d, k)).replace(/e$/, 'en') + ' fällig' : ''), late: late && !x.s.done, go: 'proj' });
+      out.push({ kind: 'pstep', id: x.s.id, tid: x.p.id, k: k, text: x.s.x, done: !!x.s.done, sub: x.p.name + (pjMsOf(x.p, x.s) ? ' · ' + pjMsOf(x.p, x.s).t : '') + (late ? ' · seit ' + plTage(daysBetween(x.s.d, k)).replace(/e$/, 'en') + ' fällig' : ''), late: late && !x.s.done, go: 'proj' });
     });
     return out;
   }
@@ -4683,8 +4814,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (e.key !== 'Enter' || !ready) return;
     if (e.target.matches && e.target.matches('.srow[data-act]')) { e.preventDefault(); e.target.click(); return; }
     if (e.target.tagName !== 'INPUT') return;
-    var box = e.target.closest('.pj-form, .pj-tl li.edit, .pj-add'); if (!box) return;
-    var b = box.querySelector('[data-act="pj-save"], [data-act="pj-ssave"], [data-act="pj-sadd"]');
+    var box = e.target.closest('.pj-form, .pj-tl li.edit, .pj-medit'); if (!box) return;
+    var b = box.querySelector('[data-act="pj-save"], [data-act="pj-ssave"], [data-act="pj-msave"]');
     if (b) { e.preventDefault(); pjAction(b.dataset.act, b); }
   });
   elPanel.addEventListener('change', function (e) {
