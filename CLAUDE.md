@@ -7,6 +7,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - **Nicht sofort programmieren.** Ideen und Wünsche zuerst gemeinsam besprechen: Vorschlag machen und offene Fragen klären. Erst nach Pascals ausdrücklichem OK anfangen. Das gilt auch für kleine Änderungen.
 - Antworten auf Deutsch, kurz und direkt, Pascal mit Vornamen ansprechen.
 - Pascal ist kein Programmierer. Fachbegriffe kurz erklären.
+- **Nie automatisch in ein Textfeld springen** (Pascal: „sehr nervig“, am Handy poppt sonst die Tastatur auf). Beim Öffnen eines Fensters, Formulars oder Bearbeiten-Modus und nach dem Anlegen eines Eintrags kein `focus()`, `select()` oder `autofocus` auf Eingabefelder. Auch in Demos nicht. Gilt für alles Neue und Bestehende.
 
 ## Dateien
 - `index.html`: die ganze App (HTML, CSS und JS inline)

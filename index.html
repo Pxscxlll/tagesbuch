@@ -642,7 +642,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 100</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 101</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -4015,14 +4015,13 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (f === 'citem') {
       var ctab = tabById(tab.slice(2)), txt = $('#ciText').value.trim().slice(0, 120);
-      if (!ctab || !txt) { $('#ciText').focus(); return; }
+      if (!ctab || !txt) return;
       var from = $('#ciFrom').value || selected, to = $('#ciTo').value;
       if (to && to < from) { $('#ciErr').textContent = 'Das Enddatum liegt vor dem Startdatum.'; return; }
       var nit = { id: uid(), text: txt, rep: $('#ciRep').value, start: from };
       if (to) nit.until = to;
       ctab.items = (ctab.items || []).concat([nit]);
       savePrefs(); renderPanel(); renderCal();
-      var ci = $('#ciText'); if (ci) ci.focus();
       return;
     }
     if (f === 'simport') {
@@ -4085,7 +4084,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
       ensure(selected).tasks.push(ntk);
       commit(selected);
       refreshAfterEdit(true);
-      var ti = $('#taskIn'); if (ti) ti.focus();
     }
   });
 
@@ -4310,13 +4308,12 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (act === 'tab-restore-orphan') {
       var nm0 = ($('#tabName') && $('#tabName').value.trim()) || '';
-      if (!nm0) { var tn = $('#tabName'); if (tn) { tn.placeholder = 'Bitte zuerst einen Namen eintragen'; tn.focus(); } return; }
+      if (!nm0) { var tn = $('#tabName'); if (tn) { tn.placeholder = 'Bitte zuerst einen Namen eintragen'; } return; }
       restoreTab({ id: b.dataset.id, name: nm0, items: [] }, nm0);
       return;
     }
     if (act === 'edit-task') {
       editTask = b.dataset.id; renderPanel();
-      var ti = $('#taskEditIn'); if (ti) { ti.focus(); ti.setSelectionRange(ti.value.length, ti.value.length); }
       return;
     }
     if (act === 'task-cancel') { editTask = null; renderPanel(); return; }
@@ -4326,7 +4323,6 @@ textarea.autogrow { resize: none; overflow: hidden; }
       var nx = { id: uid(), n: '', reps: [10, 10, 10] };
       fa.s.ex.push(nx); commit(selected);
       sportForce = true; renderPanel();
-      var ni = elPanel.querySelector('.exname[data-xid="' + nx.id + '"]'); if (ni) ni.focus();
       return;
     }
     if (act === 'ex-inc' || act === 'ex-dec') {
@@ -4357,7 +4353,7 @@ textarea.autogrow { resize: none; overflow: hidden; }
       });
       return;
     }
-    if (act === 'item-edit') { editItem = b.dataset.iid; renderPanel(); var ie = $('#ieText'); if (ie) ie.focus(); return; }
+    if (act === 'item-edit') { editItem = b.dataset.iid; renderPanel(); return; }
     if (act === 'item-cancel') { editItem = null; renderPanel(); return; }
     if (act === 'item-save') {
       var et = tabById(tab.slice(2)); if (!et) return;
@@ -4389,12 +4385,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
     }
     if (act === 'add-sport') {
       addingSport = true; renderPanel();
-      var ns = $('#newSport'); if (ns) ns.focus();
     } else if (act === 'cancel-sport') {
       addingSport = false; renderPanel();
     } else if (act === 'save-sport') {
       var nv = ($('#newSport').value || '').trim().slice(0, 30);
-      if (!nv) { $('#newSport').focus(); return; }
+      if (!nv) return;
       var lowAll = allSports().map(function (s) { return s.toLowerCase(); });
       if (lowAll.indexOf(nv.toLowerCase()) < 0 && customSports.length < 30) { customSports.push(nv); saveSports(); }
       addingSport = false; renderPanel();
@@ -4578,12 +4573,11 @@ textarea.autogrow { resize: none; overflow: hidden; }
       '<div class="row"><button type="submit" class="btn">Speichern</button><button type="button" class="btn ghost" id="efX">Abbrechen</button></div>';
     evFormEl.style.left = evClamp(px + 12, 8, innerWidth - 312) + 'px'; evFormEl.style.top = evClamp(py - 60, 8, Math.max(8, innerHeight - 340)) + 'px';
     document.body.appendChild(evFormEl);
-    $('#efT').focus();
     $('#efX').onclick = evCloseForm;
     evFormEl.onsubmit = function (ev) {
       ev.preventDefault();
       var t = $('#efT').value.trim(), s = hmMin($('#efA').value), en = hmMin($('#efB').value), kk = $('#efD').value;
-      if (!t) { $('#efT').placeholder = 'Bitte einen Titel eintragen'; $('#efT').focus(); return; }
+      if (!t) { $('#efT').placeholder = 'Bitte einen Titel eintragen'; return; }
       if (s == null) return;
       if (en == null || en <= s) en = Math.min(s + 60, 1439);
       var pre = $('#efP') ? +$('#efP').value : 0;
