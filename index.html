@@ -263,6 +263,8 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .pj-tl li.edit input[type="date"] { flex: 0 1 180px; min-width: 150px; }
 .pj-tl .btn { height: 36px; padding: 0 12px; }
 .pj-tools { display: flex; gap: 14px; }
+.pj-fold { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; width: 28px; height: 28px; padding: 0; margin: -2px 0 0 -6px; flex: none; transition: transform .2s; }
+.pj.folded .pj-fold { transform: rotate(-90deg); }
 .pj-ml { margin: 10px 0 10px 8px; padding-left: 18px; border-left: 2px solid var(--line); }
 .pj-mw { position: relative; margin-bottom: 8px; }
 .pj-mw::before { content: ""; position: absolute; left: -27px; top: 15px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); border: 2px solid var(--line); z-index: 1; }
@@ -667,7 +669,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 105</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 106</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2762,6 +2764,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   // pjEdit: Projekt-ID oder 'new', pjDel: Projekt mit offener Rückfrage, pjStepEdit/pjStepDel: Schritt-ID, pjOpen: aufgeklappte Schrittlisten
   var pjEdit = null, pjDel = null, pjStepEdit = null, pjStepDel = null, pjOpen = {};
   // Meilensteine: pjMsOpen = aufgeklappte, pjMsEdit/pjMsDel = Meilenstein-ID, pjCnt = Anzahl für „leere Aufgaben anlegen“
+  var pjFold = {};
+  try { pjFold = JSON.parse(localStorage.getItem('tagesbuch:pjfold') || '{}') || {}; } catch (e) {}
   var pjMsOpen = {}, pjMsEdit = null, pjMsDel = null, pjCnt = {}, PJ_LIST_DAYS = 10;
   var PJ_TPL = {
     leer: { name: 'Leer', ms: [] },
@@ -2857,14 +2861,15 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       var n = p.steps.length, nd = p.steps.filter(function (s) { return s.done; }).length, nx = pjNext(p), open = !!pjOpen[p.id] || !p.ms.length;
       var left = p.goal ? daysBetween(todayKey, p.goal) : null;
       var meta = [p.note, p.goal ? 'Ziel ' + pjFmt(p.goal) : ''].filter(Boolean).map(esc).join(' · ');
-      return '<div class="pj"><div class="pj-h"><div class="pj-t"><b>' + esc(p.name) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</div>' +
+      var fold = !!pjFold[p.id];
+      return '<div class="pj' + (fold ? ' folded' : '') + '"><div class="pj-h"><button type="button" class="pj-fold" data-act="pj-fold" data-pid="' + esc(p.id) + '" aria-expanded="' + !fold + '" aria-label="Projekt ' + esc(p.name) + (fold ? ' aufklappen' : ' einklappen') + '">▾</button><div class="pj-t"><b>' + esc(p.name) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</div>' +
         (left === null ? '' : '<div class="pj-goal"><b>' + left + '</b><small>' + (Math.abs(left) === 1 ? 'Tag' : 'Tage') + (left < 0 ? ' über dem Ziel' : ' bis zum Ziel') + '</small></div>') +
         '<button type="button" class="del pen" data-act="pj-edit" data-pid="' + esc(p.id) + '" aria-label="Projekt ' + esc(p.name) + ' bearbeiten">✎</button></div>' +
         (n ? '<div class="pj-prog"><span class="pbar" aria-hidden="true"><i style="width:' + Math.round(nd / n * 100) + '%"></i></span><span>' + nd + ' von ' + n + (n === 1 ? ' Aufgabe' : ' Aufgaben') + ' · ' + p.ms.filter(function (m) { return pjMsDone(p, m); }).length + ' von ' + p.ms.length + (p.ms.length === 1 ? ' Meilenstein' : ' Meilensteinen') + '</span></div>' : '') +
-        (nx ? '<div class="pj-next"><span aria-hidden="true">👉</span><span class="x">' + esc(nx.x) + '<small>Nächster Schritt' + (nx.d ? ' · bis ' + pjFmt(nx.d) : '') + '</small></span>' + (nx.d ? pjChip(nx.d) : '') + '</div>'
+        (fold ? '' : nx ? '<div class="pj-next"><span aria-hidden="true">👉</span><span class="x">' + esc(nx.x) + '<small>Nächster Schritt' + (nx.d ? ' · bis ' + pjFmt(nx.d) : '') + '</small></span>' + (nx.d ? pjChip(nx.d) : '') + '</div>'
           : '<div class="pj-next"><span aria-hidden="true">' + (n ? '🎉' : '📝') + '</span><span class="x">' + (n ? 'Alle Aufgaben erledigt!' : p.ms.length ? 'Noch keine Aufgaben. Klapp einen Meilenstein auf und leg welche an.' : 'Noch keine Meilensteine. Leg unten den ersten an.') + '</span></div>') +
-        '<button type="button" class="pj-tog" data-act="pj-open" data-pid="' + esc(p.id) + '" aria-expanded="' + open + '">' + (open ? 'Meilensteine ausblenden ▲' : 'Alle Meilensteine ▼') + '</button>' +
-        (open ? '<div class="pj-tools"><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="1">Alle aufklappen</button><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="0">Alle zuklappen</button></div>' +
+        '<button type="button" class="pj-tog" data-act="pj-open" data-pid="' + esc(p.id) + '" aria-expanded="' + open + '"' + (fold ? ' hidden' : '') + '>' + (open ? 'Meilensteine ausblenden ▲' : 'Alle Meilensteine ▼') + '</button>' +
+        (open && !fold ? '<div class="pj-tools"><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="1">Alle aufklappen</button><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="0">Alle zuklappen</button></div>' +
           '<div class="pj-ml">' + p.ms.map(function (m) { return pjMsHtml(p, m, nx); }).join('') + '</div>' +
           '<button type="button" class="btn ghost" data-act="pj-madd" data-pid="' + esc(p.id) + '"' + dis() + '>+ Meilenstein</button>' : '') + '</div>';
     }).join('');
@@ -2902,6 +2907,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       pjEdit = pjDel = null; saveUni();
     }
     // Meilensteine: aufklappen, anlegen, umbenennen, löschen
+    else if (act === 'pj-fold') { if (pjFold[pid]) delete pjFold[pid]; else pjFold[pid] = 1; try { localStorage.setItem('tagesbuch:pjfold', JSON.stringify(pjFold)); } catch (er) {} }
     else if (act === 'pj-mtog') pjMsOpen[b.dataset.mid] = !pjMsOpen[b.dataset.mid];
     else if (act === 'pj-mall' && p) p.ms.forEach(function (m) { pjMsOpen[m.id] = b.dataset.v === '1'; });
     else if (act === 'pj-madd' && p) {
