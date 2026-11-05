@@ -667,7 +667,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 104</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 105</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2804,17 +2804,22 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<label for="' + cid + '" class="item-main">' + esc(s.x) + '<small>' + (s.d ? pjFmt(s.d) : 'ohne Datum') + '</small></label>' + tail + '</li>';
   }
   // Projekt-Aufgaben erscheinen erst 10 Tage vor ihrer Frist in der Uni-„Liste“ (überfällige bleiben, bis sie erledigt sind)
-  function pjListHtml(k) {
+  // Zeilen {d: Frist, done, h: Zeilen-HTML}, die sich in die normale Aufgabenliste einsortieren (kein eigener Bereich)
+  function pjListRows(k) {
     var out = [];
     pjList().forEach(function (p) { p.steps.forEach(function (s) { if (s.d && daysBetween(k, s.d) <= PJ_LIST_DAYS && (!s.done || s.done === k)) out.push({ p: p, s: s }); }); });
-    if (!out.length) return '';
-    out.sort(function (a, b) { return a.s.d < b.s.d ? -1 : a.s.d > b.s.d ? 1 : 0; });
-    return '<div class="field"><span class="label">Aus Projekten</span><ul class="list">' + out.map(function (x) {
+    return out.map(function (x) {
       var m = pjMsOf(x.p, x.s), late = !x.s.done && x.s.d < k, on = !!x.s.done, cid = 'pjl_' + x.s.id;
-      return '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" id="' + esc(cid) + '" data-act="pj-toggle" data-pid="' + esc(x.p.id) + '" data-sid="' + esc(x.s.id) + '"' + (on ? ' checked' : '') + dis() + '>' +
+      return { d: x.s.d, done: on, h: '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" id="' + esc(cid) + '" data-act="pj-toggle" data-pid="' + esc(x.p.id) + '" data-sid="' + esc(x.s.id) + '"' + (on ? ' checked' : '') + dis() + '>' +
         '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(x.s.x) +
-        '<small' + (late ? ' class="late"' : '') + '>📁 ' + esc(x.p.name) + (m ? ' · ' + esc(m.t) : '') + ' · ' + esc(dueText({ due: x.s.d }, k)) + '</small></label></li>';
-    }).join('') + '</ul></div>';
+        '<small' + (late ? ' class="late"' : '') + '>📁 ' + esc(x.p.name) + (m ? ' · ' + esc(m.t) : '') + ' · ' + esc(dueText({ due: x.s.d }, k)) + '</small></label></li>' };
+    });
+  }
+  // Aufgaben mit Frist (todos: [{d, h}]) und Projekt-Zeilen nach Frist gemischt, gleiche Fristen behalten ihre Reihenfolge
+  function pjMerge(todos, pj) {
+    var all = todos.concat(pj); all.forEach(function (x, i) { x.i = i; });
+    all.sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : a.i - b.i; });
+    return all;
   }
   // Ein Meilenstein: Kopfzeile (Auf-/Zuklappen, automatischer Haken, Name, Fortschritt, Datum) und darunter seine Aufgaben
   function pjMsHtml(p, m, nx) {
@@ -3149,11 +3154,12 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     var ts = todosOn(c, selected);
     if (!c) {
       // Eingebauter Aufgaben-Tab heißt „Uni“: Fristen oben, darunter die normalen Tagesaufgaben mit optionaler Frist
-      var fr = ts.filter(function (t) { return t.due; });
-      var fh = fr.length ? '<div class="field"><span class="label">Mit Frist</span><ul class="list">' + fr.map(todoRow).join('') + '</ul></div>' : '';
+      var fr = ts.filter(function (t) { return t.due; }), prow = pjListRows(selected);
+      var frRows = pjMerge(fr.map(function (t) { return { d: t.due, done: !!t.done, h: todoRow(t) }; }), prow);
+      var fh = frRows.length ? '<div class="field"><span class="label">Mit Frist</span><ul class="list">' + frRows.map(function (x) { return x.h; }).join('') + '</ul></div>' : '';
       renderTasks(true);
-      var dt0 = (days[selected] || blank()).tasks, utot = fr.length + dt0.length;
-      var udone = fr.filter(function (t) { return t.done; }).length + dt0.filter(function (t) { return t.done; }).length;
+      var dt0 = (days[selected] || blank()).tasks, utot = frRows.length + dt0.length;
+      var udone = frRows.filter(function (t) { return t.done; }).length + dt0.filter(function (t) { return t.done; }).length;
       if (utot) fh = progHead('Aufgaben', udone, utot, tabLabelOf('tasks')) + fh.replace('<span class="label">Mit Frist</span>', '<span class="label" style="margin-top:6px">Mit Frist</span>');
       var tf = elPanel.querySelector('form[data-form="task"]');
       if (tf) {
@@ -3164,13 +3170,16 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         tf.insertBefore(fd, btn);
         tf.insertAdjacentHTML('afterend', '<p class="hint">Ohne Frist gilt die Aufgabe nur für diesen Tag. Mit Frist steht sie jeden Tag oben bei „Mit Frist“, bis du sie abhakst.</p>');
       }
-      elPanel.insertAdjacentHTML('afterbegin', h + fh + pjListHtml(selected));
+      elPanel.insertAdjacentHTML('afterbegin', h + fh);
       return;
     }
-    if (ts.length) {
-      h += progHead('Aufgaben', ts.filter(function (t) { return t.done; }).length, ts.length, c.name) + '<ul class="list">' + ts.map(todoRow).join('') + '</ul>';
+    // Projekt-Aufgaben stehen zwischen den Aufgaben mit Frist, danach die ohne Frist
+    var crow = todoOnly ? [] : pjListRows(selected);
+    var cRows = pjMerge(ts.filter(function (t) { return t.due; }).map(function (t) { return { d: t.due, done: !!t.done, h: todoRow(t) }; }), crow)
+      .concat(ts.filter(function (t) { return !t.due; }).map(function (t) { return { d: '', done: !!t.done, h: todoRow(t) }; }));
+    if (cRows.length) {
+      h += progHead('Aufgaben', cRows.filter(function (x) { return x.done; }).length, cRows.length, c.name) + '<ul class="list">' + cRows.map(function (x) { return x.h; }).join('') + '</ul>';
     } else h += emptyHtml('✅', 'Keine Aufgaben', 'Genieß den freien Tag.');
-    if (!todoOnly) h += pjListHtml(selected);
     h += '<form data-form="unitodo" class="row" novalidate>' +
       '<div class="field"><label for="utX">Neue Aufgabe</label><input id="utX" type="text" maxlength="140" autocomplete="off" placeholder="' + (todoOnly ? 'z. B. Wäsche waschen' : 'z. B. Übungsblatt 3 TM') + '"' + dis() + '></div>' +
       '<div class="field" style="flex-basis:150px"><label for="utDue">Frist (optional)</label><input id="utDue" type="date" min="' + selected + '"' + dis() + '></div>' + (todoOnly ? '' : fachSelect('utFach', '')) +
