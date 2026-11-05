@@ -667,7 +667,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 103</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 104</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -4992,21 +4992,20 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (!gTok && tokL && tokL.t && Date.now() < tokL.e - 60000) { gTok = tokL.t; gTokExp = tokL.e; }
     else if (gTok) tokSave(); // nach einem Kontowechsel weitergereichter Schlüssel
   } catch (e) {}
-  // Ohne gültigen Schlüssel: beim nächsten Tippen irgendwo in der App still neu anmelden
-  // (Browser lassen das Google-Fenster nur direkt nach einem Tippen zu)
-  var autoArmed = false;
-  function armAutoLogin() {
-    if (autoArmed || !GCLIENT || !connected() || haveTok()) return;
-    autoArmed = true;
-    loadGsi().catch(function () {}); // vorladen, damit das Fenster noch im selben Tippen aufgeht
-    document.addEventListener('click', autoLoginTap, true);
-  }
-  function autoLoginTap(e) {
-    document.removeEventListener('click', autoLoginTap, true); autoArmed = false;
-    if (haveTok() || !connected()) return;
+  // Beim Tippen irgendwo in der App still neu anmelden (Browser lassen das Google-Fenster nur direkt nach einem Tippen zu):
+  // ohne gültigen Schlüssel sofort mit Abgleich, und schon 15 Minuten vor Ablauf still im Hintergrund,
+  // damit der Schlüssel während der Benutzung nie abläuft
+  var RENEW_EARLY = 15 * 60000, renewTry = 0;
+  function armAutoLogin() { if (GCLIENT && connected()) loadGsi().catch(function () {}); } // vorladen, damit das Fenster noch im selben Tippen aufgeht
+  document.addEventListener('click', function (e) {
+    if (!GCLIENT || !connected() || gTokP || syncing) return;
     if (e.target.closest && e.target.closest('#syncBtn')) return; // der Knopf gleicht selbst ab
-    sync(true);
-  }
+    if (!haveTok()) { sync(true); return; }
+    if (gTokExp - Date.now() > RENEW_EARLY || Date.now() - renewTry < 120000) return; // höchstens alle 2 Minuten versuchen
+    renewTry = Date.now();
+    gTokP = getToken2(true).then(function (v) { gTokP = null; return v; }, function (er) { gTokP = null; throw er; });
+    gTokP.catch(function () {});
+  }, true);
 
   /* ---------- Konto: Browser-Daten gehören immer zu genau einem Google-Konto ---------- */
   function acctId() { try { return localStorage.getItem('tagesbuch:acct') || ''; } catch (e) { return ''; } }
@@ -5350,7 +5349,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     elSyncBtn.hidden = false; elStatus.hidden = true;
     if (connected()) setSync('Noch nicht abgeglichen', '');
     else setSync('Mit Drive verbinden: auf Aktualisieren tippen', '');
-    if (connected()) sync(false); // mit gemerktem Schlüssel sofort, sonst beim ersten Tippen
+    if (connected()) { sync(false); armAutoLogin(); } // mit gemerktem Schlüssel sofort, sonst beim ersten Tippen
   }
 
   /* ---------- Diagramm: Punkt antippen ---------- */
