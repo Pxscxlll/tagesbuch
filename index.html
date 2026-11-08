@@ -175,11 +175,12 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .wk-tabs { margin: 0 0 10px; }
 .wk-ev { display: flex; flex-direction: column; gap: 2px; }
 .tab .mark { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-/* Tabs: Symbol, Name und Farbpunkt; der gewählte Tab leuchtet in seiner Farbe (--kc) */
+/* Tabs: Symbol und Name; der Name steht immer in der Farbe des Tabs (--kc), kein Farbpunkt (wirkte wie „noch etwas offen“) */
 .tab { position: relative; }
 .tab .ic { font-size: 1rem; line-height: 1; }
-.tab .kdot { width: 6px; height: 6px; border-radius: 50%; background: var(--kc); position: absolute; top: 4px; right: 4px; }
-.tab[aria-selected="true"][style*="--kc"] { color: var(--kc); box-shadow: 0 0 0 1px color-mix(in srgb, var(--kc) 55%, var(--line)); }
+.tab[style*="--kc"] { color: var(--kc); }
+.tab[aria-selected="true"][style*="--kc"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--kc) 55%, var(--line)); }
+.tab[data-tab="all"] { color: var(--accent); }
 @media (max-width: 600px) { .tab .nm { display: none; } .tab .ic { font-size: 1.05rem; } .tab { padding: 9px 3px; } .tabs { gap: 2px; } .tab.add { padding: 8px 9px; } }
 #dayCard { border-top: 3px solid var(--tabc, var(--accent)); transition: border-color .3s; }
 /* Freundliche leere Zustände */
@@ -669,7 +670,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 106</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 107</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1881,7 +1882,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     elTabs.innerHTML = allTabs().map(function (t) {
       var k = tabKind(t[0]);
       return '<button type="button" role="tab" class="tab" data-tab="' + esc(t[0]) + '" aria-label="' + esc(t[1]) + '" aria-selected="' + (!addingTab && tab === t[0]) + '"' + (k ? ' style="--kc:var(--k-' + k + ')"' : '') + '>' +
-        '<span class="ic" aria-hidden="true">' + (t[0] === 'all' ? '✨' : TAB_ICONS[k] || '📌') + '</span><span class="nm">' + esc(t[1]) + '</span>' + (k ? '<span class="kdot" aria-hidden="true"></span>' : '') + '</button>';
+        '<span class="ic" aria-hidden="true">' + (t[0] === 'all' ? '✨' : TAB_ICONS[k] || '📌') + '</span><span class="nm">' + esc(t[1]) + '</span>' + '</button>';
     }).join('') + '<button type="button" class="tab add" data-act="add-tab" aria-label="Tab aus dem Katalog hinzufügen" aria-selected="' + addingTab + '">+</button>';
     applyTabColor();
   }

@@ -63,6 +63,7 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - Kein Zoomen, auch nicht beim Zusammenschieben der Finger oder mit Strg + Mausrad: Viewport `minimum-scale=1,maximum-scale=1,user-scalable=no`, `touch-action: pan-x pan-y` auf html und body, `text-size-adjust: 100%`, `gesture*`-Ereignisse und Zwei-Finger-`touchmove` sowie Strg + `wheel` werden blockiert. Die Tastatur-Zoomkürzel (Strg + / −) bleiben bewusst frei (Barrierefreiheit).
 - Hover-Effekt auf allen Buttons und Tabs. Ausgewählter Tag mit Rand in der Akzentfarbe, heute mit Datum in der Akzentfarbe.
 - Dunkles Design mit genug Kontrast.
+- **Tab-Leiste:** Kein Farbpunkt am Tab (er wirkte wie „noch Aufgaben offen“). Der Tab-Name steht dauerhaft in der Farbe seines Tabs (`--kc`), „Alle“ in der Akzentfarbe.
 - **Farben pro Tab** (`--k-events/weight/sport/tasks/uni/physio/note/ideas`, hell und dunkel): Im Tab ersetzt seine Farbe die Akzentfarbe (`applyTabColor` setzt `--accent` auf `#panel`), in „Alle“ pro Gruppe (`kStyle`). Tabs zeigen Symbol, Name (am Handy nur Symbol) und Farbpunkt (`tabKind`, `TAB_ICONS`).
 - **Akzentfarbe** Silber/Rosa/Limette unter Einstellungen, pro Gerät (`tagesbuch:accent`, `data-accent` am html). Gilt für alles ohne eigenen Tab.
 - Leere Zustände mit `emptyHtml`, Ladeanimation (`.skel`) solange `ready` falsch ist.
