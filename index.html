@@ -367,6 +367,12 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .tmblk.now { box-shadow: 0 0 0 2px var(--fc); background: color-mix(in srgb, var(--fc) 40%, var(--surface)); }
 .tmblk.past { opacity: .5; }
 .tmnow { position: absolute; left: 0; right: 0; border-top: 2px solid var(--danger); z-index: 3; pointer-events: none; }
+.tmnow:not(.faint)::before { content: ""; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
+.tmnow.faint { border-top: 1px dashed color-mix(in srgb, var(--danger) 55%, transparent); z-index: 1; }
+.tmnowl { position: absolute; right: 3px; transform: translateY(-50%); background: var(--danger); color: #fff; font-size: .62rem; font-weight: 700; line-height: 1; padding: 2px 4px; border-radius: 4px; z-index: 4; font-variant-numeric: tabular-nums; }
+.nowdiv { display: flex; align-items: center; gap: 8px; margin: 2px 0; color: var(--danger); font-size: .74rem; font-weight: 700; }
+.nowdiv::before, .nowdiv::after { content: ""; flex: 1; border-top: 2px solid var(--danger); }
+.nowdiv::before { flex: 0 0 8px; }
 .tmcnt { position: absolute; top: 2px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--fc); color: var(--k-ink); font-size: .66rem; font-weight: 700; display: grid; place-items: center; }
 .tmadl { font-size: .62rem; color: var(--muted); text-align: right; padding: 4px 5px 0 0; line-height: 1.1; border-bottom: 1px solid var(--line); }
 .tmadc { border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 2px; display: flex; flex-direction: column; gap: 2px; min-height: 26px; min-width: 0; }
@@ -671,7 +677,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 108</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 109</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1595,6 +1601,21 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     renderAbos(); renderCal(); renderHead();
   }
 
+  // „Jetzt“-Linie in den Tageslisten (Termine, Stundenplan, Alle): vor dem ersten Eintrag, der noch nicht begonnen hat
+  function markNowLines() {
+    [].slice.call(document.querySelectorAll('.nowdiv')).forEach(function (n) { n.remove(); });
+    if (selected !== todayKey || vmode !== 'day' || addingTab) return;
+    var d = new Date(), now = d.getHours() * 60 + d.getMinutes(), label = 'Jetzt ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    [].slice.call(document.querySelectorAll('#events, #panel .events')).forEach(function (box) {
+      if (box.hidden) return;
+      var rows = [].slice.call(box.children).filter(function (c) { var t = c.querySelector && c.querySelector('.t'); return t && /^\d{2}:\d{2}/.test(t.textContent); });
+      if (!rows.length) return;
+      var nx = rows.filter(function (c) { return hmMin(c.querySelector('.t').textContent.slice(0, 5)) > now; })[0];
+      var bar = document.createElement('div'); bar.className = 'nowdiv'; bar.setAttribute('aria-hidden', 'true'); bar.textContent = label;
+      if (nx) box.insertBefore(bar, nx);
+      else { var ref = rows[rows.length - 1].nextSibling; while (ref && !(ref.classList && ref.classList.contains('ev'))) ref = ref.nextSibling; box.insertBefore(bar, ref); }
+    });
+  }
   function renderEvents() {
     var el = $('#events'), list = evIdx[selected] || [];
     if (tab !== 'events' || addingTab || !list.length || evWeek()) { el.hidden = true; el.innerHTML = ''; return; }
@@ -1628,6 +1649,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
             : '') +
           '</div>' : '');
     }).join('');
+    markNowLines();
   }
 
   // Kurzinfo neben „Kalender“ in den Einstellungen
@@ -3029,7 +3051,10 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       keys.push(k0); per.push(items); if (items.length && i > last) last = i;
       items.forEach(function (it) { if (!it.ad) { lo = Math.min(lo, Math.floor(it.a / 60) * 60); hi = Math.max(hi, Math.ceil(it.b / 60) * 60); } });
     }
-    var cols = last + 1, total = (hi - lo) / 60 * PX, dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes(), hasAd = per.some(function (l) { return l.some(function (e) { return e.ad; }); });
+    // Ist heute in dieser Woche, reicht die Tabelle bis zur aktuellen Uhrzeit, damit die Zeitlinie immer zu sehen ist
+    var dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes(), tdw = keys.indexOf(todayKey) >= 0;
+    if (tdw && nowM >= 6 * 60 && nowM < 23 * 60) { lo = Math.min(lo, Math.floor(nowM / 60) * 60); hi = Math.max(hi, Math.ceil((nowM + 1) / 60) * 60); }
+    var cols = last + 1, total = (hi - lo) / 60 * PX, hasAd = per.some(function (l) { return l.some(function (e) { return e.ad; }); });
     var h = '';
     if (!per.some(function (a) { return a.length; })) return h + emptyHtml('📅', 'Keine Termine', 'Diese Woche ist frei.');
     h += '<div class="tmtt" data-ev="1" data-lo="' + lo + '" data-hi="' + hi + '" data-px="' + PX + '" style="--cols:' + cols + '"><div></div>';
@@ -3041,6 +3066,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     }
     h += '<div class="tmhours" style="height:' + total + 'px">';
     for (m = lo; m <= hi; m += 60) h += '<span style="top:' + ((m - lo) / 60 * PX) + 'px">' + pad(m / 60 % 24) + ':00</span>';
+    if (tdw && nowM >= lo && nowM <= hi) h += '<span class="tmnowl" style="top:' + ((nowM - lo) / 60 * PX) + 'px">' + pad(dn.getHours()) + ':' + pad(dn.getMinutes()) + '</span>';
     h += '</div>';
     for (i = 0; i < cols; i++) {
       var isT = keys[i] === todayKey, past = keys[i] < todayKey;
@@ -3051,7 +3077,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         h += '<button type="button" class="tmblk' + (live ? ' now' : '') + (gone ? ' past' : '') + (e.mv ? ' mv' : '') + (e.once ? ' once' : '') + (e.mv && evSel === e.key ? ' sel' : '') + '" data-act="' + e.act + '" ' + (e.act === 'term-open' ? 'data-lid="' + esc(e.lid) + '"' : 'data-key="' + esc(e.key) + '"') + ' data-k="' + e.k + '" style="--fc:' + e.col + ';top:' + ((e.a - lo) / 60 * PX) + 'px;height:' + Math.max((e.b - e.a) / 60 * PX - 2, 18) + 'px;left:calc(' + (x.lane * w) + '% + 2px);width:calc(' + w + '% - 4px);right:auto" aria-label="' + esc(e.title + ', ' + e.f + (e.t ? ' bis ' + e.t : '')) + '">' +
           '<b><span class="full">' + esc(e.title) + '</span><span class="abbr">' + esc(e.ab) + '</span></b><small>' + esc(e.f) + (e.loc ? ' · ' + esc(e.loc) : '') + '</small>' + (e.cnt ? '<span class="tmcnt" title="' + e.cnt + ' offene Aufgaben">' + e.cnt + '</span>' : '') + (e.mv ? '<span class="rs"></span>' : '') + '</button>';
       });
-      if (isT && nowM >= lo && nowM <= hi) h += '<div class="tmnow" style="top:' + ((nowM - lo) / 60 * PX) + 'px"></div>';
+      if (tdw && nowM >= lo && nowM <= hi) h += '<div class="tmnow' + (isT ? '' : ' faint') + '" style="top:' + ((nowM - lo) / 60 * PX) + 'px"></div>';
       h += '</div>';
     }
     var NAMES = { google: ['Google Kalender', 'var(--k-events)'], abo: ['Kalender-Abo', 'var(--acc-rosa)'], erin: ['Erinnerung', 'var(--k-ideas)'], uni: ['Uni', 'var(--k-uni)'] };
@@ -3065,7 +3091,9 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       var k0 = addDays(mon, i), ls0 = lessonsOn(c, k0); keys.push(k0); perDay.push(ls0); if (ls0.length && i > last) last = i;
       ls0.forEach(function (l) { lo = Math.min(lo, Math.floor(hmMin(l.f) / 60) * 60); hi = Math.max(hi, Math.ceil(hmMin(l.t) / 60) * 60); });
     }
-    var cols = last + 1, total = (hi - lo) / 60 * PX, dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes();
+    var dn = new Date(), nowM = dn.getHours() * 60 + dn.getMinutes(), tdw = keys.indexOf(todayKey) >= 0;
+    if (tdw && nowM >= 6 * 60 && nowM < 23 * 60) { lo = Math.min(lo, Math.floor(nowM / 60) * 60); hi = Math.max(hi, Math.ceil((nowM + 1) / 60) * 60); }
+    var cols = last + 1, total = (hi - lo) / 60 * PX;
     var h = '<div class="tmhead"><button type="button" class="icon-btn" data-act="term-week" data-n="-1" aria-label="Vorherige Woche">‹</button><b>KW ' + isoWeek(mon) + ' · ' + esc(shortDate(mon)) + ' – ' + esc(shortDate(addDays(mon, cols - 1))) + '</b>' +
       (keys.indexOf(todayKey) < 0 ? '<button type="button" class="text-btn" data-act="term-week" data-n="0">Diese Woche</button>' : '') +
       '<button type="button" class="icon-btn" data-act="term-week" data-n="1" aria-label="Nächste Woche">›</button></div>';
@@ -3075,6 +3103,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     for (i = 0; i < cols; i++) h += '<div class="tmdh' + (keys[i] === todayKey ? ' today' : '') + '">' + WD_SHORT[i] + '<b>' + parseKey(keys[i]).getDate() + '</b></div>';
     h += '<div class="tmhours" style="height:' + total + 'px">';
     for (m = lo; m <= hi; m += 60) h += '<span style="top:' + ((m - lo) / 60 * PX) + 'px">' + pad(m / 60) + ':00</span>';
+    if (tdw && nowM >= lo && nowM <= hi) h += '<span class="tmnowl" style="top:' + ((nowM - lo) / 60 * PX) + 'px">' + pad(dn.getHours()) + ':' + pad(dn.getMinutes()) + '</span>';
     h += '</div>';
     for (i = 0; i < cols; i++) {
       var isT = keys[i] === todayKey, past = keys[i] < todayKey, kk = keys[i];
@@ -3085,7 +3114,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         h += '<button type="button" class="tmblk' + (live ? ' now' : '') + (gone ? ' past' : '') + (l.k ? ' once' : '') + '" data-act="term-open" data-lid="' + esc(l.id) + '" data-k="' + kk + '" style="--fc:' + fachColor(fa) + ';top:' + ((a - lo) / 60 * PX) + 'px;height:' + Math.max((b - a) / 60 * PX - 2, 18) + 'px" aria-label="' + esc(l.s + ', ' + l.f + ' bis ' + l.t) + '">' +
           '<b><span class="full">' + esc(lessonTitle(l)) + '</span><span class="abbr">' + esc(abbr(l.s)) + '</span></b><small>' + esc(l.f) + (l.r ? ' · ' + esc(l.r) : '') + '</small>' + (cnt ? '<span class="tmcnt" title="' + cnt + ' offene Aufgaben">' + cnt + '</span>' : '') + '</button>';
       });
-      if (isT && nowM >= lo && nowM <= hi) h += '<div class="tmnow" style="top:' + ((nowM - lo) / 60 * PX) + 'px"></div>';
+      if (tdw && nowM >= lo && nowM <= hi) h += '<div class="tmnow' + (isT ? '' : ' faint') + '" style="top:' + ((nowM - lo) / 60 * PX) + 'px"></div>';
       h += '</div>';
     }
     h += '</div><p class="hint" style="margin-top:10px">Tipp auf einen Termin öffnet ihn mit Aufgaben, Notiz und Bearbeiten. Die Zahl am Block zeigt offene Aufgaben. Auf eine freie Stelle ziehen (am Handy gedrückt halten) trägt Lerngruppe, Lernen oder einen Termin ein, gestrichelt = nur dieses Mal.</p>';
@@ -3798,6 +3827,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     else if (tab === 'sport') renderSport();
     else if (tab === 'tasks') { if (uniTasksMode()) renderUni(null); else renderTasks(); }
     else renderNote();
+    markNowLines();
   }
   function renderAll() { renderCal(); renderHead(); renderTabs(); renderPanel(); gEnsure(); }
   function refreshAfterEdit(rerenderPanel) {
@@ -3807,11 +3837,13 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
   // „läuft gerade“ und Countdown jede Minute auffrischen, aber nie während man tippt
   setInterval(function () {
-    if (!ready || selected !== todayKey || vmode !== 'day' || addingTab || document.hidden || evDrag) return;
+    // Tag: heute gewählt; Woche: die Woche von heute (die Zeitlinie wandert mit)
+    var thisWeek = vmode === 'week' && addDays(selected, -(dowOf(selected) - 1)) === addDays(todayKey, -(dowOf(todayKey) - 1));
+    if (!ready || !((selected === todayKey && vmode === 'day') || thisWeek) || addingTab || document.hidden || evDrag || evFormEl) return;
     var ae = document.activeElement;
     if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && elPanel.contains(ae)) return;
-    if (tab === 'events') renderEvents();
-    else if (tab === 'all' || (uniActive() && uniView === 'plan' && !uniEditPlan && !termModal)) renderPanel();
+    if (tab === 'events' && !thisWeek) renderEvents();
+    else if (tab === 'all' || tab === 'events' || (uniActive() && uniView === 'plan' && !uniEditPlan && !termModal)) renderPanel();
   }, 60000);
 
   // Escape schließt das Termin-Fenster
