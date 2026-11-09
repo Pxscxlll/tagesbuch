@@ -388,7 +388,7 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .tmblk.sel .rs { height: 16px; }
 .tmghost { position: absolute; left: 2px; right: 2px; z-index: 6; border-radius: 7px; border: 2px solid var(--fc); background: color-mix(in srgb, var(--fc) 35%, var(--surface)); padding: 2px 5px; font-size: .72rem; pointer-events: none; box-shadow: 0 8px 24px rgba(0,0,0,.45); overflow: hidden; }
 .tmcol.over { background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.evform { position: fixed; z-index: 60; width: min(300px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 8px; }
+.evform { position: fixed; z-index: 60; max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; width: min(300px, calc(100vw - 24px)); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; box-shadow: 0 14px 40px rgba(0,0,0,.55); display: flex; flex-direction: column; gap: 8px; }
 .evform .row { display: flex; gap: 8px; }
 .evform .field { flex: 1; min-width: 0; }
 .tmleg { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .78rem; color: var(--muted); }
@@ -677,7 +677,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 109</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 110</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -4642,6 +4642,12 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     elPanel.querySelectorAll('.tmcol.over').forEach(function (c) { c.classList.remove('over'); });
     elPanel.querySelectorAll('.tmblk.drag').forEach(function (c) { c.classList.remove('drag'); });
   }
+  // Fenster neben den Finger/Mauszeiger setzen, aber nach dem Einfügen mit der echten Größe so, dass es nie aus dem Bildschirm ragt
+  function evPlaceForm(el, px, py) {
+    var w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = evClamp(px + 12, 8, Math.max(8, innerWidth - w - 8)) + 'px';
+    el.style.top = evClamp(py - 60, 8, Math.max(8, innerHeight - h - 8)) + 'px';
+  }
   function evCloseForm() { if (evFormEl) { evFormEl.remove(); evFormEl = null; } evEndGhost(); }
   function evUpdate(x, y) {
     var d = evDrag, tt = d.tt, col = evColAt(tt, x) || tt.querySelector('.tmcol[data-k="' + d.k + '"]'), lo = +tt.dataset.lo, hi = +tt.dataset.hi, m = evMinAt(col, y);
@@ -4761,8 +4767,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<div class="row"><div class="field"><label for="efA">Von</label><input id="efA" type="time" step="900" value="' + minHm(a) + '"></div><div class="field"><label for="efB">Bis</label><input id="efB" type="time" step="900" value="' + minHm(Math.min(b, 1439)) + '"></div></div>' +
       (GCLIENT ? '<div class="field"><label for="efP">Benachrichtigung</label><select id="efP"><option value="0">zur Uhrzeit</option><option value="15">15 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>' : '') +
       '<div class="row"><button type="submit" class="btn">Speichern</button><button type="button" class="btn ghost" id="efX">Abbrechen</button></div>';
-    evFormEl.style.left = evClamp(px + 12, 8, innerWidth - 312) + 'px'; evFormEl.style.top = evClamp(py - 60, 8, Math.max(8, innerHeight - 340)) + 'px';
-    document.body.appendChild(evFormEl);
+    document.body.appendChild(evFormEl); evPlaceForm(evFormEl, px, py);
     $('#efX').onclick = evCloseForm;
     evFormEl.onsubmit = function (ev) {
       ev.preventDefault();
@@ -4787,8 +4792,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<div class="row"><div class="field"><label for="pfA">Von</label><input id="pfA" type="time" step="900" value="' + minHm(a) + '"></div><div class="field"><label for="pfB">Bis</label><input id="pfB" type="time" step="900" value="' + minHm(Math.min(b, 1439)) + '"></div></div>' +
       '<div class="field"><label for="pfW">Wie oft?</label><select id="pfW"><option value="once">Nur dieses Mal</option><option value="week">Jede Woche</option></select></div>' +
       '<div class="row"><button type="submit" class="btn">Speichern</button><button type="button" class="btn ghost" id="pfN">Abbrechen</button></div>';
-    evFormEl.style.left = evClamp(px + 12, 8, innerWidth - 312) + 'px'; evFormEl.style.top = evClamp(py - 80, 8, Math.max(8, innerHeight - 470)) + 'px';
-    document.body.appendChild(evFormEl);
+    document.body.appendChild(evFormEl); evPlaceForm(evFormEl, px, py);
     $('#pfN').onclick = evCloseForm;
     evFormEl.onsubmit = function (ev) {
       ev.preventDefault();
