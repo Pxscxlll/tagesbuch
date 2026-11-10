@@ -264,6 +264,42 @@ body.tabdrag { -webkit-user-select: none; user-select: none; cursor: grabbing; }
 .pj-tl li.edit input[type="date"] { flex: 0 1 180px; min-width: 150px; }
 .pj-tl .btn { height: 36px; padding: 0 12px; }
 .pj-tools { display: flex; gap: 14px; }
+.pj-team { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.pj-pers { display: inline-flex; align-items: center; gap: 2px; background: var(--surface-2); border: 2px solid transparent; border-radius: 10px; padding: 2px 4px 2px 2px; color: var(--fg); font: inherit; font-size: .88rem; }
+.pj-pers.on { border-color: var(--pc); }
+button.pj-pers { padding: 6px 12px; }
+.pj-pb { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: inherit; font: inherit; padding: 4px 6px; text-align: left; }
+.pj-pb small { display: block; color: var(--muted); font-size: .7rem; line-height: 1.1; }
+.pj-av { width: 24px; height: 24px; border-radius: 50%; background: var(--pc, var(--accent)); color: var(--k-ink); display: inline-grid; place-items: center; font-weight: 700; font-size: .74rem; flex: none; }
+.pj-avs { display: inline-flex; flex: none; } .pj-avs .pj-av { width: 22px; height: 22px; font-size: .68rem; margin-left: -5px; border: 2px solid var(--surface); } .pj-avs .pj-av:first-child { margin-left: 0; }
+.pj-addp { display: inline-flex; gap: 6px; align-items: center; } .pj-addp input { width: 130px; }
+.pj-views { margin: 10px 0 0; } .pj-repb { display: block; }
+.pj-cs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.pj-c { font-size: .7rem; border-radius: 99px; padding: 1px 8px; background: var(--surface-2); color: var(--muted); white-space: nowrap; text-decoration: none; }
+.pj-c.p1 { background: color-mix(in srgb, #F0847B 25%, transparent); color: #F0847B; } .pj-c.p2 { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); }
+.pj-c.blk { background: color-mix(in srgb, #F0847B 18%, transparent); color: #F0847B; } .pj-c.tg { color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+.pj-tl li.blk::before { border-color: #F0847B; }
+.pj-tl small.late { color: #F0847B; }
+.pj-sx { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; width: 100%; background: var(--surface-2); border-radius: 10px; padding: 10px; }
+.pj-sx label { display: block; font-size: .74rem; color: var(--muted); margin-bottom: 3px; }
+.pj-sx select, .pj-sx input[type="url"], .pj-sx textarea { width: 100%; }
+.pj-sw { grid-column: 1 / -1; }
+.pj-who { display: flex; flex-wrap: wrap; gap: 6px; }
+.pj-wp { display: inline-flex !important; align-items: center; gap: 5px; margin: 0 !important; font-size: .82rem !important; color: var(--fg) !important; border: 2px solid transparent; border-radius: 99px; padding: 2px 9px 2px 3px; background: var(--surface); }
+.pj-wp:has(input:checked) { border-color: var(--pc); }
+.pj-wp input { width: 16px; height: 16px; margin: 0; accent-color: var(--pc); }
+.pj-kan { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.pj-kcol { background: var(--surface-2); border-radius: 10px; padding: 8px; min-height: 100px; } .pj-kcol h4 { margin: 0 0 6px; font-size: .74rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.pj-kc { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 7px 8px; margin-bottom: 6px; font-size: .86rem; } .pj-kc small { display: block; color: var(--muted); font-size: .72rem; }
+.pj-km { display: flex; justify-content: space-between; margin-top: 4px; } .pj-km .pj-tog { padding-top: 2px; }
+.pj-gantt { margin-top: 10px; } .pj-grow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pj-gl { width: 100px; flex: none; font-size: .8rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pj-gt { position: relative; flex: 1; height: 22px; background: var(--surface-2); border-radius: 6px; }
+.pj-gb { position: absolute; top: 3px; height: 16px; border-radius: 5px; background: color-mix(in srgb, var(--accent) 55%, var(--surface)); } .pj-gb.done { background: color-mix(in srgb, var(--accent) 85%, var(--surface)); }
+.pj-gn { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #F0847B; z-index: 2; }
+.pj-gh { display: block; color: var(--muted); margin-top: 4px; }
+.pj-rep { white-space: pre-wrap; background: var(--surface-2); border-radius: 10px; padding: 10px; font: .82rem/1.45 ui-monospace, Consolas, monospace; margin: 8px 0; }
+@media (max-width: 560px) { .pj-kan { grid-template-columns: 1fr; } .pj-gl { width: 70px; } }
 .pj-fold { border: 0; background: transparent; color: var(--muted); font-size: 1.1rem; width: 28px; height: 28px; padding: 0; margin: -2px 0 0 -6px; flex: none; transition: transform .2s; }
 .pj.folded .pj-fold { transform: rotate(-90deg); }
 .pj-ml { margin: 10px 0 10px 8px; padding-left: 18px; border-left: 2px solid var(--line); }
@@ -677,7 +713,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 111</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 112</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2086,7 +2122,9 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   // Projekte (Uni → „Projekte“): { id, name, note?, goal?, steps: [{ id, x, d?, done? (Tag des Abhakens) }] }
   function normProjects(a) {
     return (Array.isArray(a) ? a : []).filter(function (p) { return p && typeof p.id === 'string' && typeof p.name === 'string' && p.name; }).map(function (p) {
-      var o = { id: p.id.slice(0, 20), name: p.name.slice(0, 60), steps: [], ms: [] };
+      var o = { id: p.id.slice(0, 20), name: p.name.slice(0, 60), steps: [], ms: [], team: [] };
+      // Team: nur Namen zum Zuordnen von Aufgaben (kein Konto)
+      o.team = (Array.isArray(p.team) ? p.team : []).filter(function (x) { return x && typeof x.id === 'string' && typeof x.n === 'string' && x.n.trim(); }).map(function (x) { return { id: x.id.slice(0, 20), n: x.n.trim().slice(0, 20) }; }).slice(0, 12);
       if (typeof p.note === 'string' && p.note) o.note = p.note.slice(0, 100);
       if (KRE.test(p.goal || '')) o.goal = p.goal;
       o.ms = (Array.isArray(p.ms) ? p.ms : []).filter(function (m) { return m && typeof m.id === 'string' && typeof m.t === 'string' && m.t; }).map(function (m) {
@@ -2099,8 +2137,19 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         if (KRE.test(s.d || '')) so.d = s.d;
         if (KRE.test(s.done || '')) so.done = s.done;
         if (typeof s.m === 'string' && s.m) so.m = s.m.slice(0, 20);
+        // Zusatzangaben: Personen, Priorität, Aufwand (Std), „In Arbeit“, Notiz, Link, Abhängigkeit, Label
+        var tmIds = o.team.map(function (x) { return x.id; });
+        if (Array.isArray(s.who)) { var wh = s.who.filter(function (w, i, a) { return tmIds.indexOf(w) >= 0 && a.indexOf(w) === i; }); if (wh.length) so.who = wh; }
+        if (s.pr === 1 || s.pr === 3) so.pr = s.pr;
+        if (typeof s.est === 'number' && s.est > 0 && s.est <= 999) so.est = Math.round(s.est * 4) / 4;
+        if (s.st === 'doing' && !so.done) so.st = 'doing';
+        if (typeof s.n === 'string' && s.n.trim()) so.n = s.n.slice(0, 500);
+        if (typeof s.ln === 'string' && /^https?:\/\//i.test(s.ln)) so.ln = s.ln.slice(0, 300);
+        if (typeof s.dep === 'string' && s.dep) so.dep = s.dep.slice(0, 20);
+        if (typeof s.tg === 'string' && s.tg.trim()) so.tg = s.tg.trim().slice(0, 24);
         return so;
       }).slice(0, 300);
+      o.steps.forEach(function (s) { if (s.dep && (s.dep === s.id || !o.steps.some(function (x) { return x.id === s.dep; }))) delete s.dep; });
       // Schritte ohne (gültigen) Meilenstein, z. B. aus der Zeit vor den Meilensteinen, wandern in den Meilenstein „Schritte“
       var known = {}; o.ms.forEach(function (m) { known[m.id] = 1; });
       var lost = o.steps.filter(function (s) { return !s.m || !known[s.m]; });
@@ -2800,6 +2849,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   // pjEdit: Projekt-ID oder 'new', pjDel: Projekt mit offener Rückfrage, pjStepEdit/pjStepDel: Schritt-ID, pjOpen: aufgeklappte Schrittlisten
   var pjEdit = null, pjDel = null, pjStepEdit = null, pjStepDel = null, pjOpen = {};
   // Meilensteine: pjMsOpen = aufgeklappte, pjMsEdit/pjMsDel = Meilenstein-ID, pjCnt = Anzahl für „leere Aufgaben anlegen“
+  var PJ_TAGS = ['Recherche', 'Rechnen', 'Grafik', 'Schreiben', 'Organisation'];
   var pjFold = {};
   try { pjFold = JSON.parse(localStorage.getItem('tagesbuch:pjfold') || '{}') || {}; } catch (e) {}
   var pjMsOpen = {}, pjMsEdit = null, pjMsDel = null, pjCnt = {}, PJ_LIST_DAYS = 10;
@@ -2809,6 +2859,20 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     pruefung: { name: 'Prüfung lernen', ms: [['Stoff sichten', []], ['Zusammenfassen', []], ['Üben', []], ['Wiederholen', []]] },
     projekt: { name: 'Allgemeines Projekt', ms: [['Planung', []], ['Umsetzung', []], ['Test', []], ['Abschluss', []]] }
   };
+  /* Team, Ansichten (Liste | Kanban | Zeitplan), Filter nach Person, Statusbericht */
+  var pjView = {}, pjFilter = {}, pjReport = {}, pjAddP = null, pjPDel = null, PJ_COLS = ['#8c9eff', '#6ad8b8', '#f2a54a', '#f59eab', '#c084fc', '#38bdf8', '#fb7185', '#a3e635', '#fbbf24', '#2dd4bf', '#f87171', '#a78bfa'];
+  function pjTeam(p) { return p.team || (p.team = []); }
+  function pjPerson(p, id) { return pjTeam(p).filter(function (x) { return x.id === id; })[0] || null; }
+  function pjPCol(p, id) { var i = pjTeam(p).map(function (x) { return x.id; }).indexOf(id); return PJ_COLS[(i < 0 ? 0 : i) % PJ_COLS.length]; }
+  function pjAvs(p, ids) {
+    return '<span class="pj-avs">' + (ids || []).map(function (i) { var x = pjPerson(p, i); return x ? '<span class="pj-av" style="--pc:' + pjPCol(p, i) + '" title="' + esc(x.n) + '">' + esc(x.n.charAt(0).toUpperCase()) + '</span>' : ''; }).join('') + '</span>';
+  }
+  function pjStatus(s) { return s.done ? 'done' : s.st === 'doing' ? 'doing' : 'todo'; }
+  function pjDepOf(p, s) { return s.dep ? p.steps.filter(function (x) { return x.id === s.dep; })[0] || null : null; }
+  function pjBlocked(p, s) { var d = pjDepOf(p, s); return !!d && !d.done && !s.done; }
+  function pjCleanDeps(p) { p.steps.forEach(function (s) { if (s.dep && !pjDepOf(p, s)) delete s.dep; }); }
+  function pjHours(p, onlyDone) { return p.steps.reduce(function (n, s) { return n + (s.est && (!onlyDone || s.done) ? s.est : 0); }, 0); }
+  function pjFmtH(h) { return (Math.round(h * 4) / 4).toString().replace('.', ','); }
   function pjFmt(k) { return WD_SHORT[(parseKey(k).getDay() + 6) % 7] + ' ' + shortDate(k); }
   function pjChip(k) {
     var n = daysBetween(todayKey, k);
@@ -2832,16 +2896,35 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   function pjStepRow(p, s, nx) {
     var at = ' data-pid="' + esc(p.id) + '" data-sid="' + esc(s.id) + '"', cid = 'pjs_' + s.id;
     if (pjStepEdit === s.id) {
-      return '<li class="edit"><input id="pjsX" type="text" maxlength="80" autocomplete="off" value="' + esc(s.x) + '" aria-label="Schritt"' + dis() + '>' +
-        '<input id="pjsD" type="date" value="' + esc(s.d || '') + '" aria-label="Datum (optional)"' + dis() + '>' +
+      var tags = PJ_TAGS.concat(p.steps.map(function (x) { return x.tg; }).filter(Boolean)).filter(function (g, i, a) { return a.indexOf(g) === i; });
+      return '<li class="edit"><input id="pjsX" type="text" maxlength="80" autocomplete="off" value="' + esc(s.x) + '" aria-label="Aufgabe"' + dis() + '>' +
+        '<input id="pjsD" type="date" value="' + esc(s.d || '') + '" aria-label="Frist (optional)"' + dis() + '>' +
+        '<div class="pj-sx">' +
+        '<div><label for="pjsS">Status</label><select id="pjsS"' + dis() + '><option value="todo"' + (pjStatus(s) === 'todo' ? ' selected' : '') + '>Offen</option><option value="doing"' + (pjStatus(s) === 'doing' ? ' selected' : '') + '>In Arbeit</option><option value="done"' + (pjStatus(s) === 'done' ? ' selected' : '') + '>Erledigt</option></select></div>' +
+        '<div><label for="pjsP">Priorität</label><select id="pjsP"' + dis() + '><option value="1"' + (s.pr === 1 ? ' selected' : '') + '>🚩 hoch</option><option value="2"' + (!s.pr ? ' selected' : '') + '>mittel</option><option value="3"' + (s.pr === 3 ? ' selected' : '') + '>niedrig</option></select></div>' +
+        '<div><label for="pjsE">Aufwand</label><select id="pjsE"' + dis() + '>' + [0, 0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24].concat(s.est && [0, 0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24].indexOf(s.est) < 0 ? [s.est] : []).sort(function (a, b) { return a - b; }).map(function (n) { return '<option value="' + n + '"' + ((s.est || 0) === n ? ' selected' : '') + '>' + (n ? pjFmtH(n) + ' Std' : 'offen') + '</option>'; }).join('') + '</select></div>' +
+        '<div><label for="pjsG">Label</label><select id="pjsG"' + dis() + '><option value="">– kein Label –</option>' + tags.map(function (g) { return '<option' + (s.tg === g ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('') + '</select></div>' +
+        '<div><label for="pjsDp">Wartet auf</label><select id="pjsDp"' + dis() + '><option value="">– nichts –</option>' + p.steps.filter(function (x) { return x.id !== s.id; }).map(function (x) { return '<option value="' + esc(x.id) + '"' + (s.dep === x.id ? ' selected' : '') + '>' + esc(x.x) + '</option>'; }).join('') + '</select></div>' +
+        (pjTeam(p).length ? '<div class="pj-sw"><label>Zugeordnet an</label><div class="pj-who">' + pjTeam(p).map(function (x) { return '<label class="pj-wp" style="--pc:' + pjPCol(p, x.id) + '"><input type="checkbox" data-pw="' + esc(x.id) + '"' + ((s.who || []).indexOf(x.id) >= 0 ? ' checked' : '') + dis() + '><span class="pj-av">' + esc(x.n.charAt(0).toUpperCase()) + '</span>' + esc(x.n) + '</label>'; }).join('') + '</div></div>' : '') +
+        '<div class="pj-sw"><label for="pjsN">Notiz</label><textarea id="pjsN" maxlength="500" placeholder="z. B. Ergebnis, offene Fragen …"' + dis() + '>' + esc(s.n || '') + '</textarea></div>' +
+        '<div class="pj-sw"><label for="pjsL">Link (Datei, Quelle, Mitschrift)</label><input id="pjsL" type="url" maxlength="300" placeholder="https://…" value="' + esc(s.ln || '') + '"' + dis() + '></div>' +
+        '</div>' +
         '<button type="button" class="btn" data-act="pj-ssave"' + at + dis() + '>Speichern</button><button type="button" class="btn ghost" data-act="pj-scancel">Abbrechen</button></li>';
     }
     var tail = pjStepDel === s.id
       ? '<button type="button" class="btn ghost danger" data-act="pj-sdel"' + at + dis() + '>Löschen</button><button type="button" class="btn ghost" data-act="pj-skeep">Abbrechen</button>'
       : '<button type="button" class="del pen" data-act="pj-sedit"' + at + ' aria-label="' + esc(s.x) + ' bearbeiten">✎</button>' +
         '<button type="button" class="del" data-act="pj-sask"' + at + ' aria-label="' + esc(s.x) + ' löschen">×</button>';
-    return '<li class="' + (s.done ? 'done' : '') + (nx === s ? ' cur' : '') + '"><input type="checkbox" id="' + cid + '" data-act="pj-toggle"' + at + (s.done ? ' checked' : '') + dis() + '>' +
-      '<label for="' + cid + '" class="item-main">' + esc(s.x) + '<small>' + (s.d ? pjFmt(s.d) : 'ohne Datum') + '</small></label>' + tail + '</li>';
+    var dp = pjDepOf(p, s), bl = pjBlocked(p, s), late = !s.done && s.d && s.d < todayKey, chips = '';
+    if (s.pr === 1) chips += '<span class="pj-c p1">🚩 hoch</span>'; else if (s.pr === 3) chips += '<span class="pj-c">niedrig</span>';
+    if (s.st === 'doing' && !s.done) chips += '<span class="pj-c p2">In Arbeit</span>';
+    if (s.est) chips += '<span class="pj-c">⏱ ' + pjFmtH(s.est) + ' Std</span>';
+    if (s.tg) chips += '<span class="pj-c tg">' + esc(s.tg) + '</span>';
+    if (bl) chips += '<span class="pj-c blk">🔗 wartet auf „' + esc(dp.x) + '“</span>';
+    if (s.n) chips += '<span class="pj-c" title="' + esc(s.n) + '">📝</span>';
+    if (s.ln) chips += '<a class="pj-c" href="' + esc(s.ln) + '" target="_blank" rel="noopener" aria-label="Link öffnen">🔗 Link</a>';
+    return '<li class="' + (s.done ? 'done' : '') + (nx === s ? ' cur' : '') + (bl ? ' blk' : '') + '"><input type="checkbox" id="' + cid + '" data-act="pj-toggle"' + at + (s.done ? ' checked' : '') + (bl ? ' disabled title="Wartet auf eine andere Aufgabe"' : '') + dis() + '>' +
+      '<label for="' + cid + '" class="item-main">' + esc(s.x) + '<small' + (late ? ' class="late"' : '') + '>' + (s.d ? pjFmt(s.d) : 'ohne Datum') + '</small>' + (chips ? '<span class="pj-cs">' + chips + '</span>' : '') + '</label>' + pjAvs(p, s.who) + tail + '</li>';
   }
   // Projekt-Aufgaben erscheinen erst 10 Tage vor ihrer Frist in der Uni-„Liste“ (überfällige bleiben, bis sie erledigt sind)
   // Zeilen {d: Frist, done, h: Zeilen-HTML}, die sich in die normale Aufgabenliste einsortieren (kein eigener Bereich)
@@ -2850,7 +2933,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     pjList().forEach(function (p) { p.steps.forEach(function (s) { if (s.d && daysBetween(k, s.d) <= PJ_LIST_DAYS && (!s.done || s.done === k)) out.push({ p: p, s: s }); }); });
     return out.map(function (x) {
       var m = pjMsOf(x.p, x.s), late = !x.s.done && x.s.d < k, on = !!x.s.done, cid = 'pjl_' + x.s.id;
-      return { d: x.s.d, done: on, h: '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" id="' + esc(cid) + '" data-act="pj-toggle" data-pid="' + esc(x.p.id) + '" data-sid="' + esc(x.s.id) + '"' + (on ? ' checked' : '') + dis() + '>' +
+      return { d: x.s.d, done: on, h: '<li class="' + (on ? 'done' : '') + '"><input type="checkbox" id="' + esc(cid) + '" data-act="pj-toggle" data-pid="' + esc(x.p.id) + '" data-sid="' + esc(x.s.id) + '"' + (on ? ' checked' : '') + (pjBlocked(x.p, x.s) ? ' disabled title="Wartet auf eine andere Aufgabe"' : '') + dis() + '>' +
         '<label for="' + esc(cid) + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(x.s.x) +
         '<small' + (late ? ' class="late"' : '') + '>📁 ' + esc(x.p.name) + (m ? ' · ' + esc(m.t) : '') + ' · ' + esc(dueText({ due: x.s.d }, k)) + '</small></label></li>' };
     });
@@ -2882,12 +2965,66 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     h += '</div>';
     if (open) {
       var c = pjCnt[m.id] || 3;
-      h += (n ? '<ul class="pj-tl">' + l.map(function (s) { return pjStepRow(p, s, nx); }).join('') + '</ul>' : '') +
+      var fw = pjFilter[p.id] || '', lv = fw ? l.filter(function (s) { return (s.who || []).indexOf(fw) >= 0; }) : l;
+      h += (lv.length ? '<ul class="pj-tl">' + lv.map(function (s) { return pjStepRow(p, s, nx); }).join('') + '</ul>' : fw && n ? '<p class="hint pj-nofl">Hier sind keine Aufgaben für diese Person.</p>' : '') +
         '<div class="pj-qa"><button type="button" class="btn" data-act="pj-sadd1"' + at + dis() + '>+ Aufgabe</button>' +
         '<span class="pj-multi"><button type="button" data-act="pj-cm"' + at + ' aria-label="weniger">−</button><b>' + c + '</b><button type="button" data-act="pj-cp"' + at + ' aria-label="mehr">+</button>' +
         '<button type="button" class="btn ghost" data-act="pj-saddn"' + at + dis() + '>' + c + ' leere Aufgaben anlegen</button></span></div>';
     }
     return h + '</div></div>';
+  }
+  // Team: Personen mit Fortschritt (Tipp = nur deren Aufgaben zeigen), „+ Person“, Entfernen mit Rückfrage
+  function pjTeamHtml(p) {
+    var team = pjTeam(p), fl = pjFilter[p.id] || '', pid = esc(p.id);
+    var h = '<div class="pj-team">' + (team.length ? '<button type="button" class="pj-pers' + (!fl ? ' on' : '') + '" style="--pc:var(--accent)" data-act="pj-filter" data-pid="' + pid + '" data-who="">Alle</button>' : '');
+    team.forEach(function (x) {
+      var l = p.steps.filter(function (s) { return (s.who || []).indexOf(x.id) >= 0; }), nd = l.filter(function (s) { return s.done; }).length;
+      h += '<span class="pj-pers' + (fl === x.id ? ' on' : '') + '" style="--pc:' + pjPCol(p, x.id) + '"><button type="button" class="pj-pb" data-act="pj-filter" data-pid="' + pid + '" data-who="' + esc(x.id) + '"><span class="pj-av">' + esc(x.n.charAt(0).toUpperCase()) + '</span><span>' + esc(x.n) + '<small>' + nd + '/' + l.length + ' erledigt</small></span></button>' +
+        (pjPDel === x.id
+          ? '<button type="button" class="btn ghost danger sm" data-act="pj-pdel" data-pid="' + pid + '" data-who="' + esc(x.id) + '">Entfernen</button><button type="button" class="btn ghost sm" data-act="pj-pkeep">Behalten</button>'
+          : '<button type="button" class="del" data-act="pj-pask" data-pid="' + pid + '" data-who="' + esc(x.id) + '" aria-label="' + esc(x.n) + ' entfernen">×</button>') + '</span>';
+    });
+    h += pjAddP === p.id
+      ? '<span class="pj-addp"><input id="pjnp_' + pid + '" type="text" maxlength="20" autocomplete="off" placeholder="Name" aria-label="Name der Person"><button type="button" class="btn sm" data-act="pj-addp" data-pid="' + pid + '">Hinzufügen</button><button type="button" class="btn ghost sm" data-act="pj-cancelp">Abbrechen</button></span>'
+      : '<button type="button" class="btn ghost sm" data-act="pj-newp" data-pid="' + pid + '"' + dis() + '>+ Person</button>';
+    return h + '</div>';
+  }
+  function pjViewsHtml(p) {
+    var cur = pjView[p.id] || 'liste', pid = esc(p.id);
+    return '<div class="tmsub pj-views" role="tablist" aria-label="Ansicht">' + [['liste', 'Liste'], ['kanban', 'Kanban'], ['zeit', 'Zeitplan']].map(function (v) { return '<button type="button" role="tab" data-act="pj-view" data-pid="' + pid + '" data-v="' + v[0] + '" aria-selected="' + (cur === v[0]) + '">' + v[1] + '</button>'; }).join('') + '</div>' +
+      '<button type="button" class="pj-tog pj-repb" data-act="pj-report" data-pid="' + pid + '">📄 Statusbericht ' + (pjReport[p.id] ? 'ausblenden' : 'zeigen') + '</button>';
+  }
+  // Kanban: Offen | In Arbeit | Erledigt, Karten mit ‹ › verschieben
+  function pjKanbanHtml(p) {
+    var fl = pjFilter[p.id] || '', ks = ['todo', 'doing', 'done'], nm = { todo: 'Offen', doing: 'In Arbeit', done: 'Erledigt' };
+    return '<div class="pj-kan">' + ks.map(function (k, ki) {
+      var l = p.steps.filter(function (s) { return pjStatus(s) === k && (!fl || (s.who || []).indexOf(fl) >= 0); });
+      return '<div class="pj-kcol"><h4>' + nm[k] + ' (' + l.length + ')</h4>' + l.map(function (s) {
+        var m = pjMsOf(p, s), bl = pjBlocked(p, s), at = ' data-pid="' + esc(p.id) + '" data-sid="' + esc(s.id) + '"';
+        return '<div class="pj-kc"><div>' + esc(s.x) + '</div><small>' + esc(m ? m.t : '') + (s.d ? ' · ' + pjFmt(s.d) : '') + '</small><div class="pj-cs">' + (s.pr === 1 ? '<span class="pj-c p1">🚩</span>' : '') + (bl ? '<span class="pj-c blk">🔗 wartet</span>' : '') + pjAvs(p, s.who) + '</div>' +
+          '<div class="pj-km"><button type="button" class="pj-tog"' + (ki === 0 ? ' disabled style="opacity:.3"' : ' data-act="pj-kmv" data-dir="-1"' + at) + '>‹ zurück</button><button type="button" class="pj-tog"' + (ki === 2 || (bl && ki === 1) ? ' disabled style="opacity:.3"' : ' data-act="pj-kmv" data-dir="1"' + at) + '>weiter ›</button></div></div>';
+      }).join('') + '</div>';
+    }).join('') + '</div>';
+  }
+  // Zeitplan: Balken pro Meilenstein vom ersten Aufgaben-Datum bis zu seinem Datum, rote Linie = heute
+  function pjGanttHtml(p) {
+    var dates = [todayKey];
+    p.steps.forEach(function (s) { if (s.d) dates.push(s.d); }); p.ms.forEach(function (m) { if (m.d) dates.push(m.d); }); if (p.goal) dates.push(p.goal);
+    dates.sort(); var a = keyAdd(dates[0], -3), b = keyAdd(dates[dates.length - 1], 3), span = Math.max(1, daysBetween(a, b));
+    function pos(k) { return Math.max(0, Math.min(100, daysBetween(a, k) / span * 100)); }
+    return '<div class="pj-gantt">' + p.ms.map(function (m) {
+      var ds = pjMsSteps(p, m.id).map(function (s) { return s.d; }).filter(Boolean).sort(), from = ds[0] || m.d || todayKey, to = m.d || ds[ds.length - 1] || from, l = pos(from < to ? from : to), w = Math.max(Math.abs(pos(to) - pos(from)), 2);
+      return '<div class="pj-grow"><span class="pj-gl">' + esc(m.t) + '</span><div class="pj-gt"><div class="pj-gb' + (pjMsDone(p, m) ? ' done' : '') + '" style="left:' + l + '%;width:' + w + '%" title="' + pjFmt(from) + ' – ' + pjFmt(to) + '"></div><div class="pj-gn" style="left:' + pos(todayKey) + '%"></div></div></div>';
+    }).join('') + '<small class="pj-gh">Rote Linie = heute. Balken = vom ersten Aufgaben-Datum bis zum Datum des Meilensteins.</small></div>';
+  }
+  function pjReportText(p) {
+    var all = p.steps.length, nd = p.steps.filter(function (s) { return s.done; }).length, g = p.goal ? daysBetween(todayKey, p.goal) : null;
+    var l = ['Statusbericht · ' + p.name, 'Stand ' + pjFmt(todayKey) + (p.goal ? ' · Ziel ' + pjFmt(p.goal) + ' (' + (g >= 0 ? 'noch ' + plTage(g) : 'seit ' + plTage(-g) + ' überschritten') + ')' : ''), 'Fortschritt: ' + nd + ' von ' + all + ' Aufgaben' + (all ? ' (' + Math.round(nd / all * 100) + ' %)' : '') + (pjHours(p) ? ' · ' + pjFmtH(pjHours(p, true)) + ' von ' + pjFmtH(pjHours(p)) + ' Std' : ''), ''];
+    p.ms.forEach(function (m) { var t = pjMsSteps(p, m.id); l.push((pjMsDone(p, m) ? '✓ ' : '• ') + m.t + (m.d ? ' (bis ' + pjFmt(m.d) + ')' : '') + ': ' + t.filter(function (s) { return s.done; }).length + '/' + t.length); });
+    var late = p.steps.filter(function (s) { return !s.done && s.d && s.d < todayKey; });
+    if (late.length) l.push('', 'Überfällig: ' + late.map(function (s) { return s.x; }).join(', '));
+    if (pjTeam(p).length) { l.push('', 'Wer macht was:'); pjTeam(p).forEach(function (x) { var t = p.steps.filter(function (s) { return (s.who || []).indexOf(x.id) >= 0; }); l.push('• ' + x.n + ': ' + t.filter(function (s) { return s.done; }).length + '/' + t.length + ' erledigt'); }); }
+    return l.join('\n');
   }
   function renderProjects() {
     var ps = pjList().slice().sort(function (a, b) { var x = pjNext(a), y = pjNext(b); x = x && x.d || '9999'; y = y && y.d || '9999'; return x < y ? -1 : x > y ? 1 : 0; });
@@ -2901,11 +3038,15 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       return '<div class="pj' + (fold ? ' folded' : '') + '"><div class="pj-h"><button type="button" class="pj-fold" data-act="pj-fold" data-pid="' + esc(p.id) + '" aria-expanded="' + !fold + '" aria-label="Projekt ' + esc(p.name) + (fold ? ' aufklappen' : ' einklappen') + '">▾</button><div class="pj-t"><b>' + esc(p.name) + '</b>' + (meta ? '<small>' + meta + '</small>' : '') + '</div>' +
         (left === null ? '' : '<div class="pj-goal"><b>' + left + '</b><small>' + (Math.abs(left) === 1 ? 'Tag' : 'Tage') + (left < 0 ? ' über dem Ziel' : ' bis zum Ziel') + '</small></div>') +
         '<button type="button" class="del pen" data-act="pj-edit" data-pid="' + esc(p.id) + '" aria-label="Projekt ' + esc(p.name) + ' bearbeiten">✎</button></div>' +
-        (n ? '<div class="pj-prog"><span class="pbar" aria-hidden="true"><i style="width:' + Math.round(nd / n * 100) + '%"></i></span><span>' + nd + ' von ' + n + (n === 1 ? ' Aufgabe' : ' Aufgaben') + ' · ' + p.ms.filter(function (m) { return pjMsDone(p, m); }).length + ' von ' + p.ms.length + (p.ms.length === 1 ? ' Meilenstein' : ' Meilensteinen') + '</span></div>' : '') +
+        (n ? '<div class="pj-prog"><span class="pbar" aria-hidden="true"><i style="width:' + Math.round(nd / n * 100) + '%"></i></span><span>' + nd + ' von ' + n + (n === 1 ? ' Aufgabe' : ' Aufgaben') + ' · ' + p.ms.filter(function (m) { return pjMsDone(p, m); }).length + ' von ' + p.ms.length + (p.ms.length === 1 ? ' Meilenstein' : ' Meilensteinen') + (pjHours(p) ? ' · ' + pjFmtH(pjHours(p, true)) + ' von ' + pjFmtH(pjHours(p)) + ' Std' : '') + '</span></div>' : '') +
         (fold ? '' : nx ? '<div class="pj-next"><span aria-hidden="true">👉</span><span class="x">' + esc(nx.x) + '<small>Nächster Schritt' + (nx.d ? ' · bis ' + pjFmt(nx.d) : '') + '</small></span>' + (nx.d ? pjChip(nx.d) : '') + '</div>'
           : '<div class="pj-next"><span aria-hidden="true">' + (n ? '🎉' : '📝') + '</span><span class="x">' + (n ? 'Alle Aufgaben erledigt!' : p.ms.length ? 'Noch keine Aufgaben. Klapp einen Meilenstein auf und leg welche an.' : 'Noch keine Meilensteine. Leg unten den ersten an.') + '</span></div>') +
         '<button type="button" class="pj-tog" data-act="pj-open" data-pid="' + esc(p.id) + '" aria-expanded="' + open + '"' + (fold ? ' hidden' : '') + '>' + (open ? 'Meilensteine ausblenden ▲' : 'Alle Meilensteine ▼') + '</button>' +
-        (open && !fold ? '<div class="pj-tools"><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="1">Alle aufklappen</button><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="0">Alle zuklappen</button></div>' +
+        (fold ? '' : pjTeamHtml(p) + pjViewsHtml(p)) +
+        (!fold && (pjView[p.id] || 'liste') === 'kanban' ? pjKanbanHtml(p) : '') +
+        (!fold && (pjView[p.id] || 'liste') === 'zeit' ? pjGanttHtml(p) : '') +
+        (!fold && pjReport[p.id] ? '<pre class="pj-rep">' + esc(pjReportText(p)) + '</pre><button type="button" class="btn ghost" data-act="pj-copy" data-pid="' + esc(p.id) + '">Text kopieren</button>' : '') +
+        (open && !fold && (pjView[p.id] || 'liste') === 'liste' ? '<div class="pj-tools"><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="1">Alle aufklappen</button><button type="button" class="pj-tog" data-act="pj-mall" data-pid="' + esc(p.id) + '" data-v="0">Alle zuklappen</button></div>' +
           '<div class="pj-ml">' + p.ms.map(function (m) { return pjMsHtml(p, m, nx); }).join('') + '</div>' +
           '<button type="button" class="btn ghost" data-act="pj-madd" data-pid="' + esc(p.id) + '"' + dis() + '>+ Meilenstein</button>' : '') + '</div>';
     }).join('');
@@ -2960,7 +3101,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     else if (act === 'pj-mask') { pjMsDel = b.dataset.mid; pjMsEdit = null; }
     else if (act === 'pj-mkeep') pjMsDel = null;
     else if (act === 'pj-mdel' && p) {
-      var dm = b.dataset.mid; p.ms = p.ms.filter(function (x) { return x.id !== dm; }); p.steps = p.steps.filter(function (s) { return s.m !== dm; });
+      var dm = b.dataset.mid; p.ms = p.ms.filter(function (x) { return x.id !== dm; }); p.steps = p.steps.filter(function (s) { return s.m !== dm; }); pjCleanDeps(p);
       pjMsDel = null; saveUni(); renderCal();
     }
     // Aufgaben schnell anlegen: Zeilen „Aufgabe 4“ entstehen sofort (später umbenennen), nichts muss getippt werden
@@ -2975,12 +3116,53 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     else if (act === 'pj-scancel') pjStepEdit = null;
     else if (act === 'pj-sask') { pjStepDel = sid; pjStepEdit = null; }
     else if (act === 'pj-skeep') pjStepDel = null;
-    else if (act === 'pj-sdel' && p) { p.steps = p.steps.filter(function (s) { return s.id !== sid; }); pjStepDel = null; saveUni(); renderCal(); }
+    else if (act === 'pj-sdel' && p) { p.steps = p.steps.filter(function (s) { return s.id !== sid; }); pjCleanDeps(p); pjStepDel = null; saveUni(); renderCal(); }
     else if (act === 'pj-ssave') {
       var f = pjFind(sid), sx = v('pjsX'), sd = v('pjsD');
       if (!f || !sx) return true;
-      f.s.x = sx.slice(0, 80); if (KRE.test(sd)) f.s.d = sd; else delete f.s.d;
+      var fs = f.s;
+      fs.x = sx.slice(0, 80); if (KRE.test(sd)) fs.d = sd; else delete fs.d;
+      // Status: Erledigt setzt das Datum des Abhakens, In Arbeit merkt sich „st“
+      var nst = v('pjsS');
+      if (nst === 'done') { if (!fs.done) fs.done = todayKey; delete fs.st; } else { delete fs.done; if (nst === 'doing') fs.st = 'doing'; else delete fs.st; }
+      var npr = +v('pjsP'); if (npr === 1 || npr === 3) fs.pr = npr; else delete fs.pr;
+      var nes = parseFloat(v('pjsE')); if (nes > 0) fs.est = nes; else delete fs.est;
+      if (v('pjsG')) fs.tg = v('pjsG').slice(0, 24); else delete fs.tg;
+      var ndp = v('pjsDp'); if (ndp && ndp !== fs.id && f.p.steps.some(function (x) { return x.id === ndp; })) fs.dep = ndp; else delete fs.dep;
+      var nwh = [].slice.call(elPanel.querySelectorAll('input[data-pw]')).filter(function (i) { return i.checked; }).map(function (i) { return i.dataset.pw; });
+      if (nwh.length) fs.who = nwh; else delete fs.who;
+      if (v('pjsN')) fs.n = v('pjsN').slice(0, 500); else delete fs.n;
+      var nln = v('pjsL'); if (/^https?:\/\//i.test(nln)) fs.ln = nln.slice(0, 300); else delete fs.ln;
       pjSort(f.p); pjStepEdit = null; saveUni(); renderCal();
+    }
+    // Team, Ansichten, Filter, Kanban, Statusbericht
+    else if (act === 'pj-view') pjView[pid] = b.dataset.v;
+    else if (act === 'pj-filter') pjFilter[pid] = (pjFilter[pid] === b.dataset.who) ? '' : b.dataset.who;
+    else if (act === 'pj-newp') pjAddP = pid;
+    else if (act === 'pj-cancelp') pjAddP = null;
+    else if (act === 'pj-addp' && p) {
+      var pn = v('pjnp_' + pid); if (!pn) return true;
+      if (pjTeam(p).length < 12) pjTeam(p).push({ id: uid(), n: pn.slice(0, 20) });
+      pjAddP = null; saveUni();
+    }
+    else if (act === 'pj-pask') pjPDel = b.dataset.who;
+    else if (act === 'pj-pkeep') pjPDel = null;
+    else if (act === 'pj-pdel' && p) {
+      var gw = b.dataset.who; p.team = pjTeam(p).filter(function (x) { return x.id !== gw; });
+      p.steps.forEach(function (s) { if (s.who) { s.who = s.who.filter(function (w) { return w !== gw; }); if (!s.who.length) delete s.who; } });
+      if (pjFilter[pid] === gw) pjFilter[pid] = ''; pjPDel = null; saveUni();
+    }
+    else if (act === 'pj-kmv' && p) {
+      var ks = ['todo', 'doing', 'done'], ks0 = pjFind(sid); if (!ks0) return true;
+      var nk = ks[ks.indexOf(pjStatus(ks0.s)) + +b.dataset.dir]; if (!nk) return true;
+      if (nk === 'done' && pjBlocked(p, ks0.s)) return true;
+      if (nk === 'done') { ks0.s.done = todayKey; delete ks0.s.st; } else { delete ks0.s.done; if (nk === 'doing') ks0.s.st = 'doing'; else delete ks0.s.st; }
+      saveUni(); renderCal();
+    }
+    else if (act === 'pj-report') pjReport[pid] = !pjReport[pid];
+    else if (act === 'pj-copy' && p) {
+      try { navigator.clipboard.writeText(pjReportText(p)); undoable('Statusbericht kopiert', null); } catch (er) { undoable('Kopieren hat nicht geklappt', null); }
+      return true;
     }
     else return false;
     renderPanel();
@@ -4913,8 +5095,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (e.key !== 'Enter' || !ready) return;
     if (e.target.matches && e.target.matches('.srow[data-act]')) { e.preventDefault(); e.target.click(); return; }
     if (e.target.tagName !== 'INPUT') return;
-    var box = e.target.closest('.pj-form, .pj-tl li.edit, .pj-medit'); if (!box) return;
-    var b = box.querySelector('[data-act="pj-save"], [data-act="pj-ssave"], [data-act="pj-msave"]');
+    var box = e.target.closest('.pj-form, .pj-tl li.edit, .pj-medit, .pj-addp'); if (!box) return;
+    var b = box.querySelector('[data-act="pj-save"], [data-act="pj-ssave"], [data-act="pj-msave"], [data-act="pj-addp"]');
     if (b) { e.preventDefault(); pjAction(b.dataset.act, b); }
   });
   elPanel.addEventListener('change', function (e) {
@@ -4954,7 +5136,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     }
     if (el.dataset && el.dataset.act === 'pj-toggle' && ready) {
       var pf = pjFind(el.dataset.sid); if (!pf) return;
-      if (el.checked) pf.s.done = todayKey; else delete pf.s.done;
+      if (pjBlocked(pf.p, pf.s) && el.checked) { el.checked = false; return; }
+      if (el.checked) { pf.s.done = todayKey; delete pf.s.st; } else delete pf.s.done;
       saveUni(); renderPanel(); renderCal();
       return;
     }
