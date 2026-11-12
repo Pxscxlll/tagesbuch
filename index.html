@@ -716,7 +716,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 114</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 115</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1653,6 +1653,12 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     renderAbos(); renderCal(); renderHead();
   }
 
+  // „+ Erinnerung“: bei einem „Bis“-Datum (mehrtägig) entfallen Uhrzeit, Dauer und Erinnerung
+  elPanel.addEventListener('input', function (e) {
+    if (e.target.id !== 'remEnd') return;
+    var multi = KRE.test(e.target.value) && e.target.value > selected;
+    [].slice.call(elPanel.querySelectorAll('.rem-single')).forEach(function (n) { n.style.display = multi ? 'none' : ''; });
+  });
   // „Jetzt“-Linie in den Tageslisten (Termine, Stundenplan, Alle): vor dem ersten Eintrag, der noch nicht begonnen hat
   function markNowLines() {
     [].slice.call(document.querySelectorAll('.nowdiv')).forEach(function (n) { n.remove(); });
@@ -3846,12 +3852,12 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         function unitSel(id, opts, cur) { return '<select id="' + id + '" aria-label="Einheit">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
         h += '<form data-form="rem" class="panel" novalidate><h3>Erinnerung am ' + esc(shortDate(selected)) + '</h3>' +
           '<div class="field"><label for="remTitle">Was?</label><input id="remTitle" type="text" maxlength="120" autocomplete="off" placeholder="z. B. Übungsblatt abgeben" value="' + esc(keep.remTitle || '') + '"></div>' +
-          '<div class="row"><div class="field"><label for="remTime">Uhrzeit</label><input id="remTime" type="time" value="' + esc(keep.remTime || '') + '"></div>' +
+          '<div class="row"><div class="field rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><label for="remTime">Uhrzeit</label><input id="remTime" type="time" value="' + esc(keep.remTime || '') + '"></div>' +
           '<div class="field"><label for="remEnd">Bis (mehrtägig, optional)</label><input id="remEnd" type="date" min="' + esc(selected) + '" value="' + esc(keep.remEnd || '') + '"></div></div>' +
           '<div class="row">' +
-          '<div class="field"><label for="remDurN">Dauer</label><div class="combo"><input id="remDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remDurN || '30') + '">' + unitSel('remDurU', [['1', 'Min'], ['60', 'Std']], keep.remDurU || '1') + '</div></div></div>' +
-          '<div class="field"><label for="remPreN">Benachrichtigung vorher</label><div class="combo"><input id="remPreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remPreN || '1') + '">' + unitSel('remPreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], keep.remPreU || '60') + '</div></div>' +
-          '<p class="hint">Wird in deinen Google-Kalender eingetragen. 0 heißt: Benachrichtigung genau zur Uhrzeit. Mit „Bis“ wird es ein ganztägiger Termin über mehrere Tage (Uhrzeit und Dauer entfallen).</p>' +
+          '<div class="field rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><label for="remDurN">Dauer</label><div class="combo"><input id="remDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remDurN || '30') + '">' + unitSel('remDurU', [['1', 'Min'], ['60', 'Std']], keep.remDurU || '1') + '</div></div></div>' +
+          '<div class="field rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><label for="remPreN">Benachrichtigung vorher</label><div class="combo"><input id="remPreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remPreN || '1') + '">' + unitSel('remPreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], keep.remPreU || '60') + '</div></div>' +
+          '<p class="hint">Wird in deinen Google-Kalender eingetragen. 0 heißt: Benachrichtigung genau zur Uhrzeit. Mit „Bis“ wird es ein ganztägiger Termin über mehrere Tage (ohne Uhrzeit, Dauer und Erinnerung).</p>' +
           '<div class="row"><button type="submit" class="btn"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Trage ein …' : 'Eintragen') + '</button>' +
           '<button type="button" class="btn ghost" data-act="rem-cancel">Abbrechen</button></div></form>';
       }
@@ -3890,8 +3896,9 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   function remCreate(title, k, time, dur, pre, endK) {
     var body;
     if (endK && endK > k) {
+      // Mehrtägig: ohne Erinnerung
       body = { summary: title, start: { date: k }, end: { date: addDays(endK, 1) },
-        reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] }, extendedProperties: { shared: { planner: '1' } } };
+        reminders: { useDefault: false, overrides: [] }, extendedProperties: { shared: { planner: '1' } } };
     } else {
       var p = k.split('-'), t = time.split(':');
       // Ortszeit ohne Zeitzonen-Versatz schreiben, Google rechnet mit Europe/Berlin.
@@ -4978,11 +4985,17 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     evFormEl.innerHTML = '<div class="field"><label for="efT">Neuer Termin</label><input id="efT" type="text" maxlength="120" autocomplete="off" placeholder="Titel"></div>' +
       '<div class="field"><label for="efD">Tag</label><select id="efD">' + days7.map(function (d) { return '<option value="' + d + '"' + (d === k ? ' selected' : '') + '>' + esc(dayShort(d)) + '</option>'; }).join('') + '</select></div>' +
       '<div class="field"><label for="efE">Bis (mehrtägig, optional)</label><input id="efE" type="date" min="' + k + '"></div>' +
-      '<div class="row"><div class="field"><label for="efA">Von</label><input id="efA" type="time" step="900" value="' + minHm(a) + '"></div><div class="field"><label for="efB">Bis</label><input id="efB" type="time" step="900" value="' + minHm(Math.min(b, 1439)) + '"></div></div>' +
-      (GCLIENT ? '<div class="field"><label for="efP">Benachrichtigung</label><select id="efP"><option value="0">zur Uhrzeit</option><option value="15">15 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>' : '') +
+      '<div class="row ef-single"><div class="field"><label for="efA">Von</label><input id="efA" type="time" step="900" value="' + minHm(a) + '"></div><div class="field"><label for="efB">Bis</label><input id="efB" type="time" step="900" value="' + minHm(Math.min(b, 1439)) + '"></div></div>' +
+      (GCLIENT ? '<div class="field ef-single"><label for="efP">Benachrichtigung</label><select id="efP"><option value="0">zur Uhrzeit</option><option value="15">15 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>' : '') +
       '<div class="row"><button type="submit" class="btn">Speichern</button><button type="button" class="btn ghost" id="efX">Abbrechen</button></div>';
     document.body.appendChild(evFormEl); evPlaceForm(evFormEl, px, py);
     $('#efX').onclick = evCloseForm;
+    // Mehrtägig (Bis-Datum nach dem Tag): keine Uhrzeit, Dauer und Erinnerung
+    $('#efE').onchange = $('#efE').oninput = function () {
+      var multi = KRE.test(this.value) && this.value > $('#efD').value;
+      [].slice.call(evFormEl.querySelectorAll('.ef-single')).forEach(function (n) { n.style.display = multi ? 'none' : ''; });
+      evPlaceForm(evFormEl, px, py);
+    };
     evFormEl.onsubmit = function (ev) {
       ev.preventDefault();
       var t = $('#efT').value.trim(), s = hmMin($('#efA').value), en = hmMin($('#efB').value), kk = $('#efD').value;
