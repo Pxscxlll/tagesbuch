@@ -716,7 +716,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 113</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 114</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1497,6 +1497,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       }).map(function (e) {
         var o = { id: String(e.id || uid()), date: e.date, time: typeof e.time === 'string' ? e.time : '', end: typeof e.end === 'string' ? e.end : '', title: e.title, loc: typeof e.loc === 'string' ? e.loc : '' };
         if (e.m) o.m = 1;
+        // Mehrtägig: letzter Tag (nur eigene Termine), dann ganztägig
+        if (typeof e.ed === 'string' && DATE_RE.test(e.ed) && e.ed > e.date) { o.ed = e.ed; o.time = ''; o.end = ''; }
         return o;
       })
     };
@@ -1504,7 +1506,11 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   function rebuildEv() {
     evIdx = {};
     Object.keys(abos).forEach(function (id) {
-      abos[id].events.forEach(function (e) { (evIdx[e.date] = evIdx[e.date] || []).push({ abo: abos[id].name, aid: id, e: e }); });
+      abos[id].events.forEach(function (e) {
+        if (!e.ed) { (evIdx[e.date] = evIdx[e.date] || []).push({ abo: abos[id].name, aid: id, e: e }); return; }
+        // Mehrtägiger Termin: an jedem Tag als ganztägiger Eintrag (oid = der echte Termin zum Löschen)
+        for (var d = e.date, n = 0; d <= e.ed && n < 60; d = addDays(d, 1), n++) (evIdx[d] = evIdx[d] || []).push({ abo: abos[id].name, aid: id, e: Object.assign({}, e, { date: d, id: e.id + '_' + d, oid: e.id, md: 1, mdn: n + 1, mdt: daysBetween(e.date, e.ed) + 1 }) });
+      });
     });
     gSelNow().forEach(function (c) {
       (gStore[c.id] || []).forEach(function (e) { (evIdx[e.date] = evIdx[e.date] || []).push({ abo: c.name, aid: 'g:' + c.id, e: e }); });
@@ -1638,7 +1644,9 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     var date = $('#ownDate').value, time = $('#ownTime').value, title = $('#ownTitle').value.trim(), loc = $('#ownLoc').value.trim();
     if (!DATE_RE.test(date) || !title) { setAboMsg('Bitte Datum und Titel angeben.'); renderAbos(); return; }
     var a = abos.eigene || { name: 'Eigene Termine', updated: todayKey, events: [] };
-    a.events = a.events.concat([{ id: 'm' + uid(), date: date, time: time || '', end: '', title: title.slice(0, 120), loc: loc.slice(0, 120), m: 1 }]);
+    var ed = ($('#ownEnd') || {}).value || '', oe = { id: 'm' + uid(), date: date, time: time || '', end: '', title: title.slice(0, 120), loc: loc.slice(0, 120), m: 1 };
+    if (DATE_RE.test(ed) && ed > date) oe.ed = ed;
+    a.events = a.events.concat([oe]);
     abos.eigene = normAbo(a);
     rebuildEv(); commitAbo('eigene');
     setAboMsg('Termin am ' + shortDate(date) + ' hinzugefügt.', true);
@@ -1678,7 +1686,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         '<small>' + esc(x.abo) + (e.desc ? ' · ' + esc(e.desc) : '') + '</small>' +
         (e.loc ? '<a class="maplink" href="https://www.google.com/maps/search/?api=1&amp;query=' + encodeURIComponent(e.loc) + '" target="_blank" rel="noopener">📍 ' + esc(e.loc) + '</a>' : '') +
         '</span>' + (!open && ((note && String(note).trim()) || genNote(notes, key, e.title).trim()) ? NOTE_IC : '') +
-        (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.id) + '" aria-label="Termin entfernen">×</button>' : '') +
+        (e.m ? '<button type="button" class="del" data-act="del-ev" data-aid="' + esc(x.aid) + '" data-eid="' + esc(e.oid || e.id) + '" aria-label="Termin entfernen">×</button>' : '') +
         (e.pl && remDelAsk !== e.gid ? '<button type="button" class="del" data-act="rem-del-ask" data-gid="' + esc(e.gid) + '" aria-label="Erinnerung aus Google-Kalender löschen">×</button>' : '') + '</div>' +
         (e.pl && remDelAsk === e.gid ? '<div class="evdel"><span>„' + esc(e.title) + '“ aus dem Google-Kalender löschen?</span>' +
           '<span class="evdel-b"><button type="button" class="btn" style="height:36px" data-act="rem-del" data-gid="' + esc(e.gid) + '"' + (remBusy ? ' disabled' : '') + '>Löschen</button>' +
@@ -1733,7 +1741,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<div class="row"><button type="submit" class="btn"' + dsb + '>Abo anlegen</button></div></form>';
     h += '<form data-form="own" class="panel" novalidate><h3>Eigenen Termin hinzufügen</h3>' +
       '<div class="row"><div class="field"><label for="ownDate">Datum</label><input id="ownDate" type="date" value="' + esc(selected) + '"' + dsb + '></div>' +
-      '<div class="field"><label for="ownTime">Beginn (optional)</label><input id="ownTime" type="time"' + dsb + '></div></div>' +
+      '<div class="field"><label for="ownTime">Beginn (optional)</label><input id="ownTime" type="time"' + dsb + '></div>' +
+      '<div class="field"><label for="ownEnd">Bis (mehrtägig, optional)</label><input id="ownEnd" type="date"' + dsb + '></div></div>' +
       '<div class="field"><label for="ownTitle">Titel</label><input id="ownTitle" type="text" autocomplete="off" placeholder="z. B. Punktspiel in Bielefeld"' + dsb + '></div>' +
       '<div class="field"><label for="ownLoc">Ort (optional)</label><input id="ownLoc" type="text" autocomplete="off"' + dsb + '></div>' +
       '<div class="row"><button type="submit" class="btn"' + dsb + '>Termin hinzufügen</button></div></form>';
@@ -1812,7 +1821,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       var o = { id: String(ev.id || uid()) + '_' + dt, date: dt, time: i === 0 ? sTime : '', end: i === 0 && eDate === sDate ? eTime : '', title: title, loc: loc, desc: desc };
       if (pl && ev.id) o.pl = 1;
       if (ev.id) o.gid = String(ev.id);
-      if (dates.length > 1) o.md = 1;
+      if (dates.length > 1) { o.md = 1; o.mdn = i + 1; o.mdt = dates.length; }
       var rm = ev.reminders || {};
       if (rm.useDefault === false && Array.isArray(rm.overrides) && rm.overrides[0]) o.pre = Number(rm.overrides[0].minutes) || 0;
       return o;
@@ -3233,7 +3242,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         var e = x.e, a = hmMin(e.time), ad = a == null, b = ad ? 0 : (hmMin(e.end) > a ? hmMin(e.end) : a + 60);
         if (!ad) b = Math.min(b, 24 * 60);
         srcs[evSrcKey(x)] = 1;
-        items.push({ ad: ad, a: ad ? 0 : a, b: b, title: e.title, ab: abbr(e.title), loc: e.loc || '', col: evColor(x), act: 'ev-open', key: x.aid + '|' + e.id, k: k0, f: e.time || '', t: e.end || '', mv: evMovable(x) });
+        items.push({ ad: ad, a: ad ? 0 : a, b: b, title: e.title + (e.mdn ? ' (' + e.mdn + '/' + e.mdt + ')' : ''), ab: abbr(e.title), loc: e.loc || '', col: evColor(x), act: 'ev-open', key: x.aid + '|' + e.id, k: k0, f: e.time || '', t: e.end || '', mv: evMovable(x) });
       });
       if (includeUni) lessonsOn(null, k0).forEach(function (l) {
         srcs.uni = 1;
@@ -3827,7 +3836,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   var remOpen = false, remMsg = null, remBusy = false, remTok = null, remTokExp = 0, remClient = null, remResolve = null;
   function renderEvPanel() {
     var keep = {};
-    ['remTitle', 'remTime', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['remTitle', 'remTime', 'remEnd', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
     var h = '';
     if (evWeek()) h += weekEventsHtml(false);
     else if (!(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
@@ -3838,9 +3847,11 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         h += '<form data-form="rem" class="panel" novalidate><h3>Erinnerung am ' + esc(shortDate(selected)) + '</h3>' +
           '<div class="field"><label for="remTitle">Was?</label><input id="remTitle" type="text" maxlength="120" autocomplete="off" placeholder="z. B. Übungsblatt abgeben" value="' + esc(keep.remTitle || '') + '"></div>' +
           '<div class="row"><div class="field"><label for="remTime">Uhrzeit</label><input id="remTime" type="time" value="' + esc(keep.remTime || '') + '"></div>' +
+          '<div class="field"><label for="remEnd">Bis (mehrtägig, optional)</label><input id="remEnd" type="date" min="' + esc(selected) + '" value="' + esc(keep.remEnd || '') + '"></div></div>' +
+          '<div class="row">' +
           '<div class="field"><label for="remDurN">Dauer</label><div class="combo"><input id="remDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remDurN || '30') + '">' + unitSel('remDurU', [['1', 'Min'], ['60', 'Std']], keep.remDurU || '1') + '</div></div></div>' +
           '<div class="field"><label for="remPreN">Benachrichtigung vorher</label><div class="combo"><input id="remPreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remPreN || '1') + '">' + unitSel('remPreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], keep.remPreU || '60') + '</div></div>' +
-          '<p class="hint">Wird in deinen Google-Kalender eingetragen. 0 heißt: Benachrichtigung genau zur Uhrzeit.</p>' +
+          '<p class="hint">Wird in deinen Google-Kalender eingetragen. 0 heißt: Benachrichtigung genau zur Uhrzeit. Mit „Bis“ wird es ein ganztägiger Termin über mehrere Tage (Uhrzeit und Dauer entfallen).</p>' +
           '<div class="row"><button type="submit" class="btn"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Trage ein …' : 'Eintragen') + '</button>' +
           '<button type="button" class="btn ghost" data-act="rem-cancel">Abbrechen</button></div></form>';
       }
@@ -3875,13 +3886,20 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (m % 60 === 0) return (m / 60) + ' Std vorher';
     return m + ' min vorher';
   }
-  function remCreate(title, k, time, dur, pre) {
-    var p = k.split('-'), t = time.split(':');
-    // Ortszeit ohne Zeitzonen-Versatz schreiben, Google rechnet mit Europe/Berlin.
-    var a = new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1]), b = new Date(a.getTime() + dur * 60000);
-    function loc(d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
-    var body = { summary: title, start: { dateTime: loc(a), timeZone: 'Europe/Berlin' }, end: { dateTime: loc(b), timeZone: 'Europe/Berlin' },
-      reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] }, extendedProperties: { shared: { planner: '1' } } };
+  // endK (optional): letzter Tag eines mehrtägigen Termins, dann ganztägig von k bis endK (Google erwartet den Tag danach als Ende)
+  function remCreate(title, k, time, dur, pre, endK) {
+    var body;
+    if (endK && endK > k) {
+      body = { summary: title, start: { date: k }, end: { date: addDays(endK, 1) },
+        reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] }, extendedProperties: { shared: { planner: '1' } } };
+    } else {
+      var p = k.split('-'), t = time.split(':');
+      // Ortszeit ohne Zeitzonen-Versatz schreiben, Google rechnet mit Europe/Berlin.
+      var a = new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1]), b = new Date(a.getTime() + dur * 60000);
+      var loc = function (d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; };
+      body = { summary: title, start: { dateTime: loc(a), timeZone: 'Europe/Berlin' }, end: { dateTime: loc(b), timeZone: 'Europe/Berlin' },
+        reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] }, extendedProperties: { shared: { planner: '1' } } };
+    }
     return remToken().then(function (tok) {
       return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST', headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
@@ -4267,14 +4285,15 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       if (!(rpre >= 0)) { remMsg = { ok: false, t: 'Bitte angeben, wie lange vorher du benachrichtigt werden willst.' }; renderPanel(); return; }
       if (rpre > 40320) { remMsg = { ok: false, t: 'Google erlaubt höchstens 4 Wochen Vorlauf.' }; renderPanel(); return; }
       if (!rt) { $('#remTitle').placeholder = 'Bitte eintragen, worum es geht'; return; }
-      if (!/^\d{2}:\d{2}$/.test(rtime)) { remMsg = { ok: false, t: 'Bitte eine Uhrzeit wählen.' }; renderPanel(); return; }
+      var rend = ($('#remEnd') || {}).value || '', rrange = KRE.test(rend) && rend > rk;
+      if (!rrange && !/^\d{2}:\d{2}$/.test(rtime)) { remMsg = { ok: false, t: 'Bitte eine Uhrzeit wählen (oder ein „Bis“-Datum für mehrere Tage).' }; renderPanel(); return; }
       remBusy = true; remMsg = null; renderPanel();
-      remCreate(rt, rk, rtime, rdur, rpre).then(function (ev) {
+      remCreate(rt, rk, rtime, rdur, rpre, rrange ? rend : '').then(function (ev) {
         remBusy = false; remOpen = false;
         if (ev && ev.id) { remIds = remIds.concat([String(ev.id)]).slice(-200); try { localStorage.setItem('tagesbuch:remids', JSON.stringify(remIds)); } catch (e) {} }
-        remMsg = { ok: true, t: '„' + rt + '“ am ' + shortDate(rk) + ' um ' + rtime + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + '. Benachrichtigung ' + preText(rpre) + '.' };
+        remMsg = { ok: true, t: '„' + rt + '“ ' + (rrange ? 'von ' + shortDate(rk) + ' bis ' + shortDate(rend) + ' (ganztägig)' : 'am ' + shortDate(rk) + ' um ' + rtime) + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + '. Benachrichtigung ' + preText(rpre) + '.' };
         renderPanel();
-        Object.keys(gLoaded).forEach(function (x) { if (x.slice(-7) === rk.slice(0, 7)) delete gLoaded[x]; });
+        Object.keys(gLoaded).forEach(function (x) { var m7 = x.slice(-7); if (m7 >= rk.slice(0, 7) && m7 <= (rrange ? rend : rk).slice(0, 7)) delete gLoaded[x]; });
         gEnsure(true);
       }).catch(function (err) {
         remBusy = false;
@@ -4931,17 +4950,19 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       undoable('„' + e.title + '“ → ' + dayShort(k) + ' ' + minHm(a) + '–' + minHm(b), function () { evApply(ref, k0, a0, b0).catch(function () {}); });
     }, function () {});
   }
-  function evCreate(t, k, a, b, pre) {
+  // endK (optional): letzter Tag eines mehrtägigen Termins (ganztägig)
+  function evCreate(t, k, a, b, pre, endK) {
     if (!GCLIENT) {
       var ao = abos.eigene || { name: 'Eigene Termine', updated: todayKey, events: [] }, ne = { id: 'm' + uid(), date: k, time: minHm(a), end: minHm(Math.min(b, 1439)), title: t.slice(0, 120), loc: '', m: 1 };
+      if (endK) ne.ed = endK;
       ao.events = ao.events.concat([ne]); abos.eigene = normAbo(ao); rebuildEv(); commitAbo('eigene'); renderAll();
       undoable('„' + t + '“ angelegt', function () { abos.eigene.events = abos.eigene.events.filter(function (z) { return z.id !== ne.id; }); abos.eigene = normAbo(abos.eigene); rebuildEv(); commitAbo('eigene'); renderAll(); });
       return;
     }
     undoable('Trage „' + t + '“ ein …', null);
-    remCreate(t, k, minHm(a), b - a, pre).then(function (ev) {
+    remCreate(t, k, minHm(a), b - a, pre, endK || '').then(function (ev) {
       if (ev && ev.id) { remIds = remIds.concat([String(ev.id)]).slice(-200); try { localStorage.setItem('tagesbuch:remids', JSON.stringify(remIds)); } catch (er) {} }
-      Object.keys(gLoaded).forEach(function (z) { if (z.slice(-7) === k.slice(0, 7)) delete gLoaded[z]; });
+      Object.keys(gLoaded).forEach(function (z) { var m7 = z.slice(-7); if (m7 >= k.slice(0, 7) && m7 <= (endK || k).slice(0, 7)) delete gLoaded[z]; });
       gEnsure(true);
       undoable('„' + t + '“ eingetragen', ev && ev.id ? function () { remDelete(ev.id).then(function () { renderAll(); }, function () {}); } : null);
     }).catch(function (err) {
@@ -4956,6 +4977,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     evFormEl = document.createElement('form'); evFormEl.className = 'evform'; evFormEl.noValidate = true;
     evFormEl.innerHTML = '<div class="field"><label for="efT">Neuer Termin</label><input id="efT" type="text" maxlength="120" autocomplete="off" placeholder="Titel"></div>' +
       '<div class="field"><label for="efD">Tag</label><select id="efD">' + days7.map(function (d) { return '<option value="' + d + '"' + (d === k ? ' selected' : '') + '>' + esc(dayShort(d)) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="field"><label for="efE">Bis (mehrtägig, optional)</label><input id="efE" type="date" min="' + k + '"></div>' +
       '<div class="row"><div class="field"><label for="efA">Von</label><input id="efA" type="time" step="900" value="' + minHm(a) + '"></div><div class="field"><label for="efB">Bis</label><input id="efB" type="time" step="900" value="' + minHm(Math.min(b, 1439)) + '"></div></div>' +
       (GCLIENT ? '<div class="field"><label for="efP">Benachrichtigung</label><select id="efP"><option value="0">zur Uhrzeit</option><option value="15">15 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>' : '') +
       '<div class="row"><button type="submit" class="btn">Speichern</button><button type="button" class="btn ghost" id="efX">Abbrechen</button></div>';
@@ -4965,10 +4987,11 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       ev.preventDefault();
       var t = $('#efT').value.trim(), s = hmMin($('#efA').value), en = hmMin($('#efB').value), kk = $('#efD').value;
       if (!t) { $('#efT').placeholder = 'Bitte einen Titel eintragen'; return; }
-      if (s == null) return;
-      if (en == null || en <= s) en = Math.min(s + 60, 1439);
+      var ee = $('#efE').value, range = KRE.test(ee) && ee > kk;
+      if (s == null && !range) return;
+      if (en == null || s == null || en <= s) en = Math.min((s || 0) + 60, 1439);
       var pre = $('#efP') ? +$('#efP').value : 0;
-      evCloseForm(); evCreate(t, kk, s, en, pre);
+      evCloseForm(); evCreate(t, kk, s || 0, en, pre, range ? ee : '');
     };
   }
   // Uni → Stundenplan (Woche): neuen Eintrag per Ziehen / gedrückt halten anlegen (Lerngruppe, Lernen, Termin oder Veranstaltung)
