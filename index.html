@@ -716,7 +716,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 116</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 117</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1658,12 +1658,17 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     var id = e.target.id;
     if (id === 'remEnd') {
       var multi = KRE.test(e.target.value) && e.target.value > selected;
-      [].slice.call(elPanel.querySelectorAll('.rem-single')).forEach(function (n) { n.style.display = multi ? 'none' : ''; });
+      [].slice.call(elPanel.querySelectorAll('.rem-single')).forEach(function (n) { n.style.display = multi || (n.classList.contains('rem-pre') && $('#remNone') && $('#remNone').checked) ? 'none' : ''; });
     } else if (id === 'eeE' || id === 'eeD') {
       // Termin bearbeiten: mit „Bis“ entfallen Uhrzeit, Dauer und Erinnerung
       var ve = ($('#eeE') || {}).value || '', vd = ($('#eeD') || {}).value || '', m2 = KRE.test(ve) && ve > vd;
-      [].slice.call(document.querySelectorAll('.ee-single')).forEach(function (n) { n.style.display = m2 ? 'none' : ''; });
+      [].slice.call(document.querySelectorAll('.ee-single')).forEach(function (n) { n.style.display = m2 || (n.classList.contains('ee-pre') && $('#eeNone') && $('#eeNone').checked) ? 'none' : ''; });
     }
+  });
+  // „Keine Erinnerung“ an/aus: Feld „Benachrichtigung vorher“ aus- bzw. einblenden
+  document.addEventListener('change', function (e) {
+    var id = e.target.id, sel = id === 'eeNone' ? '.ee-pre' : id === 'remNone' ? '.rem-pre' : null;
+    if (sel) [].slice.call(document.querySelectorAll(sel)).forEach(function (n) { n.style.display = e.target.checked ? 'none' : ''; });
   });
   // „Jetzt“-Linie in den Tageslisten (Termine, Stundenplan, Alle): vor dem ersten Eintrag, der noch nicht begonnen hat
   function markNowLines() {
@@ -3791,8 +3796,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   function evEditHtml(x) {
     var e = x.e, own = x.aid === 'eigene', oe = own ? ownEv(e.oid || e.id) || e : null;
     var start = own ? oe.date : (e.sd || e.date), endd = own ? (oe.ed || '') : (e.edd || ''), tm = own ? oe.time : e.time, multi = !!endd;
-    var d = splitMin(own ? (oe.time && oe.end && hmMin(oe.end) > hmMin(oe.time) ? hmMin(oe.end) - hmMin(oe.time) : 60) : evDur(e), [['1'], ['60']]), pr = e.pl ? splitMin(e.pre == null ? 60 : e.pre, [['1'], ['60'], ['1440']]) : null;
-    var hs = multi ? ' style="display:none"' : '';
+    var d = splitMin(own ? (oe.time && oe.end && hmMin(oe.end) > hmMin(oe.time) ? hmMin(oe.end) - hmMin(oe.time) : 60) : evDur(e), [['1'], ['60']]), pr = !own ? splitMin(e.pre == null ? (e.pl ? 60 : 30) : e.pre, [['1'], ['60'], ['1440']]) : null; // Google-Termine: Erinnerung jederzeit an- oder abschaltbar (Standard bei Google: 30 Min)
+    var hs = multi ? ' style="display:none"' : '', hp = e.nop ? ';display:none' : '';
     function us(id, opts, cur) { return '<select id="' + id + '" aria-label="Einheit">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
     return '<form data-form="evedit" class="panel evedit" novalidate><h3>Termin bearbeiten</h3>' +
       '<div class="field"><label for="eeT">Titel</label><input id="eeT" type="text" maxlength="120" autocomplete="off" value="' + esc(own ? oe.title : e.title) + '"></div>' +
@@ -3800,7 +3805,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<div class="field" style="flex-basis:150px"><label for="eeE">Bis (mehrtägig, optional)</label><input id="eeE" type="date" value="' + esc(endd) + '"></div>' +
       '<div class="field ee-single" style="flex-basis:120px' + (multi ? ';display:none' : '') + '"><label for="eeS">Uhrzeit (leer = ganztägig)</label><input id="eeS" type="time" value="' + esc(tm || '') + '"></div></div>' +
       '<div class="row"><div class="field ee-single" style="flex-basis:150px' + (multi ? ';display:none' : '') + '"><label for="eeDurN">Dauer</label><div class="combo"><input id="eeDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(d[0]) + '">' + us('eeDurU', [['1', 'Min'], ['60', 'Std']], d[1]) + '</div></div>' +
-      (pr ? '<div class="field ee-single" style="flex-basis:150px' + (multi ? ';display:none' : '') + '"><label for="eePreN">Benachrichtigung vorher</label><div class="combo"><input id="eePreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(pr[0]) + '">' + us('eePreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], pr[1]) + '</div></div>' : '') + '</div>' +
+      (pr ? '<div class="field ee-single ee-pre" style="flex-basis:150px' + (multi ? ';display:none' : hp) + '"><label for="eePreN">Benachrichtigung vorher</label><div class="combo"><input id="eePreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(pr[0]) + '">' + us('eePreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], pr[1]) + '</div></div>' : '') + '</div>' +
       (pr ? '<label class="pick ee-single"' + hs + '><input type="checkbox" id="eeNone"' + (e.nop ? ' checked' : '') + '> Keine Erinnerung</label>' : '') +
       (own ? '<div class="field"><label for="eeL">Ort (optional)</label><input id="eeL" type="text" maxlength="120" autocomplete="off" value="' + esc(oe.loc || '') + '"></div>' : '') +
       (evEditMsg ? '<p class="err" role="alert">' + esc(evEditMsg) + '</p>' : '') +
@@ -3894,7 +3899,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
           '<div class="field"><label for="remEnd">Bis (mehrtägig, optional)</label><input id="remEnd" type="date" min="' + esc(selected) + '" value="' + esc(keep.remEnd || '') + '"></div></div>' +
           '<div class="row">' +
           '<div class="field rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><label for="remDurN">Dauer</label><div class="combo"><input id="remDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remDurN || '30') + '">' + unitSel('remDurU', [['1', 'Min'], ['60', 'Std']], keep.remDurU || '1') + '</div></div></div>' +
-          '<div class="field rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><label for="remPreN">Benachrichtigung vorher</label><div class="combo"><input id="remPreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remPreN || '1') + '">' + unitSel('remPreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], keep.remPreU || '60') + '</div></div>' +
+          '<div class="field rem-single rem-pre"' + ((keep.remEnd && keep.remEnd > selected) || keep.remNone ? ' style="display:none"' : '') + '><label for="remPreN">Benachrichtigung vorher</label><div class="combo"><input id="remPreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remPreN || '1') + '">' + unitSel('remPreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], keep.remPreU || '60') + '</div></div>' +
           '<label class="pick rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><input type="checkbox" id="remNone"' + (keep.remNone ? ' checked' : '') + '> Keine Erinnerung</label>' +
           '<p class="hint">Wird in deinen Google-Kalender eingetragen. 0 heißt: Benachrichtigung genau zur Uhrzeit. Mit „Bis“ wird es ein ganztägiger Termin über mehrere Tage (ohne Uhrzeit, Dauer und Erinnerung).</p>' +
           '<div class="row"><button type="submit" class="btn"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Trage ein …' : 'Eintragen') + '</button>' +
