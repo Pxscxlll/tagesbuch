@@ -667,6 +667,11 @@ textarea.evnote { min-height: 140px; }
 textarea.autogrow { resize: none; overflow: hidden; }
 .evnotes { display: flex; flex-direction: column; gap: 6px; margin-top: -2px; }
 .evnotes label { margin-top: 4px; }
+.evnd > summary { cursor: pointer; font-weight: 600; font-size: .9rem; padding: 6px 0; color: var(--muted); }
+.evnd[open] > summary { color: var(--fg); }
+.evnd > textarea { width: 100%; }
+.evnd .evnd-has { font-weight: 400; font-size: .8rem; margin-left: 6px; }
+.evnd > label { display: block; }
 .lbl-sub { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .wparts span { max-width: 100%; overflow-wrap: anywhere; }
 .abo h3 { font-size: 1rem; }
@@ -716,7 +721,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 117</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 119</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -894,6 +899,13 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     try { localStorage.setItem('tagesbuch:tab', tab); } catch (e) {}
     renderAll();
   }
+  var evNotesOpen = {};
+  // Notizen am Termin auf-/zuklappen merken (toggle bubbelt nicht, daher Capture)
+  document.addEventListener('toggle', function (e) {
+    var d = e.target; if (!(d && d.matches && d.matches('details.evnd'))) return;
+    evNotesOpen[d.dataset.evkey] = d.open;
+    if (d.open) [].forEach.call(d.querySelectorAll('textarea.autogrow'), function (t) { autoGrow(t); }); // Höhe erst im aufgeklappten Zustand messbar
+  }, true);
   var wImportMsg = null, openEv = null, openSport = null, editTask = null, editItem = null, evGeneral = {};
   try { var egr = JSON.parse(localStorage.getItem('tagesbuch:evgen') || '{}'); if (egr && typeof egr === 'object') evGeneral = egr; } catch (e) {}
   function titleKey(t) { return String(t || '').replace(/\s+/g, ' ').trim().toLowerCase(); }
@@ -1709,10 +1721,15 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
           '<span class="evdel-b"><button type="button" class="btn" style="height:36px" data-act="rem-del" data-gid="' + esc(e.gid) + '"' + (remBusy ? ' disabled' : '') + '>Löschen</button>' +
           '<button type="button" class="btn ghost" style="height:36px" data-act="rem-del-no">Abbrechen</button></span></div>' : '') +
         (open ? '<div class="evnotes">' +
-          '<label for="evNoteIn">Neu</label>' +
-          '<textarea class="evnote autogrow" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
-          '<label for="evGenIn">Allgemein</label>' +
-          '<textarea class="evnote autogrow" id="evGenIn" data-evkey="' + esc(key) + '" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Allgemeine Notiz zu diesem Termin"' + dis() + '>' + esc(genNote(notes, key, e.title)) + '</textarea>' +
+          // Notizen standardmäßig eingeklappt; der Zustand wird pro Termin gemerkt, solange die App offen ist
+          (function () {
+            var gn = genNote(notes, key, e.title), has = !!(String(note || '').trim() || String(gn || '').trim());
+            return '<details class="evnd" data-evkey="' + esc(key) + '"' + (evNotesOpen[key] ? ' open' : '') + '><summary>Notizen' + (has ? ' <span class="evnd-has">📝 vorhanden</span>' : '') + '</summary>' +
+              '<label for="evNoteIn">Neu</label>' +
+              '<textarea class="evnote autogrow" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
+              '<label for="evGenIn">Allgemein</label>' +
+              '<textarea class="evnote autogrow" id="evGenIn" data-evkey="' + esc(key) + '" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Allgemeine Notiz zu diesem Termin"' + dis() + '>' + esc(gn) + '</textarea></details>';
+          })() +
           (evCanEdit(x)
             ? (evEdit === key ? evEditHtml(x) : '<div class="row" style="margin-top:6px"><button type="button" class="btn ghost" data-act="ev-edit" data-evkey="' + esc(key) + '">Termin bearbeiten</button></div>')
             : '') +
@@ -3805,8 +3822,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<div class="field" style="flex-basis:150px"><label for="eeE">Bis (mehrtägig, optional)</label><input id="eeE" type="date" value="' + esc(endd) + '"></div>' +
       '<div class="field ee-single" style="flex-basis:120px' + (multi ? ';display:none' : '') + '"><label for="eeS">Uhrzeit (leer = ganztägig)</label><input id="eeS" type="time" value="' + esc(tm || '') + '"></div></div>' +
       '<div class="row"><div class="field ee-single" style="flex-basis:150px' + (multi ? ';display:none' : '') + '"><label for="eeDurN">Dauer</label><div class="combo"><input id="eeDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(d[0]) + '">' + us('eeDurU', [['1', 'Min'], ['60', 'Std']], d[1]) + '</div></div>' +
-      (pr ? '<div class="field ee-single ee-pre" style="flex-basis:150px' + (multi ? ';display:none' : hp) + '"><label for="eePreN">Benachrichtigung vorher</label><div class="combo"><input id="eePreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(pr[0]) + '">' + us('eePreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], pr[1]) + '</div></div>' : '') + '</div>' +
-      (pr ? '<label class="pick ee-single"' + hs + '><input type="checkbox" id="eeNone"' + (e.nop ? ' checked' : '') + '> Keine Erinnerung</label>' : '') +
+      (pr ? '<div class="field ee-pre" style="flex-basis:150px' + hp + '"><label for="eePreN">Benachrichtigung vorher' + (multi ? ' (ab 0 Uhr des ersten Tages)' : '') + '</label><div class="combo"><input id="eePreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(pr[0]) + '">' + us('eePreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], pr[1]) + '</div></div>' : '') + '</div>' +
+      (pr ? '<label class="pick"><input type="checkbox" id="eeNone"' + (e.nop ? ' checked' : '') + '> Keine Erinnerung</label>' : '') +
       (own ? '<div class="field"><label for="eeL">Ort (optional)</label><input id="eeL" type="text" maxlength="120" autocomplete="off" value="' + esc(oe.loc || '') + '"></div>' : '') +
       (evEditMsg ? '<p class="err" role="alert">' + esc(evEditMsg) + '</p>' : '') +
       '<div class="row"><button type="submit" class="btn" data-gid="' + esc(e.gid) + '"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Speichere …' : 'Speichern') + '</button>' +
@@ -3835,10 +3852,9 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     }
     var body = { summary: t };
     if (multi) {
-      // Mehrtägig: ganztägig von Datum bis „Bis“ (Google-Ende = Tag danach), ohne Erinnerung
+      // Mehrtägig: ganztägig von Datum bis „Bis“ (Google-Ende = Tag danach); Erinnerung wie unten gewählt
       body.start = { date: dk, dateTime: null, timeZone: null };
       body.end = { date: addDays(ee, 1), dateTime: null, timeZone: null };
-      if (x.e.pl) body.reminders = { useDefault: false, overrides: [] };
     } else if (HMRE.test(st)) {
       var p = dk.split('-'), q = st.split(':'), a = new Date(+p[0], +p[1] - 1, +p[2], +q[0], +q[1]), b2 = new Date(a.getTime() + dur * 60000);
       function loc(d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
@@ -3848,7 +3864,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       body.start = { date: dk, dateTime: null, timeZone: null };
       body.end = { date: addDays(dk, 1), dateTime: null, timeZone: null };
     }
-    if ($('#eePreN') && !multi) {
+    if ($('#eePreN')) {
       if ($('#eeNone') && $('#eeNone').checked) body.reminders = { useDefault: false, overrides: [] };
       else {
         var pre = Math.round(parseFloat(String($('#eePreN').value).replace(',', '.')) * Number($('#eePreU').value));
