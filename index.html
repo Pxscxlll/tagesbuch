@@ -716,7 +716,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 115</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 116</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1654,10 +1654,16 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   }
 
   // „+ Erinnerung“: bei einem „Bis“-Datum (mehrtägig) entfallen Uhrzeit, Dauer und Erinnerung
-  elPanel.addEventListener('input', function (e) {
-    if (e.target.id !== 'remEnd') return;
-    var multi = KRE.test(e.target.value) && e.target.value > selected;
-    [].slice.call(elPanel.querySelectorAll('.rem-single')).forEach(function (n) { n.style.display = multi ? 'none' : ''; });
+  document.addEventListener('input', function (e) {
+    var id = e.target.id;
+    if (id === 'remEnd') {
+      var multi = KRE.test(e.target.value) && e.target.value > selected;
+      [].slice.call(elPanel.querySelectorAll('.rem-single')).forEach(function (n) { n.style.display = multi ? 'none' : ''; });
+    } else if (id === 'eeE' || id === 'eeD') {
+      // Termin bearbeiten: mit „Bis“ entfallen Uhrzeit, Dauer und Erinnerung
+      var ve = ($('#eeE') || {}).value || '', vd = ($('#eeD') || {}).value || '', m2 = KRE.test(ve) && ve > vd;
+      [].slice.call(document.querySelectorAll('.ee-single')).forEach(function (n) { n.style.display = m2 ? 'none' : ''; });
+    }
   });
   // „Jetzt“-Linie in den Tageslisten (Termine, Stundenplan, Alle): vor dem ersten Eintrag, der noch nicht begonnen hat
   function markNowLines() {
@@ -1702,7 +1708,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
           '<textarea class="evnote autogrow" id="evNoteIn" data-evkey="' + esc(key) + '" placeholder="Was war heute neu?"' + dis() + '>' + esc(note) + '</textarea>' +
           '<label for="evGenIn">Allgemein</label>' +
           '<textarea class="evnote autogrow" id="evGenIn" data-evkey="' + esc(key) + '" data-tkey="' + esc(titleKey(e.title)) + '" placeholder="Allgemeine Notiz zu diesem Termin"' + dis() + '>' + esc(genNote(notes, key, e.title)) + '</textarea>' +
-          (GCLIENT && /^g:/.test(x.aid) && e.gid && !e.md
+          (evCanEdit(x)
             ? (evEdit === key ? evEditHtml(x) : '<div class="row" style="margin-top:6px"><button type="button" class="btn ghost" data-act="ev-edit" data-evkey="' + esc(key) + '">Termin bearbeiten</button></div>')
             : '') +
           '</div>' : '');
@@ -1827,9 +1833,10 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       var o = { id: String(ev.id || uid()) + '_' + dt, date: dt, time: i === 0 ? sTime : '', end: i === 0 && eDate === sDate ? eTime : '', title: title, loc: loc, desc: desc };
       if (pl && ev.id) o.pl = 1;
       if (ev.id) o.gid = String(ev.id);
-      if (dates.length > 1) { o.md = 1; o.mdn = i + 1; o.mdt = dates.length; }
+      if (dates.length > 1) { o.md = 1; o.mdn = i + 1; o.mdt = dates.length; o.sd = sDate; o.edd = dates[dates.length - 1]; }
       var rm = ev.reminders || {};
       if (rm.useDefault === false && Array.isArray(rm.overrides) && rm.overrides[0]) o.pre = Number(rm.overrides[0].minutes) || 0;
+      else if (rm.useDefault === false) o.nop = 1; // ohne Erinnerung
       return o;
     });
   }
@@ -3778,15 +3785,24 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       return r.json();
     });
   }
+  // Bearbeiten: eigene Termine (lokal) und Google-Termine im eigenen Kalender, auch mehrtägige
+  function ownEv(id) { return ((abos.eigene || {}).events || []).filter(function (z) { return z.id === id; })[0] || null; }
+  function evCanEdit(x) { return x.aid === 'eigene' ? !!ownEv(x.e.oid || x.e.id) : !!(GCLIENT && /^g:/.test(x.aid) && x.e.gid); }
   function evEditHtml(x) {
-    var e = x.e, d = splitMin(evDur(e), [['1'], ['60']]), pr = e.pl ? splitMin(e.pre == null ? 60 : e.pre, [['1'], ['60'], ['1440']]) : null;
+    var e = x.e, own = x.aid === 'eigene', oe = own ? ownEv(e.oid || e.id) || e : null;
+    var start = own ? oe.date : (e.sd || e.date), endd = own ? (oe.ed || '') : (e.edd || ''), tm = own ? oe.time : e.time, multi = !!endd;
+    var d = splitMin(own ? (oe.time && oe.end && hmMin(oe.end) > hmMin(oe.time) ? hmMin(oe.end) - hmMin(oe.time) : 60) : evDur(e), [['1'], ['60']]), pr = e.pl ? splitMin(e.pre == null ? 60 : e.pre, [['1'], ['60'], ['1440']]) : null;
+    var hs = multi ? ' style="display:none"' : '';
     function us(id, opts, cur) { return '<select id="' + id + '" aria-label="Einheit">' + opts.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === cur ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select>'; }
     return '<form data-form="evedit" class="panel evedit" novalidate><h3>Termin bearbeiten</h3>' +
-      '<div class="field"><label for="eeT">Titel</label><input id="eeT" type="text" maxlength="120" autocomplete="off" value="' + esc(e.title) + '"></div>' +
-      '<div class="row"><div class="field" style="flex-basis:150px"><label for="eeD">Datum</label><input id="eeD" type="date" value="' + esc(e.date) + '"></div>' +
-      '<div class="field" style="flex-basis:120px"><label for="eeS">Uhrzeit (leer = ganztägig)</label><input id="eeS" type="time" value="' + esc(e.time || '') + '"></div></div>' +
-      '<div class="row"><div class="field" style="flex-basis:150px"><label for="eeDurN">Dauer</label><div class="combo"><input id="eeDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(d[0]) + '">' + us('eeDurU', [['1', 'Min'], ['60', 'Std']], d[1]) + '</div></div>' +
-      (pr ? '<div class="field" style="flex-basis:150px"><label for="eePreN">Benachrichtigung vorher</label><div class="combo"><input id="eePreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(pr[0]) + '">' + us('eePreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], pr[1]) + '</div></div>' : '') + '</div>' +
+      '<div class="field"><label for="eeT">Titel</label><input id="eeT" type="text" maxlength="120" autocomplete="off" value="' + esc(own ? oe.title : e.title) + '"></div>' +
+      '<div class="row"><div class="field" style="flex-basis:150px"><label for="eeD">Datum</label><input id="eeD" type="date" value="' + esc(start) + '"></div>' +
+      '<div class="field" style="flex-basis:150px"><label for="eeE">Bis (mehrtägig, optional)</label><input id="eeE" type="date" value="' + esc(endd) + '"></div>' +
+      '<div class="field ee-single" style="flex-basis:120px' + (multi ? ';display:none' : '') + '"><label for="eeS">Uhrzeit (leer = ganztägig)</label><input id="eeS" type="time" value="' + esc(tm || '') + '"></div></div>' +
+      '<div class="row"><div class="field ee-single" style="flex-basis:150px' + (multi ? ';display:none' : '') + '"><label for="eeDurN">Dauer</label><div class="combo"><input id="eeDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(d[0]) + '">' + us('eeDurU', [['1', 'Min'], ['60', 'Std']], d[1]) + '</div></div>' +
+      (pr ? '<div class="field ee-single" style="flex-basis:150px' + (multi ? ';display:none' : '') + '"><label for="eePreN">Benachrichtigung vorher</label><div class="combo"><input id="eePreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(pr[0]) + '">' + us('eePreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], pr[1]) + '</div></div>' : '') + '</div>' +
+      (pr ? '<label class="pick ee-single"' + hs + '><input type="checkbox" id="eeNone"' + (e.nop ? ' checked' : '') + '> Keine Erinnerung</label>' : '') +
+      (own ? '<div class="field"><label for="eeL">Ort (optional)</label><input id="eeL" type="text" maxlength="120" autocomplete="off" value="' + esc(oe.loc || '') + '"></div>' : '') +
       (evEditMsg ? '<p class="err" role="alert">' + esc(evEditMsg) + '</p>' : '') +
       '<div class="row"><button type="submit" class="btn" data-gid="' + esc(e.gid) + '"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Speichere …' : 'Speichern') + '</button>' +
       '<button type="button" class="btn ghost" data-act="ev-edit-no">Abbrechen</button></div></form>';
@@ -3794,12 +3810,31 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   function saveEvEdit(form) {
     var key = evEdit, x = (evIdx[selected] || []).filter(function (y) { return y.aid + '|' + y.e.id === key; })[0];
     if (!x) return;
-    var t = $('#eeT').value.trim(), dk = $('#eeD').value, st = $('#eeS').value;
+    var t = $('#eeT').value.trim(), dk = $('#eeD').value, st = $('#eeS').value, ee = ($('#eeE') || {}).value || '';
     var dur = Math.round(parseFloat(String($('#eeDurN').value).replace(',', '.')) * Number($('#eeDurU').value));
     if (!t || !KRE.test(dk)) { evEditMsg = 'Bitte Titel und Datum angeben.'; renderEvents(); return; }
     if (!(dur > 0)) dur = 60;
+    var multi = KRE.test(ee) && ee > dk;
+    // Eigener Termin: lokal ändern (mit Rückgängig)
+    if (x.aid === 'eigene') {
+      var oe = ownEv(x.e.oid || x.e.id); if (!oe) return;
+      var snapO = JSON.stringify(abos.eigene);
+      oe.title = t.slice(0, 120); oe.date = dk;
+      if (multi) { oe.ed = ee; oe.time = ''; oe.end = ''; }
+      else { delete oe.ed; oe.time = HMRE.test(st) ? st : ''; oe.end = HMRE.test(st) ? minHm(Math.min(hmMin(st) + dur, 1439)) : ''; }
+      if ($('#eeL')) oe.loc = $('#eeL').value.trim().slice(0, 120);
+      abos.eigene = normAbo(abos.eigene); evEdit = null; evEditMsg = null; openEv = null;
+      rebuildEv(); commitAbo('eigene'); renderAll(); renderEvents();
+      undoable('„' + t + '“ geändert', function () { abos.eigene = normAbo(JSON.parse(snapO)); rebuildEv(); commitAbo('eigene'); renderAll(); renderEvents(); });
+      return;
+    }
     var body = { summary: t };
-    if (HMRE.test(st)) {
+    if (multi) {
+      // Mehrtägig: ganztägig von Datum bis „Bis“ (Google-Ende = Tag danach), ohne Erinnerung
+      body.start = { date: dk, dateTime: null, timeZone: null };
+      body.end = { date: addDays(ee, 1), dateTime: null, timeZone: null };
+      if (x.e.pl) body.reminders = { useDefault: false, overrides: [] };
+    } else if (HMRE.test(st)) {
       var p = dk.split('-'), q = st.split(':'), a = new Date(+p[0], +p[1] - 1, +p[2], +q[0], +q[1]), b2 = new Date(a.getTime() + dur * 60000);
       function loc(d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
       body.start = { dateTime: loc(a), timeZone: 'Europe/Berlin', date: null };
@@ -3808,16 +3843,19 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       body.start = { date: dk, dateTime: null, timeZone: null };
       body.end = { date: addDays(dk, 1), dateTime: null, timeZone: null };
     }
-    if ($('#eePreN')) {
-      var pre = Math.round(parseFloat(String($('#eePreN').value).replace(',', '.')) * Number($('#eePreU').value));
-      if (!(pre >= 0) || pre > 40320) { evEditMsg = 'Benachrichtigung: zwischen 0 und 4 Wochen vorher.'; renderEvents(); return; }
-      body.reminders = { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] };
+    if ($('#eePreN') && !multi) {
+      if ($('#eeNone') && $('#eeNone').checked) body.reminders = { useDefault: false, overrides: [] };
+      else {
+        var pre = Math.round(parseFloat(String($('#eePreN').value).replace(',', '.')) * Number($('#eePreU').value));
+        if (!(pre >= 0) || pre > 40320) { evEditMsg = 'Benachrichtigung: zwischen 0 und 4 Wochen vorher.'; renderEvents(); return; }
+        body.reminders = { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] };
+      }
     }
     remBusy = true; evEditMsg = null; renderEvents();
-    var oldM = selected.slice(0, 7), newM = dk.slice(0, 7);
+    var mons = [selected, dk, multi ? ee : dk, x.e.sd || selected, x.e.edd || selected].map(function (k) { return k.slice(0, 7); }).sort(), oldM = mons[0], newM = mons[mons.length - 1];
     remPatch(x.e.gid, body).then(function () {
       remBusy = false; evEdit = null;
-      Object.keys(gLoaded).forEach(function (z) { var m = z.slice(-7); if (m === oldM || m === newM) delete gLoaded[z]; });
+      Object.keys(gLoaded).forEach(function (z) { var m = z.slice(-7); if (m >= oldM && m <= newM) delete gLoaded[z]; });
       Object.keys(gStore).forEach(function (c) { gStore[c] = (gStore[c] || []).filter(function (y) { return y.gid !== x.e.gid; }); });
       rebuildEv(); renderAll(); gEnsure(true);
     }).catch(function (err) {
@@ -3842,7 +3880,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   var remOpen = false, remMsg = null, remBusy = false, remTok = null, remTokExp = 0, remClient = null, remResolve = null;
   function renderEvPanel() {
     var keep = {};
-    ['remTitle', 'remTime', 'remEnd', 'remDurN', 'remDurU', 'remPreN', 'remPreU'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
+    ['remTitle', 'remTime', 'remEnd', 'remDurN', 'remDurU', 'remPreN', 'remPreU', 'remNone'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.type === 'checkbox' ? el.checked : el.value; });
     var h = '';
     if (evWeek()) h += weekEventsHtml(false);
     else if (!(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
@@ -3857,6 +3895,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
           '<div class="row">' +
           '<div class="field rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><label for="remDurN">Dauer</label><div class="combo"><input id="remDurN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remDurN || '30') + '">' + unitSel('remDurU', [['1', 'Min'], ['60', 'Std']], keep.remDurU || '1') + '</div></div></div>' +
           '<div class="field rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><label for="remPreN">Benachrichtigung vorher</label><div class="combo"><input id="remPreN" type="text" inputmode="decimal" autocomplete="off" value="' + esc(keep.remPreN || '1') + '">' + unitSel('remPreU', [['1', 'Min'], ['60', 'Std'], ['1440', 'Tage']], keep.remPreU || '60') + '</div></div>' +
+          '<label class="pick rem-single"' + (keep.remEnd && keep.remEnd > selected ? ' style="display:none"' : '') + '><input type="checkbox" id="remNone"' + (keep.remNone ? ' checked' : '') + '> Keine Erinnerung</label>' +
           '<p class="hint">Wird in deinen Google-Kalender eingetragen. 0 heißt: Benachrichtigung genau zur Uhrzeit. Mit „Bis“ wird es ein ganztägiger Termin über mehrere Tage (ohne Uhrzeit, Dauer und Erinnerung).</p>' +
           '<div class="row"><button type="submit" class="btn"' + (remBusy ? ' disabled' : '') + '>' + (remBusy ? 'Trage ein …' : 'Eintragen') + '</button>' +
           '<button type="button" class="btn ghost" data-act="rem-cancel">Abbrechen</button></div></form>';
@@ -3904,8 +3943,9 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       // Ortszeit ohne Zeitzonen-Versatz schreiben, Google rechnet mit Europe/Berlin.
       var a = new Date(+p[0], +p[1] - 1, +p[2], +t[0], +t[1]), b = new Date(a.getTime() + dur * 60000);
       var loc = function (d) { return keyOf(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; };
+      // pre < 0: keine Erinnerung
       body = { summary: title, start: { dateTime: loc(a), timeZone: 'Europe/Berlin' }, end: { dateTime: loc(b), timeZone: 'Europe/Berlin' },
-        reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: pre }] }, extendedProperties: { shared: { planner: '1' } } };
+        reminders: { useDefault: false, overrides: pre >= 0 ? [{ method: 'popup', minutes: pre }] : [] }, extendedProperties: { shared: { planner: '1' } } };
     }
     return remToken().then(function (tok) {
       return fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
@@ -4288,8 +4328,9 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       var rt = $('#remTitle').value.trim(), rtime = $('#remTime').value, rk = selected;
       var rdur = Math.round(parseFloat(String($('#remDurN').value).replace(',', '.')) * Number($('#remDurU').value));
       var rpre = Math.round(parseFloat(String($('#remPreN').value).replace(',', '.')) * Number($('#remPreU').value));
+      if ($('#remNone') && $('#remNone').checked) rpre = -1; // keine Erinnerung
       if (!(rdur > 0)) rdur = 30;
-      if (!(rpre >= 0)) { remMsg = { ok: false, t: 'Bitte angeben, wie lange vorher du benachrichtigt werden willst.' }; renderPanel(); return; }
+      if (rpre !== -1 && !(rpre >= 0)) { remMsg = { ok: false, t: 'Bitte angeben, wie lange vorher du benachrichtigt werden willst.' }; renderPanel(); return; }
       if (rpre > 40320) { remMsg = { ok: false, t: 'Google erlaubt höchstens 4 Wochen Vorlauf.' }; renderPanel(); return; }
       if (!rt) { $('#remTitle').placeholder = 'Bitte eintragen, worum es geht'; return; }
       var rend = ($('#remEnd') || {}).value || '', rrange = KRE.test(rend) && rend > rk;
@@ -4298,7 +4339,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       remCreate(rt, rk, rtime, rdur, rpre, rrange ? rend : '').then(function (ev) {
         remBusy = false; remOpen = false;
         if (ev && ev.id) { remIds = remIds.concat([String(ev.id)]).slice(-200); try { localStorage.setItem('tagesbuch:remids', JSON.stringify(remIds)); } catch (e) {} }
-        remMsg = { ok: true, t: '„' + rt + '“ ' + (rrange ? 'von ' + shortDate(rk) + ' bis ' + shortDate(rend) + ' (ganztägig)' : 'am ' + shortDate(rk) + ' um ' + rtime) + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + '. Benachrichtigung ' + preText(rpre) + '.' };
+        remMsg = { ok: true, t: '„' + rt + '“ ' + (rrange ? 'von ' + shortDate(rk) + ' bis ' + shortDate(rend) + ' (ganztägig)' : 'am ' + shortDate(rk) + ' um ' + rtime) + ' eingetragen' + (ev && ev.organizer && ev.organizer.email ? ' (' + ev.organizer.email + ')' : '') + (rpre < 0 ? '. Ohne Erinnerung.' : '. Benachrichtigung ' + preText(rpre) + '.') };
         renderPanel();
         Object.keys(gLoaded).forEach(function (x) { var m7 = x.slice(-7); if (m7 >= rk.slice(0, 7) && m7 <= (rrange ? rend : rk).slice(0, 7)) delete gLoaded[x]; });
         gEnsure(true);
@@ -4986,7 +5027,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<div class="field"><label for="efD">Tag</label><select id="efD">' + days7.map(function (d) { return '<option value="' + d + '"' + (d === k ? ' selected' : '') + '>' + esc(dayShort(d)) + '</option>'; }).join('') + '</select></div>' +
       '<div class="field"><label for="efE">Bis (mehrtägig, optional)</label><input id="efE" type="date" min="' + k + '"></div>' +
       '<div class="row ef-single"><div class="field"><label for="efA">Von</label><input id="efA" type="time" step="900" value="' + minHm(a) + '"></div><div class="field"><label for="efB">Bis</label><input id="efB" type="time" step="900" value="' + minHm(Math.min(b, 1439)) + '"></div></div>' +
-      (GCLIENT ? '<div class="field ef-single"><label for="efP">Benachrichtigung</label><select id="efP"><option value="0">zur Uhrzeit</option><option value="15">15 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>' : '') +
+      (GCLIENT ? '<div class="field ef-single"><label for="efP">Benachrichtigung</label><select id="efP"><option value="-1">keine Erinnerung</option><option value="0">zur Uhrzeit</option><option value="15">15 Min vorher</option><option value="60" selected>1 Std vorher</option><option value="1440">1 Tag vorher</option></select></div>' : '') +
       '<div class="row"><button type="submit" class="btn">Speichern</button><button type="button" class="btn ghost" id="efX">Abbrechen</button></div>';
     document.body.appendChild(evFormEl); evPlaceForm(evFormEl, px, py);
     $('#efX').onclick = evCloseForm;
