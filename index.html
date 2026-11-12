@@ -722,7 +722,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 120</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 122</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -1169,6 +1169,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   // Neue Nutzer starten mit diesen Tabs, alles Weitere kommt aus dem Katalog
   var START_TABS = ['all', 'events', 'ideas', 'note'];
   var CATALOG = [
+    ['all', 'Alle', 'Termine und Aufgaben aller Tabs auf einen Blick'],
     ['events', 'Termine', 'Termine aus deinen Kalendern'],
     ['note', 'Notiz', 'Freie Notiz für jeden Tag'],
     ['ideas', 'Ideen', 'Projektideen und Aufgaben ohne Datum'],
@@ -1186,7 +1187,6 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (!v || !Array.isArray(v.on)) return null;
     var ids = TABS.map(function (t) { return t[0]; });
     var on = v.on.filter(function (x, i, a) { return ids.indexOf(x) >= 0 && a.indexOf(x) === i; });
-    if (on.indexOf('all') < 0) on.unshift('all');
     return { on: on, uni: !!v.uni };
   }
   try { TABSET = normTabset(JSON.parse(localStorage.getItem('tagesbuch:tabset') || 'null')); } catch (e) {}
@@ -1271,6 +1271,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     meta.taborder = Date.now(); saveMeta(); scheduleSync();
   }
   function tabExists(t) { return allTabs().some(function (x) { return x[0] === t; }); }
+  // „Alle“ ist abwählbar: Start- und Ersatz-Tab ist dann der erste vorhandene Tab
+  function firstTab() { var l = allTabs(); return tabExists('all') ? 'all' : l.length ? l[0][0] : 'all'; }
   function dayHas(d, t) {
     if (!d || t === 'ideas' || t === 'all') return false;
     if (t === 'weight') return d.weight != null;
@@ -1461,7 +1463,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { hiddenAt = Date.now(); return; }
     if (!hiddenAt || Date.now() - hiddenAt < 30 * 60000) return;
-    hiddenAt = 0; todayKey = keyOf(new Date()); selected = todayKey; vmode = 'day'; tab = 'all'; addingTab = false; delTabAsk = false;
+    hiddenAt = 0; todayKey = keyOf(new Date()); selected = todayKey; vmode = 'day'; tab = firstTab(); addingTab = false; delTabAsk = false;
     viewDate = new Date(parseKey(todayKey).getFullYear(), parseKey(todayKey).getMonth(), 1);
     renderAll();
   });
@@ -1990,7 +1992,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   /* ---------- Tabs ---------- */
   function hasData(t) { if (t === 'events') return !!(evIdx[selected] && evIdx[selected].length); return dayHas(days[selected], t); }
   function renderTabs() {
-    if (!tabExists(tab)) tab = 'all';
+    if (!tabExists(tab)) tab = firstTab();
     elTabs.innerHTML = allTabs().map(function (t) {
       var k = tabKind(t[0]);
       return '<button type="button" role="tab" class="tab" data-tab="' + esc(t[0]) + '" aria-label="' + esc(t[1]) + '" aria-selected="' + (!addingTab && tab === t[0]) + '"' + (k ? ' style="--kc:var(--k-' + k + ')"' : '') + '>' +
@@ -2083,7 +2085,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
           '<button type="button" class="btn" style="height:36px" data-act="cat-add" data-id="' + esc(x[0]) + '"' + dis() + '>Hinzufügen</button></li>';
       }).join('') + '</ul>' : '<p class="hint">Du hast schon alle Tabs aus dem Katalog.</p>') +
       '<div class="row"><button type="button" class="btn ghost" data-act="cancel-tab">Schließen</button></div></div>';
-    var mine = allTabs().filter(function (t) { return t[0] !== 'all'; });
+    var mine = allTabs();
     if (mine.length) {
       elPanel.innerHTML += '<div class="field" style="margin-top:16px"><span class="label">Deine Tabs</span><ul class="list">' +
         mine.map(function (t) {
@@ -3218,8 +3220,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     return true;
   }
   /* ---------- Stundenplan als Woche und Termin-Fenster ---------- */
-  var uniPlanView = 'week', termModal = null, termDelAsk = false, termNoteT = null;
-  try { if (localStorage.getItem('tagesbuch:uniplan') === 'day') uniPlanView = 'day'; } catch (e) {}
+  var termModal = null, termDelAsk = false, termNoteT = null;
+  function uniPlanWeek() { return vmode === 'week'; } // gekoppelt an Tag | Woche oben
   function abbr(s) { var w = String(s).trim().split(/\s+/).filter(Boolean); return w.length > 1 ? w.map(function (x) { return x[0]; }).join('').slice(0, 3).toUpperCase() : String(s).slice(0, 3); }
   function lessonById(id) { return (UNI.lessons || []).filter(function (l) { return l.id === id; })[0]; }
   function termKey(l, k) { return l.id + '@' + k; }
@@ -3238,18 +3240,37 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     return out;
   }
   function termOpenCount(l, k) { var t = termTasks(l, k); return t.linked.concat(t.due).filter(function (x) { return !x.t.done; }).length; }
+  /* Aufgaben überall bearbeiten (Termin-Fenster, „Alle“): Text, Tag/Frist, Art */
+  var tkEdit = null; // 'kind|id' der Aufgabe, die gerade bearbeitet wird
+  function tkReal(kind, id, k) {
+    if (kind === 'task') return (((days[k] || {}).tasks) || []).filter(function (x) { return x.id === id; })[0] || null;
+    if (kind === 'uni') return (todoFind(id) || {}).t || null;
+    return null;
+  }
+  function tkEditBtn(kind, id, k, text) { return '<button type="button" class="del pen" data-act="tk-edit" data-kind="' + kind + '" data-id="' + esc(id) + '" data-k="' + esc(k) + '" aria-label="' + esc(text) + ' bearbeiten">✎</button>'; }
+  function tkEditHtml(kind, t, k) {
+    var text = kind === 'task' ? t.text : t.x, dateV = kind === 'task' ? k : (t.due || t.day || k), art = t.nb ? 'nb' : t.vb ? 'vb' : '';
+    var at = ' data-kind="' + kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(k) + '"';
+    return '<li class="editing"><div class="panel" style="flex:1;gap:8px">' +
+      '<div class="field"><label for="tkeX">Aufgabe</label><input id="tkeX" type="text" maxlength="200" autocomplete="off" value="' + esc(text) + '"' + dis() + '></div>' +
+      '<div class="row"><div class="field" style="flex:1 1 150px"><label for="tkeD">' + (kind === 'uni' && t.due ? 'Frist' : 'Tag') + '</label><input id="tkeD" type="date" value="' + esc(dateV) + '"' + dis() + '></div>' +
+      '<div class="field" style="flex:1 1 150px"><label for="tkeA">Art</label><select id="tkeA"' + dis() + '><option value=""' + (!art ? ' selected' : '') + '>Aufgabe</option><option value="nb"' + (art === 'nb' ? ' selected' : '') + '>Nachbereiten</option><option value="vb"' + (art === 'vb' ? ' selected' : '') + '>Vorbereiten</option></select></div></div>' +
+      '<div class="row"><button type="button" class="btn" data-act="tk-esave"' + at + dis() + '>Speichern</button><button type="button" class="btn ghost" data-act="tk-ecancel">Abbrechen</button></div></div></li>';
+  }
   function termLi(x, withDel) {
+    if (tkEdit === x.kind + '|' + x.t.id) return tkEditHtml(x.kind, x.t, x.k);
     var t = x.t, text = x.kind === 'task' ? t.text : t.x, done = !!t.done, id = 'tm_' + x.kind + '_' + t.id;
     var tag = t.nb ? '📖 Nachbereiten · ' + esc(t.nb) : t.vb ? '🧠 Vorbereiten' : '', due = x.kind === 'uni' && t.due ? esc(dueText(t, x.k)) : '';
     var sub = [tag, due].filter(Boolean).join(' · ');
     return '<li class="' + (done ? 'done' : '') + '"><input type="checkbox" id="' + id + '" data-act="term-tk" data-kind="' + x.kind + '" data-id="' + esc(t.id) + '" data-k="' + x.k + '"' + (done ? ' checked' : '') + dis() + '>' +
       '<label for="' + id + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + esc(text) + (sub ? '<small>' + sub + '</small>' : '') + '</label>' +
+      tkEditBtn(x.kind, t.id, x.k, text) +
       (withDel ? '<button type="button" class="del" data-act="term-tdel" data-kind="' + x.kind + '" data-id="' + esc(t.id) + '" data-k="' + x.k + '" aria-label="' + esc(text) + ' löschen">×</button>' : '') + '</li>';
   }
   /* ---------- Wochentabelle für alle Termine (Alle → Termine und Tab „Termine“) ---------- */
   // Woche oder Tag ergibt sich aus dem Umschalter ganz oben (Tag | Woche | Monat | Jahr)
-  var allSub = 'termine';
-  try { if (localStorage.getItem('tagesbuch:allsub') === 'aufgaben') allSub = 'aufgaben'; } catch (e) {}
+  var allSub = 'termine', evUni = false; // evUni: im Tab „Termine“ auch den Uni-Stundenplan zeigen
+  try { if (localStorage.getItem('tagesbuch:allsub') === 'aufgaben') allSub = 'aufgaben'; evUni = localStorage.getItem('tagesbuch:evuni') === '1'; } catch (e) {}
   function evWeek() { return vmode === 'week'; }
   // Farbe nach Quelle: Google Kalender lila, Kalender-Abo rosa, eigene Erinnerungen und Termine gelb
   function evColor(x) { return x.e.pl || x.aid === 'eigene' ? 'var(--k-ideas)' : x.aid.indexOf('g:') === 0 ? 'var(--k-events)' : 'var(--acc-rosa)'; }
@@ -3396,8 +3417,8 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (uniView === 'proj' && !todoOnly) { elPanel.innerHTML = h + renderProjects(); return; }
     if (uniView === 'plan' && !todoOnly) {
       var ls = lessonsOn(c, selected);
-      h += '<div class="tmsub" role="tablist" aria-label="Ansicht"><button type="button" role="tab" data-act="plan-view" data-v="week" aria-selected="' + (uniPlanView === 'week') + '">Woche</button><button type="button" role="tab" data-act="plan-view" data-v="day" aria-selected="' + (uniPlanView === 'day') + '">Tag</button></div>';
-      if (uniPlanView === 'week') h += planWeekHtml(c);
+      h += '<div class="tmsub" role="tablist" aria-label="Ansicht"><button type="button" role="tab" data-act="plan-view" data-v="week" aria-selected="' + uniPlanWeek() + '">Woche</button><button type="button" role="tab" data-act="plan-view" data-v="day" aria-selected="' + !uniPlanWeek() + '">Tag</button></div>';
+      if (uniPlanWeek()) h += planWeekHtml(c);
       else h += ls.length ? '<div class="events uniplan">' + (function () { var st = liveStates(selected, ls.map(function (l) { return { f: l.f, t: l.t }; })); return ls.map(function (l, i) { return lessonHtml(l, st[i]); }).join(''); })() + '</div>' : emptyHtml('🎓', 'Keine Veranstaltungen', 'Heute ist uni-frei.');
       if (uniMsg && !uniEditPlan) h += '<p class="' + (uniMsg.ok ? 'hint' : 'err') + '" role="status">' + esc(uniMsg.t) + '</p>';
       var all = (UNI.lessons || []).slice().sort(function (a, b) { var x = (a.k || String(a.d)) + a.f, y = (b.k || String(b.d)) + b.f; return x < y ? -1 : x > y ? 1 : 0; });
@@ -3904,9 +3925,14 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   function renderEvPanel() {
     var keep = {};
     ['remTitle', 'remTime', 'remEnd', 'remDurN', 'remDurU', 'remPreN', 'remPreU', 'remNone'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.type === 'checkbox' ? el.checked : el.value; });
-    var h = '';
-    if (evWeek()) h += weekEventsHtml(false);
-    else if (!(evIdx[selected] || []).length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
+    // Umschalter „Termine | Termine + Uni“ (nur wenn es einen Uni-Tab gibt)
+    var withUni = evUni && !!uniGo(), h = uniGo() ? '<div class="tmsub" role="tablist" aria-label="Was zeigen"><button type="button" role="tab" data-act="ev-uni" data-v="0" aria-selected="' + !withUni + '">Termine</button><button type="button" role="tab" data-act="ev-uni" data-v="1" aria-selected="' + withUni + '">Termine + Uni</button></div>' : '';
+    if (evWeek()) h += weekEventsHtml(withUni);
+    else {
+      var lsD = withUni ? lessonsOn(null, selected) : [];
+      if (lsD.length) { var stD = liveStates(selected, lsD.map(function (l) { return { f: l.f, t: l.t }; })); h += '<div class="field"><span class="label">Uni</span><div class="events uniplan">' + lsD.map(function (l, i) { return lessonHtml(l, stD[i]); }).join('') + '</div></div>'; }
+      if (!(evIdx[selected] || []).length && !lsD.length) h += emptyHtml('📅', 'Keine Termine', 'Der Tag gehört dir.');
+    }
     if (GCLIENT) {
       if (!remOpen) h += '<div class="row"><button type="button" class="btn ghost" data-act="rem-open">+ Erinnerung</button></div>';
       else {
@@ -3925,7 +3951,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       }
     }
     if (remMsg) h += '<p class="' + (remMsg.ok ? 'hint' : 'err') + '" role="alert">' + esc(remMsg.t) + '</p>';
-    elPanel.innerHTML = h;
+    elPanel.innerHTML = h + (withUni ? termModalHtml(null) : '');
   }
   // Eigenes Token für das Schreiben im Kalender von REM_ACCOUNT (die App selbst ist mit dem Backup-Konto verbunden).
   function remToken() {
@@ -4057,14 +4083,15 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         var nd = grp.filter(function (x) { return x.done; }).length, ks = kStyle(tb[0] === 'proj' ? uniGo() : tb[0]);
         h += '<div class="field allgrp"' + (ks ? ' style="' + ks + '"' : '') + '>' + progHead(tb[1], nd, grp.length, tb[1], tb[0], (/^c_/.test(tb[0]) ? streakHtml(tabById(tb[0].slice(2)), true) : '') +
           '<button type="button" class="del" data-act="all-go" data-go="' + esc(tb[0]) + '" aria-label="Tab ' + esc(tb[1]) + ' öffnen">›</button>') + '<ul class="list">' + grp.map(function (t) {
-          var cid = 'al_' + (n++);
+          var cid = 'al_' + (n++), real = tkReal(t.kind, t.id, t.k);
+          if (real && tkEdit === t.kind + '|' + t.id) return tkEditHtml(t.kind, real, t.k);
           return '<li class="' + (t.done ? 'done' : '') + '"><input type="checkbox" id="' + cid + '" data-act="all-toggle" data-kind="' + t.kind + '" data-id="' + esc(t.id) + '" data-k="' + esc(t.k) + '"' + (t.tid ? ' data-tid="' + esc(t.tid) + '"' : '') + (t.done ? ' checked' : '') + dis() + '>' +
             (function () {
               var inner = esc(t.text) + (t.sub ? '<small' + (t.late ? ' class="late"' : '') + '>' + esc(t.sub) + '</small>' : '') +
                 (t.ist ? '<small><span class="istreak" title="' + plTage(t.ist) + ' in Folge gemacht">🔥 ' + plTage(t.ist) + ' in Folge</span></small>' : '');
               var ref = noteRef(t.kind, t.id, t.k, t.tid), can = canNote(t);
               return can ? noteBtn(t.kind, t.id, t.k, t.tid, inner, ref && ref.n) : '<label for="' + cid + '" class="item-main" style="text-transform:none;letter-spacing:0;font-size:inherit;color:inherit;font-weight:400">' + inner + '</label>';
-            })() + '</li>' +
+            })() + (real ? tkEditBtn(t.kind, t.id, t.k, t.text) : '') + '</li>' +
             (canNote(t) ? noteArea(t.kind, t.id, t.k, t.tid, (noteRef(t.kind, t.id, t.k, t.tid) || {}).n) : '');
         }).join('') + '</ul></div>';
       });
@@ -4093,7 +4120,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
   function renderPanel() {
     $('#grid').dataset.notime = tab === 'ideas' && !addingTab ? '1' : '';
     // Termin-Fenster nur im Stundenplan; beim Verlassen schließen
-    var tmHere = tab === 'all' ? allSub === 'termine' && evWeek() : uniActive() && uniView === 'plan';
+    var tmHere = tab === 'all' ? allSub === 'termine' : tab === 'events' ? evUni && !!uniGo() : uniActive() && uniView === 'plan';
     if (termModal && (addingTab || !tmHere)) { termModal = null; termDelAsk = false; uniEditLesson = null; }
     document.body.classList.toggle('tmopen', !!termModal);
     // Bis die Daten geladen sind: pulsierende Platzhalter statt leerer Felder
@@ -4565,7 +4592,30 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (act === 'cancel-tab') { addingTab = false; catDelAsk = null; renderTabs(); renderPanel(); renderEvents(); return; }
     // Uni → „Fach“
     // Stundenplan: Woche/Tag und Termin-Fenster
-    if (act === 'plan-view') { uniPlanView = b.dataset.v === 'day' ? 'day' : 'week'; try { localStorage.setItem('tagesbuch:uniplan', uniPlanView); } catch (er) {} renderPanel(); return; }
+    // Aufgabe bearbeiten (Termin-Fenster, „Alle“)
+    if (act === 'tk-edit') { tkEdit = b.dataset.kind + '|' + b.dataset.id; renderPanel(); return; }
+    if (act === 'tk-ecancel') { tkEdit = null; renderPanel(); return; }
+    if (act === 'tk-esave') {
+      var tkd = b.dataset.kind, tkid = b.dataset.id, tk0 = b.dataset.k, tkx = (($('#tkeX') || {}).value || '').trim(), tkdt = ($('#tkeD') || {}).value || '', tka = ($('#tkeA') || {}).value || '';
+      if (!tkx) { if ($('#tkeX')) $('#tkeX').placeholder = 'Bitte eintragen, was zu tun ist'; return; }
+      var tkArt = function (o) { if (tka === 'nb') { o.nb = o.nb || 'Vorlesung'; delete o.vb; } else if (tka === 'vb') { o.vb = 'Vorbereiten'; delete o.nb; } else { delete o.nb; delete o.vb; } };
+      if (tkd === 'task') {
+        var tkday = days[tk0], tko = tkReal('task', tkid, tk0); if (!tko) { tkEdit = null; renderPanel(); return; }
+        tko.text = tkx.slice(0, 200); tkArt(tko);
+        // Anderer Tag: Aufgabe dorthin verschieben
+        if (KRE.test(tkdt) && tkdt !== tk0) { tkday.tasks = tkday.tasks.filter(function (x) { return x !== tko; }); ensure(tkdt).tasks.push(tko); commit(tk0); commit(tkdt); }
+        else commit(tk0);
+      } else {
+        var tkf = todoFind(tkid); if (!tkf) { tkEdit = null; renderPanel(); return; }
+        tkf.t.x = tkx.slice(0, 140); tkArt(tkf.t);
+        if (KRE.test(tkdt)) { if (tkf.t.due) tkf.t.due = tkdt; else tkf.t.day = tkdt; }
+        todoSave(tkf.c);
+      }
+      tkEdit = null; refreshAfterEdit(true); return;
+    }
+    // Tag/Woche im Stundenplan ist dieselbe Einstellung wie oben (Tag | Woche | Monat | Jahr)
+    if (act === 'plan-view') { setVMode(b.dataset.v === 'day' ? 'day' : 'week'); return; }
+    if (act === 'ev-uni') { evUni = b.dataset.v === '1'; try { localStorage.setItem('tagesbuch:evuni', evUni ? '1' : '0'); } catch (er) {} renderPanel(); renderEvents(); return; }
     if (act === 'all-sub') { allSub = b.dataset.v === 'aufgaben' ? 'aufgaben' : 'termine'; try { localStorage.setItem('tagesbuch:allsub', allSub); } catch (er) {} renderPanel(); return; }
     if (act === 'ev-open') {
       // Termin aus der Wochentabelle: Tagesansicht dieses Tages im Tab „Termine“ mit geöffnetem Termin
@@ -4717,7 +4767,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         deletedTabs = deletedTabs.slice(0, 20); saveDeleted();
         undoable('Tab „' + gone.name + '“ entfernt', function () { restoreTab(gone); });
       }
-      savePrefs(); delTabAsk = false; tab = 'all'; wtab = 'all';
+      savePrefs(); delTabAsk = false; tab = firstTab(); wtab = tab;
       renderAll();
       return;
     }
@@ -4769,7 +4819,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         var ts1 = tabset();
         setTabset({ on: ts1.on.filter(function (x) { return x !== cdl; }), uni: ts1.uni });
       }
-      if (tab === cdl) { tab = 'all'; wtab = 'all'; }
+      if (tab === cdl) { tab = firstTab(); wtab = tab; }
       renderAll();
       return;
     }

@@ -87,6 +87,10 @@ Live unter https://pxscxlll.github.io/tagesbuch/ (GitHub Pages, Branch `main`).
 - **Notizen am Termin** („Neu“ und „Allgemein“) stehen in einem einklappbaren Bereich „Notizen“ (`details.evnd`), standardmäßig eingeklappt, mit Hinweis „📝 vorhanden“; offen/zu wird pro Termin gemerkt (`evNotesOpen`).
 - **Feier gilt überall beim Abhaken** (`CELE_ACTS`), auch im Termin-Fenster (`term-tk`, inkl. Fach-Feier und „vor der Frist geschafft“). Nur Ideen werden bewusst nicht gefeiert. Neue Abhak-Stellen immer in `CELE_ACTS` aufnehmen.
 - Termin-Fenster: „✎“ oben rechts neben „×“ öffnet direkt das Bearbeiten (zusätzlich zum Knopf unten).
+- **Aufgaben überall bearbeitbar:** Jede Aufgabe hat ein ✎ (`tkEditBtn`), auch im Termin-Fenster und in „Alle → Aufgaben“; Bearbeiten-Zeile `tkEditHtml` (Text, Tag bzw. Frist, Art Aufgabe/Nachbereiten/Vorbereiten), Speichern `tk-esave` (Tagesaufgaben wandern bei neuem Tag mit). Neue Aufgaben-Listen bekommen immer ✎.
+- **Tab „Alle“ ist abwählbar** (Katalog-Eintrag `all`, `normTabset` erzwingt ihn nicht mehr). Ersatz-/Start-Tab ist dann der erste vorhandene (`firstTab()`).
+- **Tab „Termine“: „Termine | Termine + Uni“** (`evUni`, `tagesbuch:evuni`, nur wenn es einen Uni-Tab gibt): mit Uni zeigt die Woche zusätzlich den Stundenplan (Termin-Fenster öffnet), die Tagesansicht eine Liste „Uni“.
+- **Tag/Woche gekoppelt:** Der Umschalter „Woche | Tag“ im Uni-Stundenplan ist dieselbe Einstellung wie oben (`uniPlanWeek()` = `vmode === 'week'`, Klick ruft `setVMode`).
 - Vor dem Löschen immer nachfragen, mit „Löschen“ und „Abbrechen“.
 - Feier beim Abhaken (Uni/Aufgaben, Physio, Alle; nicht Ideen): Häkchen-Pop, Konfetti, Spruch und „… erledigt!“, wenn eine Kategorie komplett ist. Fortschrittsbalken neben dem Kategorienamen (`progHead`), „x von y erledigt“ bleibt sichtbar. Dazu ein Ton (bei „… erledigt!“ die längere Variante).
 - Zahnrad oben rechts (`setBtn`) öffnet das Fenster „Einstellungen“ (`setCard`, über der App). Schließen mit ×, Tipp daneben oder Escape. Darin aufklappbare Bereiche (`details.set-sec`), zugeklappt mit Kurzinfo rechts:
