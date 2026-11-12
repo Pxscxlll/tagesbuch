@@ -447,6 +447,7 @@ body.tmopen #scroller { overflow-y: hidden; }
 .tmh small { color: var(--muted); }
 .tmx { border: 0; background: var(--surface-2); border-radius: 8px; width: 34px; height: 34px; font-size: 1.2rem; flex: none; }
 .tmx:hover { background: var(--hover); }
+.tmhb { display: flex; gap: 6px; flex: none; }
 .tmb { padding: 12px 16px 16px; display: flex; flex-direction: column; gap: 14px; }
 .tminfo { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .88rem; color: var(--muted); align-items: center; }
 .tmsec > .label, .tmsec > label { display: block; margin-bottom: 4px; }
@@ -721,7 +722,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 119</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 120</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2458,7 +2459,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       '<span class="allgrp-n' + (full ? ' full' : '') + '">' + done + ' von ' + total + ' erledigt</span>' + (extra || '') + '</div>';
   }
   /* ---------- Feier beim Abhaken: Häkchen-Pop, Konfetti, Spruch, „… erledigt!“ ---------- */
-  var CELE_ACTS = { 'all-toggle': 1, 'uni-ttoggle': 1, 'ctoggle': 1, 'toggle': 1, 'pj-toggle': 1 }; // Ideen bewusst nicht
+  var CELE_ACTS = { 'all-toggle': 1, 'uni-ttoggle': 1, 'ctoggle': 1, 'toggle': 1, 'pj-toggle': 1, 'term-tk': 1 }; // überall feiern (auch im Termin-Fenster), Ideen bewusst nicht
   var SAYINGS = ['Erledigt, weiter so!', 'Stark!', 'Ein Punkt weniger auf der Liste.', 'Läuft bei dir.', 'Sauber gemacht!', 'Gut gemacht!'];
   var celeEls = null, celeToastT = null, celeBigT = null, fxParts = [], fxRun = false;
   function celeInit() {
@@ -2657,13 +2658,14 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     ['id', 'tid', 'iid', 'sid', 'k', 'kind'].forEach(function (a) { if (ds[a]) sel += '[data-' + a + '="' + CSS.escape(ds[a]) + '"]'; });
     // Fach der abgehakten Aufgabe merken (Stand vor dem Abhaken), um „Fach erledigt“ zu erkennen
     var fa = null, fs0 = null;
-    if (uniActive() && (ds.act === 'toggle' || ds.act === 'uni-ttoggle')) {
-      var fat = ds.act === 'toggle' ? ((days[selected] || {}).tasks || []).filter(function (x) { return x.id === ds.id; })[0] : (todoFind(ds.tid) || {}).t;
+    if (ds.act === 'term-tk' || (uniActive() && (ds.act === 'toggle' || ds.act === 'uni-ttoggle'))) {
+      var fat = ds.act === 'term-tk' ? (ds.kind === 'task' ? ((days[ds.k] || {}).tasks || []).filter(function (x) { return x.id === ds.id; })[0] : (todoFind(ds.id) || {}).t)
+        : ds.act === 'toggle' ? ((days[selected] || {}).tasks || []).filter(function (x) { return x.id === ds.id; })[0] : (todoFind(ds.tid) || {}).t;
       fa = fat && fat.fa || null;
       if (fa) fs0 = fachState(fa);
     }
     // Frist früh geschafft: Fristaufgabe vor dem Fristtag abgehakt
-    var msg = null, utid = ds.act === 'uni-ttoggle' ? ds.tid : (ds.act === 'all-toggle' && ds.kind === 'uni' ? ds.id : null);
+    var msg = null, utid = ds.act === 'uni-ttoggle' ? ds.tid : ((ds.act === 'all-toggle' || ds.act === 'term-tk') && ds.kind === 'uni' ? ds.id : null);
     var ut = utid && (todoFind(utid) || {}).t;
     if (ut && ut.due && ut.due > todayKey) {
       var early = Math.round((parseKey(ut.due) - parseKey(todayKey)) / 864e5);
@@ -3359,7 +3361,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (!termModal) return '';
     var l = lessonById(termModal.lid); if (!l) { termModal = null; return ''; }
     var k = termModal.k, fa = lessonFach(l), col = fachColor(fa);
-    var h = '<div class="tmback" data-act="term-back"><div class="tmdlg" role="dialog" aria-modal="true" aria-labelledby="tmT" style="--fc:' + col + '"><div class="tmh"><div><b id="tmT">' + esc(lessonTitle(l)) + '</b><small>' + esc([l.a, l.r].filter(Boolean).join(' · ')) + '</small></div><button type="button" class="tmx" data-act="term-close" aria-label="Schließen">×</button></div>';
+    var h = '<div class="tmback" data-act="term-back"><div class="tmdlg" role="dialog" aria-modal="true" aria-labelledby="tmT" style="--fc:' + col + '"><div class="tmh"><div><b id="tmT">' + esc(lessonTitle(l)) + '</b><small>' + esc([l.a, l.r].filter(Boolean).join(' · ')) + '</small></div><div class="tmhb">' + (uniEditLesson === l.id ? '' : '<button type="button" class="tmx" data-act="term-edit" aria-label="Termin bearbeiten" title="Termin bearbeiten">✎</button>') + '<button type="button" class="tmx" data-act="term-close" aria-label="Schließen">×</button></div></div>';
     if (uniEditLesson === l.id) return h + '<div class="tmb"><ul class="list">' + lessonEditRow(l) + '</ul></div></div></div>';
     var st = liveStates(k, [{ f: l.f, t: l.t }])[0], t = termTasks(l, k), mine = t.linked.concat(t.due), defK = k <= todayKey ? 'nb' : 'vb';
     h += '<div class="tmb"><div class="tminfo"><span>📅 ' + esc(dayShort(k)) + '</span><span>🕐 ' + esc(l.f) + '–' + esc(l.t) + '</span>' + (l.w ? '<span>🔁 nur ' + (l.w === 'g' ? 'gerade' : 'ungerade') + ' Wochen</span>' : '') + (fa && fa !== l.s ? '<span class="ftag" style="--fc:' + col + '">' + esc(fa) + '</span>' : '') + (st && st.badge || '') + '</div>' +
