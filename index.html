@@ -722,7 +722,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
 
 <main class="app">
   <header class="top">
-    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 122</span></div>
+    <div class="brand"><h1>Planner</h1><span class="ver" id="appVer">Version 123</span></div>
     <div class="top-actions">
       <span id="status" class="status" data-kind="load" role="status">Lädt …</span>
       <span id="syncInfo" class="status" role="status" hidden></span>
@@ -2956,7 +2956,6 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         '<div><label for="pjsE">Aufwand</label><select id="pjsE"' + dis() + '>' + [0, 0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24].concat(s.est && [0, 0.5, 1, 2, 3, 4, 6, 8, 12, 16, 24].indexOf(s.est) < 0 ? [s.est] : []).sort(function (a, b) { return a - b; }).map(function (n) { return '<option value="' + n + '"' + ((s.est || 0) === n ? ' selected' : '') + '>' + (n ? pjFmtH(n) + ' Std' : 'offen') + '</option>'; }).join('') + '</select></div>' +
         '<div><label for="pjsG">Label</label><select id="pjsG"' + dis() + '><option value="">– kein Label –</option>' + tags.map(function (g) { return '<option' + (s.tg === g ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('') + '</select></div>' +
         '<div><label for="pjsDp">Wartet auf</label><select id="pjsDp"' + dis() + '><option value="">– nichts –</option>' + p.steps.filter(function (x) { return x.id !== s.id; }).map(function (x) { return '<option value="' + esc(x.id) + '"' + (s.dep === x.id ? ' selected' : '') + '>' + esc(x.x) + '</option>'; }).join('') + '</select></div>' +
-        (pjTeam(p).length ? '<div class="pj-sw"><label>Zugeordnet an</label><div class="pj-who">' + pjTeam(p).map(function (x) { return '<label class="pj-wp" style="--pc:' + pjPCol(p, x.id) + '"><input type="checkbox" data-pw="' + esc(x.id) + '"' + ((s.who || []).indexOf(x.id) >= 0 ? ' checked' : '') + dis() + '><span class="pj-av">' + esc(x.n.charAt(0).toUpperCase()) + '</span>' + esc(x.n) + '</label>'; }).join('') + '</div></div>' : '') +
         '<div class="pj-sw"><label for="pjsN">Notiz</label><textarea id="pjsN" maxlength="500" placeholder="z. B. Ergebnis, offene Fragen …"' + dis() + '>' + esc(s.n || '') + '</textarea></div>' +
         '<div class="pj-sw"><label for="pjsL">Link (Datei, Quelle, Mitschrift)</label><input id="pjsL" type="url" maxlength="300" placeholder="https://…" value="' + esc(s.ln || '') + '"' + dis() + '></div>' +
         '</div>' +
@@ -2975,7 +2974,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     if (s.n) chips += '<span class="pj-c" title="' + esc(s.n) + '">📝</span>';
     if (s.ln) chips += '<a class="pj-c" href="' + esc(s.ln) + '" target="_blank" rel="noopener" aria-label="Link öffnen">🔗 Link</a>';
     return '<li class="' + (s.done ? 'done' : '') + (nx === s ? ' cur' : '') + (bl ? ' blk' : '') + '"><input type="checkbox" id="' + cid + '" data-act="pj-toggle"' + at + (s.done ? ' checked' : '') + (bl ? ' disabled title="Wartet auf eine andere Aufgabe"' : '') + dis() + '>' +
-      '<label for="' + cid + '" class="item-main">' + esc(s.x) + '<small' + (late ? ' class="late"' : '') + '>' + (s.d ? pjFmt(s.d) : 'ohne Datum') + '</small>' + (chips ? '<span class="pj-cs">' + chips + '</span>' : '') + '</label>' + pjAvs(p, s.who) + tail + '</li>';
+      '<label for="' + cid + '" class="item-main">' + esc(s.x) + '<small' + (late ? ' class="late"' : '') + '>' + (s.d ? pjFmt(s.d) : 'ohne Datum') + '</small>' + (chips ? '<span class="pj-cs">' + chips + '</span>' : '') + '</label>' + tail + '</li>';
   }
   // Projekt-Aufgaben erscheinen erst 10 Tage vor ihrer Frist in der Uni-„Liste“ (überfällige bleiben, bis sie erledigt sind)
   // Zeilen {d: Frist, done, h: Zeilen-HTML}, die sich in die normale Aufgabenliste einsortieren (kein eigener Bereich)
@@ -3052,7 +3051,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       var l = p.steps.filter(function (s) { return pjStatus(s) === k && (!fl || (s.who || []).indexOf(fl) >= 0); });
       return '<div class="pj-kcol"><h4>' + nm[k] + ' (' + l.length + ')</h4>' + l.map(function (s) {
         var m = pjMsOf(p, s), bl = pjBlocked(p, s), at = ' data-pid="' + esc(p.id) + '" data-sid="' + esc(s.id) + '"';
-        return '<div class="pj-kc"><div>' + esc(s.x) + '</div><small>' + esc(m ? m.t : '') + (s.d ? ' · ' + pjFmt(s.d) : '') + '</small><div class="pj-cs">' + (s.pr === 1 ? '<span class="pj-c p1">🚩</span>' : '') + (bl ? '<span class="pj-c blk">🔗 wartet</span>' : '') + pjAvs(p, s.who) + '</div>' +
+        return '<div class="pj-kc"><div>' + esc(s.x) + '</div><small>' + esc(m ? m.t : '') + (s.d ? ' · ' + pjFmt(s.d) : '') + '</small><div class="pj-cs">' + (s.pr === 1 ? '<span class="pj-c p1">🚩</span>' : '') + (bl ? '<span class="pj-c blk">🔗 wartet</span>' : '') + '</div>' +
           '<div class="pj-km"><button type="button" class="pj-tog"' + (ki === 0 ? ' disabled style="opacity:.3"' : ' data-act="pj-kmv" data-dir="-1"' + at) + '>‹ zurück</button><button type="button" class="pj-tog"' + (ki === 2 || (bl && ki === 1) ? ' disabled style="opacity:.3"' : ' data-act="pj-kmv" data-dir="1"' + at) + '>weiter ›</button></div></div>';
       }).join('') + '</div>';
     }).join('') + '</div>';
@@ -3074,7 +3073,6 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
     p.ms.forEach(function (m) { var t = pjMsSteps(p, m.id); l.push((pjMsDone(p, m) ? '✓ ' : '• ') + m.t + (m.d ? ' (bis ' + pjFmt(m.d) + ')' : '') + ': ' + t.filter(function (s) { return s.done; }).length + '/' + t.length); });
     var late = p.steps.filter(function (s) { return !s.done && s.d && s.d < todayKey; });
     if (late.length) l.push('', 'Überfällig: ' + late.map(function (s) { return s.x; }).join(', '));
-    if (pjTeam(p).length) { l.push('', 'Wer macht was:'); pjTeam(p).forEach(function (x) { var t = p.steps.filter(function (s) { return (s.who || []).indexOf(x.id) >= 0; }); l.push('• ' + x.n + ': ' + t.filter(function (s) { return s.done; }).length + '/' + t.length + ' erledigt'); }); }
     return l.join('\n');
   }
   function renderProjects() {
@@ -3093,7 +3091,7 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
         (fold ? '' : nx ? '<div class="pj-next"><span aria-hidden="true">👉</span><span class="x">' + esc(nx.x) + '<small>Nächster Schritt' + (nx.d ? ' · bis ' + pjFmt(nx.d) : '') + '</small></span>' + (nx.d ? pjChip(nx.d) : '') + '</div>'
           : '<div class="pj-next"><span aria-hidden="true">' + (n ? '🎉' : '📝') + '</span><span class="x">' + (n ? 'Alle Aufgaben erledigt!' : p.ms.length ? 'Noch keine Aufgaben. Klapp einen Meilenstein auf und leg welche an.' : 'Noch keine Meilensteine. Leg unten den ersten an.') + '</span></div>') +
         '<button type="button" class="pj-tog" data-act="pj-open" data-pid="' + esc(p.id) + '" aria-expanded="' + open + '"' + (fold ? ' hidden' : '') + '>' + (open ? 'Meilensteine ausblenden ▲' : 'Alle Meilensteine ▼') + '</button>' +
-        (fold ? '' : pjTeamHtml(p) + pjViewsHtml(p)) +
+        (fold ? '' : pjViewsHtml(p)) +
         (!fold && (pjView[p.id] || 'liste') === 'kanban' ? pjKanbanHtml(p) : '') +
         (!fold && (pjView[p.id] || 'liste') === 'zeit' ? pjGanttHtml(p) : '') +
         (!fold && pjReport[p.id] ? '<pre class="pj-rep">' + esc(pjReportText(p)) + '</pre><button type="button" class="btn ghost" data-act="pj-copy" data-pid="' + esc(p.id) + '">Text kopieren</button>' : '') +
@@ -3180,8 +3178,6 @@ body:has(#gNote:not([hidden])) #scroller { padding-bottom: 110px; }
       var nes = parseFloat(v('pjsE')); if (nes > 0) fs.est = nes; else delete fs.est;
       if (v('pjsG')) fs.tg = v('pjsG').slice(0, 24); else delete fs.tg;
       var ndp = v('pjsDp'); if (ndp && ndp !== fs.id && f.p.steps.some(function (x) { return x.id === ndp; })) fs.dep = ndp; else delete fs.dep;
-      var nwh = [].slice.call(elPanel.querySelectorAll('input[data-pw]')).filter(function (i) { return i.checked; }).map(function (i) { return i.dataset.pw; });
-      if (nwh.length) fs.who = nwh; else delete fs.who;
       if (v('pjsN')) fs.n = v('pjsN').slice(0, 500); else delete fs.n;
       var nln = v('pjsL'); if (/^https?:\/\//i.test(nln)) fs.ln = nln.slice(0, 300); else delete fs.ln;
       pjSort(f.p); pjStepEdit = null; saveUni(); renderCal();
